@@ -18,3 +18,10 @@
 - Scope doc: https://claude.ai/artifact/CUWCGK6Nh1tXp1aYGMTBvX
 - Mockups: https://claude.ai/artifact/5bTwXtaGQm38bWGrkZp5e7
 - Monday archive (Drive folder): https://drive.google.com/drive/folders/1F5z84qofu7hiUty-GcnkXUimFFKYRDUW
+
+## Google sign-in (Student Journey app)
+
+- Google Cloud project: "NSJW Student Journey" (`exalted-altar-513704-g5`), org northstarjazzworkshops.com, audience Internal.
+- OAuth web client "Student Journey web": `1003602730249-2nnt3n1isqov67aiiv2rppb2o76ju50v.apps.googleusercontent.com`
+  (public; also in Script Properties as GOOGLE_CLIENT_ID). JavaScript origins: https://northstarjazz.github.io, http://localhost:8000.
+- Apps Script file holding backend/Api.gs is named "Untitled.gs" in the editor.

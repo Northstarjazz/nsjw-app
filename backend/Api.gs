@@ -84,14 +84,26 @@ function mms_(method, path, body) {
   throw new Error('MMS busy, try again');
 }
 
-/** Pull every student with tags into the hidden roster tab. Runs every 15 minutes. */
+/**
+ * Pull every student with tags into the hidden roster tab. Runs every 15 minutes.
+ * MMS does not return tags on the student (StudentGroups is always null), so
+ * membership is read per tag with POST search/students {StudentGroupIDs:[id]}.
+ */
 function syncRoster() {
-  var rows = mms_('get', 'students?IncludeStudentGroups=true');
+  var rows = mms_('get', 'students');
+  var tagsBySid = {};
+  mms_('get', 'studentgroups').forEach(function (g) {
+    if (!g.StudentCount) return;
+    Utilities.sleep(600); // MMS returns 429 on bursts
+    mms_('post', 'search/students?offset=0&limit=1000', { StudentGroupIDs: [g.ID] }).forEach(function (s) {
+      (tagsBySid[s.ID] = tagsBySid[s.ID] || []).push(g.Name);
+    });
+  });
   var out = [['ID', 'Name', 'First', 'Status', 'Email', 'Phone', 'Started', 'Last event',
-    'Next event', 'Programs', 'Instruments', 'Other tags', 'Note', 'Synced']];
+    'Next event', 'Programs', 'Instruments', 'Other tags', 'Note', 'Synced', 'Skill level']];
   var now = new Date();
   rows.forEach(function (s) {
-    var tags = (s.StudentGroups || []).map(function (g) { return g.Name; });
+    var tags = tagsBySid[s.ID] || [];
     var inst = tags.filter(function (t) { return /^Plays: /.test(t); })
       .map(function (t) { return t.replace('Plays: ', ''); });
     var prog = tags.filter(function (t) { return isProgramTag_(t); });
@@ -99,7 +111,7 @@ function syncRoster() {
     out.push([s.ID, s.FullName || '', s.FirstName || '', s.Status || '',
       (s.Email && s.Email.EmailAddress) || '', (s.Telephone && s.Telephone.TelephoneNumber) || '',
       day_(s.DateStarted), day_(s.LastEventDate), day_(s.NextEventDate),
-      prog.join('; '), inst.join('; '), other.join('; '), String(s.Note || '').slice(0, 2000), now]);
+      prog.join('; '), inst.join('; '), other.join('; '), String(s.Note || '').slice(0, 2000), now, s.SkillLevel || '']);
   });
   var sh = tab_(ROSTER_TAB);
   sh.clearContents();
@@ -110,7 +122,8 @@ function syncRoster() {
 
 function isProgramTag_(t) {
   return /^Group \d+/.test(t) || /Ensemble/.test(t) || / - (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Spring|Summer|Fall|Winter)/.test(t) ||
-    /^(Foundations|JSP|Jam Session Skills|Jazz Guitar|Jazz Singer|Jazz Voice|Improv Lab|Open Spaces|Guitar|Vocal Class|Private Lessons - Active)/.test(t);
+    /^(Foundations|JSP|Jam Session Skills|Jazz Guitar|Jazz Singer|Jazz Voice|Improv Lab|Open Spaces|Guitar|Vocal Class|Private Lessons - Active|Workshop)/.test(t) ||
+    / (Course|Class|Clinic|Workshop)$/.test(t);
 }
 
 function installRosterTrigger() {
@@ -194,7 +207,7 @@ function getPerson_(sid, email) {
 
   return {
     id: sid, name: r ? r.Name : email, first: r ? r.First : '', status: r ? r.Status : 'Not in MMS',
-    email: email, phone: r ? r.Phone : '', started: r ? r.Started : '',
+    email: email, phone: r ? r.Phone : '', started: r ? r.Started : '', skill: r ? r['Skill level'] : '',
     lastEvent: r ? r['Last event'] : '', nextEvent: r ? r['Next event'] : '',
     programs: r ? split_(r.Programs) : [], instruments: r ? split_(r.Instruments) : [],
     tags: r ? split_(r['Other tags']) : [],

@@ -27,7 +27,7 @@ Read Nov 3, 2026 through the read-only MMS connection on Ben's Mac.
 - **Instrument:** `Plays: Bass`, `Plays: Drums`, `Plays: Sax`, `Plays: Piano/Keys`, `Plays: Voice` and so on (13).
 - **Role or state:** `Ensemble Member`, `Former Ensemble Member`, `Private Lessons - Active`, `Scholarship Rate`, teacher tags.
 
-Tag membership must be read with `POST /v1/search/students` and `StudentGroupIDs`; the `studentgroups` endpoint returns `StudentIDs: null` and must not be trusted (from the planner sync notes).
+Tag membership must be read with `POST /v1/search/students` and `{"StudentGroupIDs": [id]}`, one tag at a time. `GET /v1/students/?IncludeStudentGroups=true` returns `StudentGroups: null` (tested Nov 3), and `studentgroups` returns `StudentIDs: null`; only `StudentCount` there is reliable. `SkillLevel` on the student is the belt level.
 
 ## Not in MMS, so it lives in the Sequencer Sheet
 
