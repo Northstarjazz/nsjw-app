@@ -220,6 +220,12 @@ a { color: var(--accent); }
 
 @media (max-width: 999px) { .tabbar.detail { display: none; } }
 
+.pstage { margin: 2px 0 14px; }
+.pstage .stagechip { padding-top: 22px; }
+.pstage .stagechip span { font-size: 11px; margin-top: 0; letter-spacing: .03em; }
+.pstage-h { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.pstage .stagechip.busy { opacity: .5; }
+
 /* ---------- Wide screens: sidebar nav, roomier content, two-column lists ---------- */
 @media (min-width: 1000px) {
   .screen { overflow-anchor: none; max-width: none; display: grid; grid-template-columns: 232px minmax(0, 1fr); align-items: start; }

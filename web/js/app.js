@@ -172,6 +172,18 @@
     }).catch(function (e) { main.innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
   }
 
+  // Lead stage, one tap to change, right under the name. Hidden once they are an active member.
+  function stageStrip(p) {
+    if (!p.id || p.status === 'Active') return '';
+    var cur = ((p.tags || []).filter(function (t) { return /^Stage: /.test(t); })[0] || '').slice(7) ||
+      (p.status === 'Inactive' ? 'Closed' : 'New Lead');
+    return '<div class="pstage-h">Stage · tap to change</div><div class="stagebar pstage">' +
+      LEAD.stages.map(function (s) {
+        return '<button type="button" class="stagechip' + (s === cur ? ' on' : '') + '" data-stage="' + esc(s) + '"' +
+          (s === cur ? ' aria-pressed="true"' : '') + '><span>' + esc(s === 'Deposit Submitted' ? 'Deposit' : s) + '</span></button>';
+      }).join('') + '</div>';
+  }
+
   function renderPerson(p, tab) {
     var main = $('#person');
     var subBits = [p.instruments.join(', '), p.skill ? 'Skill ' + p.skill : '', p.started ? 'Since ' + dayOnly(p.started) : ''].filter(Boolean);
@@ -200,6 +212,7 @@
       '<div class="hero"><div class="avatar">' + esc(initials(p.name)) + '</div><div><h2>' + esc(p.name) + '</h2>' +
       '<div class="sub">' + esc(subBits.join(' · ')) + '</div></div></div>' +
       '<div class="pills">' + pills.join('') + '</div>' +
+      stageStrip(p) +
       nextHtml +
       '<div class="actions">' +
         '<a class="btn" href="' + esc(mail) + '"' + (mail ? '' : ' aria-disabled="true"') + '>Email</a>' +
@@ -663,8 +676,9 @@
         current.tags = on ? current.tags.concat(pre + value) : current.tags.filter(function (t) { return t !== pre + value; });
       }
       leadsState.rows = null; groupsState.rows = null;
-      toast('Saved to MMS');
-      renderPerson(current, 'details');
+      toast(field === 'stage' ? 'Stage set to ' + value : 'Saved to MMS');
+      var on = document.querySelector('#person .tab.on');
+      renderPerson(current, on ? on.dataset.tab : 'timeline');
     }).catch(function (err) {
       toast(err.message);
       if (btn) { btn.disabled = false; btn.classList.remove('busy'); }
@@ -672,6 +686,8 @@
   }
 
   $('#person').addEventListener('click', function (e) {
+    var sc = e.target.closest('[data-stage]');
+    if (sc) { if (!sc.classList.contains('on')) leadTag('stage', sc.dataset.stage, true, sc); return; }
     var b = e.target.closest('[data-lt]');
     if (b) { leadTag(b.dataset.lt, b.dataset.v, !b.classList.contains('on'), b); return; }
     if (e.target.closest('[data-next-done]') && current) {
