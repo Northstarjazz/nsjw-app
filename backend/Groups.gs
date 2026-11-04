@@ -129,10 +129,17 @@ function getGroup_(name) {
   rows.forEach(function (r) { inGroup[r.ID] = true; });
   var soon = new Date(Date.now() - 180 * 864e5);
   s.matches = roster.filter(function (r) {
-    if (inGroup[r.ID] || !need[seat_(split_(r.Instruments)[0])]) return false;
+    if (inGroup[r.ID]) return false;
+    var inst = split_(r.Instruments);
+    if (!inst.length) inst = formInstruments_(signup_(r.Note).instrument);
+    if (!inst.some(function (i) { return need[seat_(i)]; })) return false;
     if (r.Status === 'Waiting' || r.Status === 'Trial') return true;
     return r.Status === 'Lead' && r.Started && new Date(r.Started) > soon;
-  }).map(person_).sort(function (a, b) {
+  }).map(function (r) {
+    var p = person_(r);
+    if (!p.instruments) p.instruments = formInstruments_(signup_(r.Note).instrument).join(', ') + ' (from form)';
+    return p;
+  }).sort(function (a, b) {
     var rank = { Waiting: 0, Trial: 1, Lead: 2 };
     return (rank[a.status] - rank[b.status]) || String(b.started).localeCompare(String(a.started));
   }).slice(0, 25);

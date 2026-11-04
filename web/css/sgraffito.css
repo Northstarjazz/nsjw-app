@@ -198,3 +198,12 @@ a { color: var(--accent); }
 .next { align-items: center; }
 .next-side { display: flex; gap: 8px; align-items: center; flex: none; }
 .next-side .btn { height: 36px; padding: 0 12px; font-size: 13px; }
+
+/* ---------- Today ---------- */
+#today .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 6px; }
+#today .stat .n { font-size: 28px; }
+#today .stat .l { font-size: 9.5px; letter-spacing: .1em; }
+.sec-h { display: flex; justify-content: space-between; align-items: baseline; margin: 22px 0 8px; gap: 12px; }
+.sec-h h3 { margin: 0; font: 700 16px var(--font); }
+.sec-h a { font-size: 13px; font-weight: 700; text-decoration: none; }
+.small-empty { padding: 14px 4px !important; text-align: left !important; font-size: 13.5px; }

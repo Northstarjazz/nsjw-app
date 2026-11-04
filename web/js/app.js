@@ -447,6 +447,54 @@
       .then(function () { btn.disabled = false; btn.textContent = 'Save'; });
   });
 
+  // ---------- Today ----------
+  var todayState = { data: null, at: 0 };
+  function loadToday(force) {
+    var now = new Date();
+    $('#today-date').textContent = now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+    var h = now.getHours();
+    $('#today-hello').textContent = (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + (me && me.given_name ? ', ' + me.given_name : '');
+    if (todayState.data && !force && Date.now() - todayState.at < 120000) { renderToday(); return; }
+    if (!todayState.data) $('#today').innerHTML = '<div class="loading">Loading</div>';
+    api('today').then(function (d) { todayState.data = d; todayState.at = Date.now(); renderToday(); })
+      .catch(function (e) { $('#today').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+  }
+  function todayRow(l, line) {
+    var bits = [l.instruments.join(', '), l.interests.join(', ')].filter(Boolean).join(' · ');
+    return '<a class="card lead-row" href="#p/' + encodeURIComponent(l.id) + '"><span class="lz ' + (l.next ? urgency(l) : 'none') + '"></span>' +
+      '<div class="who"><div class="line1"><span class="name">' + esc(l.name) + '</span>' + statusPill(l.stage) + '</div>' +
+      (bits ? '<div class="sub">' + esc(bits) + '</div>' : '') + line + '</div></a>';
+  }
+  function section(title, count, link, body) {
+    return '<div class="sec-h"><h3>' + esc(title) + (count ? ' · ' + count : '') + '</h3>' + (link ? '<a href="' + link + '">All</a>' : '') + '</div>' + body;
+  }
+  function renderToday() {
+    var d = todayState.data, s = d.stats, html = '';
+    html += '<div class="stats">' +
+      '<div class="stat"><div class="n">' + s.active + '</div><div class="l">Active</div></div>' +
+      '<div class="stat"><div class="n">+' + s.joined + '</div><div class="l">Joined this month</div></div>' +
+      '<div class="stat"><div class="n">' + s.leads + '</div><div class="l">Open leads</div></div>' +
+      '<div class="stat"><div class="n">' + s.seats + '</div><div class="l">Open seats</div></div></div>';
+    html += section('Follow up today', d.followCount, '#leads', d.follow.length ? '<div class="list">' + d.follow.map(function (l) {
+      return todayRow(l, '<div class="nx ' + urgency(l) + '">' + esc(l.next.text) + ' · ' + (urgency(l) === 'overdue' ? 'was due ' : 'due ') + esc(dayOnly(l.next.due)) + (l.next.owner ? ' · ' + esc(l.next.owner) : '') + '</div>');
+    }).join('') + '</div>' : '<div class="empty small-empty">Nothing due. Set next steps on leads and they show up here.</div>');
+    html += section('New sign-ups, not contacted yet', d.freshCount, '', d.fresh.length ? '<div class="list">' + d.fresh.map(function (l) {
+      return todayRow(l, '<div class="meta">Signed up ' + esc(when(l.started)) + (l.source ? ' · via ' + esc(l.source) : '') + '</div>');
+    }).join('') + '</div>' : '<div class="empty small-empty">No new sign-ups waiting.</div>');
+    if (d.deposits.length) {
+      html += section('Deposits to place', d.deposits.length, '', '<div class="list">' + d.deposits.map(function (l) {
+        return todayRow(l, '<div class="meta">Paid a deposit. Find them a group.</div>');
+      }).join('') + '</div>');
+    }
+    html += section('Open seats with people who could fill them', '', '#groups', d.seats.length ? '<div class="list">' + d.seats.map(function (g) {
+      return '<a class="card group-row" href="#g/' + encodeURIComponent(g.name) + '"><div class="line1"><span class="name">' + esc(g.name) + '</span>' +
+        '<span class="count">' + g.matches + (g.matches === 1 ? ' match' : ' matches') + '</span></div>' +
+        '<div class="sub">' + esc([g.schedule, g.teacher].filter(Boolean).join(' · ')) + '</div>' +
+        '<div class="pills"><span class="pill open">Open: ' + esc(openText(g.open)) + '</span></div></a>';
+    }).join('') + '</div>' : '<div class="empty small-empty">Every group is full.</div>');
+    $('#today').innerHTML = html;
+  }
+
   // ---------- Leads ----------
   var LEAD = {
     stages: ['New Lead', 'Qualified', 'Deposit Submitted', 'Nurture', 'Closed'],
@@ -745,11 +793,12 @@
   function route() {
     if (!token) { nav(null); show('v-signin'); return; }
     var h = location.hash.replace(/^#/, '');
-    if (h.indexOf('p/') === 0) { nav(null); $('#v-person .back').href = backTo; $('#v-person .back').innerHTML = '&#8249; ' + (backTo === '#lessons' ? 'Lessons' : backTo === '#groups' ? 'Groups' : backTo === '#leads' ? 'Leads' : backTo.indexOf('#g/') === 0 ? decodeURIComponent(backTo.slice(3)) : 'People'); show('v-person'); loadPerson(decodeURIComponent(h.slice(2))); return; }
+    if (h.indexOf('p/') === 0) { nav(null); $('#v-person .back').href = backTo; $('#v-person .back').innerHTML = '&#8249; ' + (backTo === '#lessons' ? 'Lessons' : backTo === '#groups' ? 'Groups' : backTo === '#leads' ? 'Leads' : backTo === '#today' ? 'Today' : backTo.indexOf('#g/') === 0 ? decodeURIComponent(backTo.slice(3)) : 'People'); show('v-person'); loadPerson(decodeURIComponent(h.slice(2))); return; }
     if (h === 'lessons') { backTo = '#lessons'; nav('lessons'); show('v-lessons'); loadLessons(); return; }
     if (h === 'leads') { backTo = '#leads'; nav('leads'); show('v-leads'); loadLeads(); return; }
     if (h === 'groups') { backTo = '#groups'; nav('groups'); show('v-groups'); loadGroups(); return; }
     if (h.indexOf('g/') === 0) { backTo = location.hash; nav(null); show('v-group'); loadGroup(decodeURIComponent(h.slice(2))); return; }
+    if (h === '' || h === 'today') { backTo = '#today'; nav('today'); show('v-today'); loadToday(); return; }
     backTo = '#people'; nav('people');
     show('v-people');
     if (!$('#people-list').children.length) loadPeople();
