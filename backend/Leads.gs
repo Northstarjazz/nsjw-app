@@ -11,7 +11,15 @@
  * difference), and reads back. If the count does not match, it stops.
  */
 
-var LEAD_STAGES = ['New Lead', 'Qualified', 'Deposit Submitted', 'Nurture', 'Closed'];
+// The board: First Contact, Qualified, Committed (ensemble deposit,
+// lesson package, or class registration form), then Enrolled (MMS status Active).
+// Nurture and Closed (lost) sit off the board.
+var LEAD_STAGES = ['First Contact', 'Qualified', 'Committed', 'Nurture', 'Closed'];
+// Tags written before Nov 4, 2026 used these names; read them as the new stages.
+var LEGACY_STAGES = { 'New Lead': 'First Contact', 'Deposit Submitted': 'Committed', 'Ready to Join': 'Committed' };
+// Days in a stage with no activity before a card turns red on the board.
+var STALE_DAYS = { 'First Contact': 2, 'Qualified': 7, 'Committed': 7 };
+var BOARD_DAYS = 60;
 var LEAD_INTERESTS = ['Ensemble', 'Private lessons', 'Foundations', 'Classes', 'Clinics', 'Voice'];
 var LEAD_NIGHTS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 var LEAD_INSTRUMENTS = ['Sax', 'Trumpet', 'Trombone', 'Flute', 'Piano/Keys', 'Guitar', 'Bass', 'Drums', 'Voice', 'Violin', 'French Horn', 'Harmonica'];
@@ -40,16 +48,44 @@ function signup_(note) {
 
 function stageOf_(r, tags) {
   var t = tags.filter(function (x) { return /^Stage: /.test(x); }).map(function (x) { return x.slice(7); })[0];
-  if (t) return t;
+  if (t) return LEGACY_STAGES[t] || t;
   if (r.Status === 'Active') return 'Enrolled';
   if (r.Status === 'Inactive') return 'Closed';
   // An "Ensemble Deposit" form on file means they paid, even if nobody tagged it yet.
-  if (/\(Ensemble Deposit\)/.test(String(r.Note || ''))) return 'Deposit Submitted';
-  return 'New Lead';
+  if (/\(Ensemble Deposit\)/.test(String(r.Note || ''))) return 'Committed';
+  return 'First Contact';
 }
 
 function listLeads_() {
-  return { options: leadOptions_(), leads: leadRows_() };
+  return { options: leadOptions_(), leads: leadRows_(), enrolled: recentEnrolled_(), stale: STALE_DAYS, boardDays: BOARD_DAYS };
+}
+
+/** Which program a lead is heading for, for the board: Ensemble, Lessons or Class. */
+function track_(interests) {
+  if (interests.indexOf('Ensemble') >= 0) return 'Ensemble';
+  if (interests.indexOf('Private lessons') >= 0) return 'Lessons';
+  if (interests.some(function (i) { return i === 'Foundations' || i === 'Classes' || i === 'Clinics'; })) return 'Class';
+  if (interests.indexOf('Voice') >= 0) return 'Ensemble';
+  return '';
+}
+
+/** People who became students in the last 30 days, for the Enrolled column. */
+function recentEnrolled_() {
+  var since = new Date(Date.now() - 30 * 864e5);
+  var when = {};
+  sheetObjects_(NOTES_TAB).forEach(function (n) {
+    if (!/^(Placed in |Joined: )/.test(String(n.Text))) return;
+    var ts = n.Timestamp instanceof Date ? n.Timestamp : new Date(n.Timestamp);
+    if (ts >= since && (!when[n['MMS ID']] || ts > when[n['MMS ID']])) when[n['MMS ID']] = ts;
+  });
+  return rosterRows_().filter(function (r) {
+    if (r.Status !== 'Active') return false;
+    var st = r.Started instanceof Date ? r.Started : (r.Started ? new Date(r.Started) : null);
+    return when[r.ID] || (st && st >= since);
+  }).map(function (r) {
+    var at = when[r.ID] || r.Started;
+    return { id: r.ID, name: r.Name, programs: split_(r.Programs), instruments: split_(r.Instruments), at: gday_(at) };
+  }).sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
 }
 
 function leadRows_() {
@@ -62,6 +98,7 @@ function leadRows_() {
     var ts = n.Timestamp instanceof Date ? n.Timestamp : new Date(n.Timestamp);
     if (!o.last || ts > o.last) o.last = ts;
     if (n.Kind === 'next_step') o.next = n.Done ? null : n;
+    if (n.Kind === 'change' && /^Stage set to /.test(String(n.Text)) && (!o.stageAt || ts > o.stageAt)) o.stageAt = ts;
   });
   return rosterRows_().filter(function (r) {
     var tags = split_(r['Other tags']);
@@ -83,6 +120,8 @@ function leadRows_() {
       formInterests: formInterests_(s.interested),
       formInstruments: formInstruments_(s.instrument),
       lastContact: n.last ? gday_(n.last) : '',
+      stageAt: n.stageAt ? gday_(n.stageAt) : '',
+      track: track_(tags.filter(function (t) { return /^Interest: /.test(t); }).map(function (t) { return t.slice(10); }).concat(formInterests_(s.interested))),
       notes: n.count || 0,
       next: n.next ? { text: n.next.Text, due: gday_(n.next.Due), owner: n.next.Owner } : null
     };
@@ -203,8 +242,9 @@ function setLeadTag_(who, p) {
       current.forEach(function (t) {
         if (t !== 'Stage: ' + p.value) { tagWrite_(sid, t, false); rosterTag_(sid, t, false); }
       });
-      if (p.value !== 'New Lead') { tagWrite_(sid, 'Stage: ' + p.value, true); rosterTag_(sid, 'Stage: ' + p.value, true); }
-      changes.push('Stage set to ' + p.value);
+      if (p.value !== 'First Contact') { tagWrite_(sid, 'Stage: ' + p.value, true); rosterTag_(sid, 'Stage: ' + p.value, true); }
+      var why = String(p.reason || '').trim().slice(0, 300);
+      changes.push('Stage set to ' + p.value + (why ? ' (' + why + ')' : ''));
     } else {
       var name = map[0] + p.value, on = !!p.on;
       tagWrite_(sid, name, on);

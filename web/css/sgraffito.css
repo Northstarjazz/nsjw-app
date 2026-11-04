@@ -234,6 +234,37 @@ a { color: var(--accent); }
 .pz .n { font: 400 28px/1.1 var(--display); margin-top: 4px; }
 .pz .s { font-size: 13px; color: var(--muted); margin-top: 2px; }
 
+/* Leads board */
+.modebar { margin: 2px 0 12px; }
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: 84%; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory;
+  margin: 0 -16px; padding: 4px 16px 12px; -webkit-overflow-scrolling: touch; }
+.kcol { scroll-snap-align: start; background: rgba(30,27,24,.05); border-radius: 6px; padding: 10px 8px 8px; min-height: 240px; display: flex; flex-direction: column; }
+.kcol.over { background: rgba(201,161,74,.22); outline: 2px dashed var(--gold-deep); outline-offset: -2px; }
+.kh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; padding: 0 4px 8px; border-bottom: 2px solid var(--ink); margin-bottom: 8px; }
+.kh .kt { font: 400 22px/1.1 var(--display); }
+.kh .kn { font-size: 13px; font-weight: 700; color: var(--muted); }
+.kh .kn em { font-style: normal; color: var(--clay-deep, #B5502E); }
+.kh .kx { flex-basis: 100%; font-size: 11px; color: var(--muted); }
+.kcol[data-col="Enrolled"] .kh { border-bottom-color: var(--gold-deep); }
+.kbody { display: flex; flex-direction: column; gap: 8px; }
+.kcard { display: block; padding: 10px 12px; cursor: pointer; color: var(--ink); text-decoration: none; border-left: 4px solid transparent; }
+.kcard .line1 { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.kcard .name { font-weight: 700; }
+.kcard .sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.kcard .nx { font-size: 13px; margin-top: 6px; }
+.kcard .meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.kcard.stale { border-left-color: #B5402A; background: #F6E3DA; }
+.kcard.stale .meta { color: #9C3522; font-weight: 700; }
+.kcard.dragging { opacity: .45; }
+.kcard.done { cursor: pointer; opacity: .9; }
+.kempty { font-size: 13px; color: var(--muted); padding: 14px 6px; text-align: center; }
+.board-foot { margin: 4px 0 28px; line-height: 1.6; }
+.linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--ink); text-decoration: underline; cursor: pointer; }
+.movegrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.movegrid .btn.on { background: var(--ink); color: var(--lime, #F3EBDD); opacity: .7; }
+#move-sheet .row.end { flex-wrap: wrap; }
+#move-open { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; margin-right: auto; }
+
 /* ---------- Wide screens: sidebar nav, roomier content, two-column lists ---------- */
 @media (min-width: 1000px) {
   .screen { overflow-anchor: none; max-width: none; display: grid; grid-template-columns: 232px minmax(0, 1fr); align-items: start; }
@@ -267,6 +298,8 @@ a { color: var(--accent); }
   #person { max-width: 860px; }
 
   .pulse { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .board { grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: visible; margin: 0; padding: 4px 0 12px; }
+  .kcol { min-height: 60vh; }
   .sheet { align-items: center; }
   .sheet-body { max-width: 560px; border-radius: 6px; }
 }

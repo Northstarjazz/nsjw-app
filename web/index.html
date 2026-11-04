@@ -8,9 +8,9 @@
 <title>North Star</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Della+Respira&family=Ysabeau+Office:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/nsjw.css?v=17">
-<link rel="stylesheet" href="css/app.css?v=17">
-<link rel="stylesheet" href="css/sgraffito.css?v=17">
+<link rel="stylesheet" href="css/nsjw.css?v=18">
+<link rel="stylesheet" href="css/app.css?v=18">
+<link rel="stylesheet" href="css/sgraffito.css?v=18">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -88,21 +88,31 @@
       <h1>Leads</h1>
     </header>
     <main>
-      <div class="stagebar" id="stagebar"></div>
-      <input id="lq" class="search" type="search" placeholder="Search name, email, instrument" autocomplete="off">
-      <div class="chips" id="lead-views">
-        <button class="chip on" data-view="action">Needs action</button>
-        <button class="chip" data-view="new">New this month</button>
-        <button class="chip" data-view="nonext">No next step</button>
-        <button class="chip" data-view="all">All</button>
+      <div class="tabs modebar" id="lead-mode" role="tablist">
+        <button type="button" class="tab" data-mode="board">Board</button>
+        <button type="button" class="tab" data-mode="list">List</button>
       </div>
+      <input id="lq" class="search" type="search" placeholder="Search name, email, instrument" autocomplete="off">
       <div class="filterline">
         <button class="btn" type="button" id="lead-filter-btn">Filter</button>
         <div class="chips" id="lead-active"></div>
       </div>
-      <div class="groups-sum muted" id="leads-sum"></div>
-      <div id="lead-list" class="list"></div>
-      <button class="btn" type="button" id="lead-more" hidden style="width:100%;margin-bottom:24px">Show more</button>
+      <div id="lead-board-wrap">
+        <div class="board" id="lead-board"></div>
+        <div class="board-foot muted small" id="board-foot"></div>
+      </div>
+      <div id="lead-list-wrap">
+        <div class="stagebar" id="stagebar"></div>
+        <div class="chips" id="lead-views">
+          <button class="chip on" data-view="action">Needs action</button>
+          <button class="chip" data-view="new">New this month</button>
+          <button class="chip" data-view="nonext">No next step</button>
+          <button class="chip" data-view="all">All</button>
+        </div>
+        <div class="groups-sum muted" id="leads-sum"></div>
+        <div id="lead-list" class="list"></div>
+        <button class="btn" type="button" id="lead-more" hidden style="width:100%;margin-bottom:24px">Show more</button>
+      </div>
     </main>
   </section>
 
@@ -250,6 +260,24 @@
   </div>
 </div>
 
+<div id="move-sheet" class="sheet" hidden>
+  <div class="sheet-body scroll">
+    <div class="sheet-title" id="move-title">Move</div>
+    <div class="muted small" id="move-sub"></div>
+    <div class="movegrid" id="move-opts"></div>
+    <div id="lost-box" hidden>
+      <div class="flabel">Why didn't it work out?</div>
+      <div class="optgrid" id="lost-reasons"></div>
+      <input id="lost-other" class="field" placeholder="Anything else (optional)">
+    </div>
+    <div class="row end">
+      <a class="btn" id="move-open" href="#">Open profile</a>
+      <button type="button" class="btn" id="move-cancel">Cancel</button>
+      <button type="button" class="btn primary" id="move-go" hidden>Mark lost</button>
+    </div>
+  </div>
+</div>
+
 <!-- Lead filters -->
 <div id="lf-sheet" class="sheet" hidden>
   <div class="sheet-body scroll">
@@ -264,6 +292,6 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="js/app.js?v=17"></script>
+<script src="js/app.js?v=18"></script>
 </body>
 </html>

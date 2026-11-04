@@ -19,12 +19,12 @@ function today_() {
     .sort(function (a, b) { return String(a.next.due).localeCompare(String(b.next.due)); });
   var fresh = open.filter(function (l) { var s = d(l.started); return s && s >= recent && !l.notes; })
     .sort(function (a, b) { return String(b.started).localeCompare(String(a.started)); });
-  var deposits = open.filter(function (l) { return l.stage === 'Deposit Submitted'; });
+  var deposits = open.filter(function (l) { return l.stage === 'Committed'; });
 
   // Who could fill each open ensemble seat: waiting, trial, or a lead from the last six months.
   var soon = new Date(t0.getTime() - 180 * 864e5);
   var pool = open.filter(function (l) {
-    if (l.status === 'Waiting' || l.status === 'Trial' || l.stage === 'Deposit Submitted' || l.stage === 'Qualified') return true;
+    if (l.status === 'Waiting' || l.status === 'Trial' || l.stage === 'Committed' || l.stage === 'Qualified') return true;
     var s = d(l.started); return s && s >= soon;
   });
   var seats = groups.filter(function (g) { return g.when === 'Current' && g.open.length; }).map(function (g) {

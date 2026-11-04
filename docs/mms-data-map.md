@@ -43,7 +43,7 @@ The app keeps no table of leads. A lead's funnel fields are tags on the student 
 
 | Field | Tag | Notes |
 |---|---|---|
-| Stage | `Stage: Qualified`, `Stage: Deposit Submitted`, `Stage: Nurture`, `Stage: Closed` | One at a time. No stage tag = New Lead (or Enrolled if MMS status is Active). An "(Ensemble Deposit)" form on the student note reads as Deposit Submitted until someone sets a stage. |
+| Stage | `Stage: Qualified`, `Stage: Committed`, `Stage: Nurture`, `Stage: Closed` | One at a time. Board columns: First Contact, Qualified, Committed (ensemble deposit, lesson package or class registration), Enrolled. No stage tag = First Contact (or Enrolled if MMS status is Active). Closed = lost, with the reason in the timeline note. Older tags `Stage: Deposit Submitted` and `Stage: Ready to Join` read as Committed; `Stage: New Lead` reads as First Contact. An "(Ensemble Deposit)" form on the student note reads as Committed until someone sets a stage. |
 | Interested in | `Interest: Ensemble`, `Interest: Private lessons`, ... | Any number. Falls back to the sign-up form answers when none are set. |
 | Nights | `Nights: Mon` ... `Nights: Sun` | Any number. |
 | Plays | existing `Plays: ...` tags | Falls back to the form's Instrument answer. |

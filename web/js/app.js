@@ -162,6 +162,7 @@
   // ---------- Person ----------
   var current = null;
 
+  var pendingPlace = null;
   function loadPerson(sid) {
     var main = $('#person');
     main.innerHTML = '<div class="loading">Loading</div>';
@@ -169,18 +170,18 @@
     api('person', { sid: sid }).then(function (p) {
       current = p;
       renderPerson(p, 'timeline');
+      if (pendingPlace && pendingPlace === p.id) { pendingPlace = null; openPlace(); }
     }).catch(function (e) { main.innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
   }
 
   // Lead stage, one tap to change, right under the name. Hidden once they are an active member.
   function stageStrip(p) {
     if (!p.id || p.status === 'Active') return '';
-    var cur = ((p.tags || []).filter(function (t) { return /^Stage: /.test(t); })[0] || '').slice(7) ||
-      (p.status === 'Inactive' ? 'Closed' : 'New Lead');
+    var cur = tagStage(p.tags, p.status);
     return '<div class="pstage-h">Stage · tap to change</div><div class="stagebar pstage">' +
       LEAD.stages.map(function (s) {
         return '<button type="button" class="stagechip' + (s === cur ? ' on' : '') + '" data-stage="' + esc(s) + '"' +
-          (s === cur ? ' aria-pressed="true"' : '') + '><span>' + esc(s === 'Deposit Submitted' ? 'Deposit' : s) + '</span></button>';
+          (s === cur ? ' aria-pressed="true"' : '') + '><span>' + esc(s) + '</span></button>';
       }).join('') + '</div>';
   }
 
@@ -189,7 +190,7 @@
     var subBits = [p.instruments.join(', '), p.skill ? 'Skill ' + p.skill : '', p.started ? 'Since ' + dayOnly(p.started) : ''].filter(Boolean);
     var pills = [statusPill(p.status)]
       .concat(p.programs.map(function (t) { return '<span class="pill accent">' + esc(t) + '</span>'; }))
-      .concat(p.tags.filter(function (t) { return /^Stage: /.test(t); }).map(function (t) { return '<span class="pill accent">' + esc(t.slice(7)) + '</span>'; }))
+      .concat(p.tags.filter(function (t) { return /^Stage: /.test(t); }).map(function (t) { return '<span class="pill accent">' + esc(LEGACY[t.slice(7)] || t.slice(7)) + '</span>'; }))
       .concat(p.tags.filter(function (t) { return !/^(Stage|Interest|Nights): /.test(t); }).map(function (t) { return '<span class="pill">' + esc(t) + '</span>'; }))
       .concat(p.sequences.filter(function (s) { return s.status === 'Active'; })
         .map(function (s) { return '<span class="pill">' + esc(s.sequence) + ' seq.</span>'; }));
@@ -529,12 +530,18 @@
 
   // ---------- Leads ----------
   var LEAD = {
-    stages: ['New Lead', 'Qualified', 'Deposit Submitted', 'Nurture', 'Closed'],
+    stages: ['First Contact', 'Qualified', 'Committed', 'Nurture', 'Closed'],
     interests: ['Ensemble', 'Private lessons', 'Foundations', 'Classes', 'Clinics', 'Voice'],
     nights: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     instruments: ['Sax', 'Trumpet', 'Trombone', 'Flute', 'Piano/Keys', 'Guitar', 'Bass', 'Drums', 'Voice', 'Violin', 'French Horn', 'Harmonica']
   };
-  var leadsState = { rows: null, view: store('nsjw_lview') || 'action', stage: '', q: '', show: 60,
+  // Old tag names, read as the new stages.
+  var LEGACY = { 'New Lead': 'First Contact', 'Deposit Submitted': 'Committed', 'Ready to Join': 'Committed' };
+  function tagStage(tags, status) {
+    var t = ((tags || []).filter(function (x) { return /^Stage: /.test(x); })[0] || '').slice(7);
+    return LEGACY[t] || t || (status === 'Active' ? '' : status === 'Inactive' ? 'Closed' : 'First Contact');
+  }
+  var leadsState = { mode: store('nsjw_lmode') || 'board', enrolled: [], stale: {}, boardDays: 60, rows: null, view: store('nsjw_lview') || 'action', stage: '', q: '', show: 60,
     f: (function () { try { return JSON.parse(store('nsjw_lf') || '{}'); } catch (e) { return {}; } })() };
 
   function today0() { return new Date(new Date().toDateString()); }
@@ -551,9 +558,11 @@
 
   function loadLeads(force) {
     if (leadsState.rows && !force) { renderLeads(); return; }
-    $('#lead-list').innerHTML = '<div class="loading">Loading</div>';
-    api('leads').then(function (d) { leadsState.rows = d.leads; renderLeads(); })
-      .catch(function (e) { $('#lead-list').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+    $('#lead-list').innerHTML = $('#lead-board').innerHTML = '<div class="loading">Loading</div>';
+    api('leads').then(function (d) {
+      leadsState.rows = d.leads; leadsState.enrolled = d.enrolled || [];
+      leadsState.stale = d.stale || {}; leadsState.boardDays = d.boardDays || 60; renderLeads();
+    }).catch(function (e) { $('#lead-list').innerHTML = $('#lead-board').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
   }
 
   function leadMatches(l) {
@@ -574,19 +583,23 @@
   }
 
   function renderLeads() {
+    var board = leadsState.mode === 'board';
+    $('#lead-board-wrap').hidden = !board; $('#lead-list-wrap').hidden = board;
+    $$('#lead-mode .tab').forEach(function (t) { t.classList.toggle('on', t.dataset.mode === leadsState.mode); });
+    if (board) { renderBoard(); return; }
     var all = (leadsState.rows || []).filter(leadMatches);
     var month = new Date(); month.setDate(1); month = new Date(month.toDateString());
     var counts = {};
     all.forEach(function (l) { counts[l.stage] = (counts[l.stage] || 0) + 1; });
     $('#stagebar').innerHTML = LEAD.stages.map(function (s) {
       return '<button type="button" class="stagechip' + (leadsState.stage === s ? ' on' : '') + '" data-stage="' + esc(s) + '">' +
-        '<b>' + (counts[s] || 0) + '</b><span>' + esc(s === 'Deposit Submitted' ? 'Deposit' : s) + '</span></button>';
+        '<b>' + (counts[s] || 0) + '</b><span>' + esc(s) + '</span></button>';
     }).join('');
     var rows = all.filter(function (l) {
       if (leadsState.stage) return l.stage === leadsState.stage;
       if (l.stage === 'Closed' || l.stage === 'Enrolled') return false;
       var u = urgency(l);
-      if (leadsState.view === 'action') return u === 'overdue' || u === 'today' || (u === 'none' && !l.notes && l.started && parse(l.started) >= new Date(Date.now() - 30 * 864e5)) || (l.stage === 'Deposit Submitted' && u === 'none');
+      if (leadsState.view === 'action') return u === 'overdue' || u === 'today' || (u === 'none' && !l.notes && l.started && parse(l.started) >= new Date(Date.now() - 30 * 864e5)) || (l.stage === 'Committed' && u === 'none');
       if (leadsState.view === 'new') return l.started && parse(l.started) >= month;
       if (leadsState.view === 'nonext') return u === 'none' && l.stage !== 'Nurture';
       return true;
@@ -618,6 +631,136 @@
     }).join('');
     $('#lead-more').hidden = rows.length <= leadsState.show;
   }
+
+
+  // ---------- Board ----------
+  var COLS = ['First Contact', 'Qualified', 'Committed', 'Enrolled'];
+  var COMMIT = { Ensemble: 'Deposit', Lessons: 'Lesson package', Class: 'Registered' };
+  var TRACK = { Ensemble: 'Ensemble', Lessons: 'Private lessons', Class: 'Class' };
+  function daysSince(d) { return d ? Math.floor((today0() - parse(d)) / 864e5) : null; }
+  function onBoard(l) {
+    if (COLS.indexOf(l.stage) < 0 || l.stage === 'Enrolled') return false;
+    if (l.stage !== 'First Contact' || l.next) return true;
+    var fresh = [l.started, l.lastContact, l.stageAt].some(function (d) { var n = daysSince(d); return n != null && n <= leadsState.boardDays; });
+    return fresh;
+  }
+  function stale(l) {
+    var lim = leadsState.stale[l.stage]; if (!lim) return false;
+    if (urgency(l) === 'overdue') return true;
+    if (l.next && urgency(l) !== 'none') return false;
+    var since = [l.stageAt, l.lastContact, l.started].map(daysSince).filter(function (n) { return n != null; });
+    return since.length && Math.min.apply(null, since) > lim;
+  }
+  function card(l) {
+    var u = urgency(l), st = stale(l), inStage = daysSince(l.stageAt || l.started);
+    var bits = [TRACK[l.track] || '', allInstruments(l).join(', ')].filter(Boolean).join(' · ');
+    var nx = l.next ? '<div class="nx ' + u + '">' + esc(l.next.text) + (l.next.due ? ' · ' + esc(dayOnly(l.next.due)) : '') + '</div>' : '<div class="nx none">No next step</div>';
+    var tag = l.stage === 'Committed' && COMMIT[l.track] ? '<span class="pill">' + COMMIT[l.track] + '</span>' : '';
+    return '<div class="kcard card' + (st ? ' stale' : '') + '" draggable="true" data-id="' + esc(l.id) + '" tabindex="0">' +
+      '<div class="line1"><span class="name">' + esc(l.name) + '</span>' + tag + '</div>' +
+      (bits ? '<div class="sub">' + esc(bits) + '</div>' : '') + nx +
+      '<div class="meta">' + (inStage != null ? inStage + (inStage === 1 ? ' day' : ' days') + ' here' : '') + (st ? ' · stalled' : '') + '</div></div>';
+  }
+  function renderBoard() {
+    var all = (leadsState.rows || []).filter(leadMatches);
+    var live = all.filter(onBoard), older = all.filter(function (l) { return l.stage === 'First Contact' && !onBoard(l); });
+    var by = {}; COLS.forEach(function (c) { by[c] = []; });
+    live.forEach(function (l) { by[l.stage].push(l); });
+    COLS.slice(0, 3).forEach(function (c) {
+      by[c].sort(function (a, b) { return (stale(b) - stale(a)) || String(b.stageAt || b.started).localeCompare(String(a.stageAt || a.started)); });
+    });
+    var q = leadsState.q;
+    var enr = leadsState.enrolled.filter(function (e) { return !q || (e.name + ' ' + e.instruments.join(' ')).toLowerCase().indexOf(q) >= 0; });
+    $('#lead-board').innerHTML = COLS.map(function (c) {
+      var list = c === 'Enrolled' ? enr : by[c];
+      var n = list.length, red = c === 'Enrolled' ? 0 : list.filter(stale).length;
+      var body = c === 'Enrolled' ? list.map(function (e) {
+        return '<a class="kcard card done" href="#p/' + encodeURIComponent(e.id) + '"><div class="line1"><span class="name">' + esc(e.name) + '</span></div>' +
+          '<div class="sub">' + esc(e.programs.join(', ') || e.instruments.join(', ')) + '</div><div class="meta">' + esc(when(e.at)) + '</div></a>';
+      }).join('') : list.map(card).join('');
+      return '<section class="kcol" data-col="' + esc(c) + '"><header class="kh"><span class="kt">' + esc(c) + '</span><span class="kn">' + n +
+        (red ? ' · <em>' + red + ' stalled</em>' : '') + '</span>' + (c === 'Enrolled' ? '<span class="kx">last 30 days</span>' : c === 'Committed' ? '<span class="kx">deposit, package or registration</span>' : '') + '</header>' +
+        '<div class="kbody">' + (body || '<div class="kempty">Nothing here</div>') + '</div></section>';
+    }).join('');
+    var nur = all.filter(function (l) { return l.stage === 'Nurture'; }).length, lost = all.filter(function (l) { return l.stage === 'Closed'; }).length;
+    $('#board-foot').innerHTML = 'Not on the board: <button type="button" class="linkish" data-goto="older">' + older.length + ' older first contacts</button> (no activity in ' + leadsState.boardDays + ' days), ' +
+      '<button type="button" class="linkish" data-goto="Nurture">' + nur + ' in Nurture</button>, <button type="button" class="linkish" data-goto="Closed">' + lost + ' lost</button>.';
+  }
+  $('#lead-mode').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-mode]'); if (!b) return;
+    leadsState.mode = b.dataset.mode; store('nsjw_lmode', leadsState.mode); renderLeads();
+  });
+  $('#board-foot').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-goto]'); if (!b) return;
+    leadsState.mode = 'list'; leadsState.view = 'all'; leadsState.stage = b.dataset.goto === 'older' ? 'First Contact' : b.dataset.goto; leadsState.show = 60;
+    store('nsjw_lmode', 'list'); renderLeads();
+  });
+
+  // Moving a card: drag on a computer, tap and pick on a phone.
+  var fine = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches, dragId = null, moving = null;
+  function leadById(id) { return (leadsState.rows || []).filter(function (l) { return l.id === id; })[0]; }
+  function moveLead(l, to, reason) {
+    if (!l || l.stage === to) return;
+    if (to === 'Enrolled') { pendingPlace = l.id; location.hash = '#p/' + encodeURIComponent(l.id); return; }
+    var was = { stage: l.stage, stageAt: l.stageAt };
+    l.stage = to; l.stageAt = new Date().toISOString().slice(0, 10); renderLeads();
+    api('leadtag', { sid: l.id, email: l.email, field: 'stage', value: to, on: true, reason: reason || '' })
+      .then(function () { toast(l.name + ' moved to ' + (to === 'Closed' ? 'Lost' : to)); todayState.data = null; })
+      .catch(function (err) { l.stage = was.stage; l.stageAt = was.stageAt; renderLeads(); toast(err.message); });
+  }
+  var board = $('#lead-board');
+  board.addEventListener('dragstart', function (e) {
+    var c = e.target.closest('.kcard[data-id]'); if (!c) return;
+    dragId = c.dataset.id; c.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', dragId); } catch (x) {}
+  });
+  board.addEventListener('dragend', function () { dragId = null; $$('.kcol.over, .kcard.dragging').forEach(function (x) { x.classList.remove('over', 'dragging'); }); });
+  board.addEventListener('dragover', function (e) {
+    var col = e.target.closest('.kcol'); if (!col || !dragId) return;
+    e.preventDefault(); $$('.kcol.over').forEach(function (x) { if (x !== col) x.classList.remove('over'); }); col.classList.add('over');
+  });
+  board.addEventListener('drop', function (e) {
+    var col = e.target.closest('.kcol'); if (!col || !dragId) return;
+    e.preventDefault(); col.classList.remove('over'); moveLead(leadById(dragId), col.dataset.col);
+  });
+  board.addEventListener('click', function (e) {
+    var c = e.target.closest('.kcard[data-id]'); if (!c) return;
+    if (fine) { location.hash = '#p/' + encodeURIComponent(c.dataset.id); return; }
+    openMove(leadById(c.dataset.id));
+  });
+  board.addEventListener('keydown', function (e) {
+    var c = e.target.closest('.kcard[data-id]'); if (c && e.key === 'Enter') openMove(leadById(c.dataset.id));
+  });
+  var REASONS = ['Timing', 'Price', 'Schedule', 'Level', 'No reply', 'Went elsewhere'];
+  function openMove(l) {
+    if (!l) return; moving = l;
+    $('#move-title').textContent = l.name;
+    $('#move-sub').textContent = 'Now in ' + l.stage + '. Move to:';
+    $('#move-opts').innerHTML = COLS.concat(['Nurture', 'Lost']).map(function (c) {
+      var v = c === 'Lost' ? 'Closed' : c;
+      return '<button type="button" class="btn' + (v === l.stage ? ' on' : '') + '" data-to="' + esc(v) + '"' + (v === l.stage ? ' disabled' : '') + '>' +
+        esc(c === 'Enrolled' ? 'Enrolled (place in a group)' : c) + '</button>';
+    }).join('');
+    $('#lost-box').hidden = true; $('#move-go').hidden = true;
+    $('#lost-reasons').innerHTML = REASONS.map(function (r) { return '<button type="button" class="chip" data-r="' + esc(r) + '">' + esc(r) + '</button>'; }).join('');
+    $('#lost-other').value = '';
+    $('#move-open').href = '#p/' + encodeURIComponent(l.id);
+    $('#move-sheet').hidden = false;
+  }
+  function closeMove() { $('#move-sheet').hidden = true; moving = null; }
+  $('#move-opts').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-to]'); if (!b || !moving) return;
+    if (b.dataset.to === 'Closed') { $('#lost-box').hidden = false; $('#move-go').hidden = false; return; }
+    var l = moving; closeMove(); moveLead(l, b.dataset.to);
+  });
+  $('#lost-reasons').addEventListener('click', function (e) { var b = e.target.closest('[data-r]'); if (b) b.classList.toggle('on'); });
+  $('#move-go').addEventListener('click', function () {
+    var why = $$('#lost-reasons .chip.on').map(function (b) { return b.dataset.r; }).concat($('#lost-other').value.trim() ? [$('#lost-other').value.trim()] : []).join(', ');
+    var l = moving; closeMove(); moveLead(l, 'Closed', why);
+  });
+  $('#move-cancel').addEventListener('click', closeMove);
+  $('#move-open').addEventListener('click', function () { $('#move-sheet').hidden = true; });
+  $('#move-sheet').addEventListener('click', function (e) { if (e.target === this) closeMove(); });
 
   $('#stagebar').addEventListener('click', function (e) {
     var b = e.target.closest('[data-stage]'); if (!b) return;
@@ -661,7 +804,7 @@
   function funnelHtml(p) {
     if (!p.id) return '';
     var tags = p.tags || [];
-    var stage = (tags.filter(function (t) { return /^Stage: /.test(t); })[0] || '').slice(7) || (p.status === 'Active' ? '' : 'New Lead');
+    var stage = tagStage(tags, p.status);
     function grp(label, field, opts, have) {
       return '<div class="flabel">' + label + '</div><div class="optgrid">' + opts.map(function (v) {
         return '<button type="button" class="chip' + (have.indexOf(v) >= 0 ? ' on' : '') + '" data-lt="' + field + '" data-v="' + esc(v) + '">' + esc(v) + '</button>';
@@ -688,7 +831,7 @@
       if (field === 'instrument') {
         current.instruments = on ? current.instruments.concat(value) : current.instruments.filter(function (x) { return x !== value; });
       } else if (field === 'stage') {
-        current.tags = current.tags.filter(function (t) { return !/^Stage: /.test(t); }).concat(value === 'New Lead' ? [] : ['Stage: ' + value]);
+        current.tags = current.tags.filter(function (t) { return !/^Stage: /.test(t); }).concat(value === 'First Contact' ? [] : ['Stage: ' + value]);
       } else {
         current.tags = on ? current.tags.concat(pre + value) : current.tags.filter(function (t) { return t !== pre + value; });
       }
