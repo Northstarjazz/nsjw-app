@@ -196,7 +196,8 @@
     if (!p.id || p.status === 'Active') return '';
     var have = (p.tags || []).filter(function (t) { return /^Interest: /.test(t); }).map(function (t) { return t.slice(10); });
     return '<div class="pstage-h">Interested in' + (have.some(function (h) { return TRACKS.some(function (t) { return t[0] === h; }); }) ? '' : ' · undecided') +
-      '</div><div class="optgrid trackrow">' + trackChips(have, 'data-track') + '</div>';
+      '</div><div class="optgrid trackrow">' + trackChips(have, 'data-track') + '</div>' +
+      '<button type="button" class="btn' + (tagStage(p.tags, p.status) === 'Committed' ? ' primary' : '') + '" data-place style="width:100%;margin:0 0 14px">Convert to member</button>';
   }
 
   function renderPerson(p, tab) {
@@ -767,7 +768,7 @@
     $('#move-opts').innerHTML = COLS.concat(['Nurture', 'Lost']).map(function (c) {
       var v = c === 'Lost' ? 'Closed' : c;
       return '<button type="button" class="btn' + (v === l.stage ? ' on' : '') + '" data-to="' + esc(v) + '"' + (v === l.stage ? ' disabled' : '') + '>' +
-        esc(c === 'Enrolled' ? 'Enrolled (place in a group)' : c) + '</button>';
+        esc(c === 'Enrolled' ? 'Enrolled (convert to member)' : c) + '</button>';
     }).join('');
     $('#move-tracks').innerHTML = trackChips(l.tracks || [], 'data-mtrack');
     $('#lost-box').hidden = true; $('#move-go').hidden = true;
@@ -857,7 +858,7 @@
       grp('Interested in · pick any', 'interest', LEAD.interests, pick('Interest: ')) +
       grp('Nights they can do', 'nights', LEAD.nights, pick('Nights: ')) +
       grp('Plays', 'instrument', LEAD.instruments, p.instruments || []) +
-      '<button type="button" class="btn primary" data-place style="width:100%;margin-top:4px">Place in a group</button>' +
+      '<button type="button" class="btn primary" data-place style="width:100%;margin-top:4px">Convert to member</button>' +
       ((p.programs || []).length || p.status === 'Active' ? '<button type="button" class="btn" data-leave style="width:100%;margin-top:8px">Take out of a group or end membership</button>' : '') +
       '<p class="muted small" style="margin:10px 0 0">Each choice saves to MyMusicStaff as a tag.</p></div>';
   }
@@ -902,29 +903,49 @@
     if (e.target.id === 'lt-stage' && e.target.value) { e.target.disabled = true; leadTag('stage', e.target.value, true, null); }
   });
 
-  // ---------- Place in a group ----------
+  // ---------- Convert to member (was Place in a group) ----------
+  // Follows the Member Onboarding doc: the app sets MMS status and tags; billing,
+  // the calendar event and the onboarding email stay with you and are listed.
+  var placeTeachers = null;
+  function groupOptions(rows, exclude) {
+    var mine = (current.instruments || []).map(function (i) { return seatOf(i); });
+    var cur = rows.filter(function (g) { return g.when !== 'Past' && current.programs.indexOf(g.name) < 0 && g.name !== exclude; });
+    cur.sort(function (a, b) {
+      var fa = a.open.some(function (s) { return mine.indexOf(s) >= 0; }) ? 0 : 1, fb = b.open.some(function (s) { return mine.indexOf(s) >= 0; }) ? 0 : 1;
+      return (fa - fb) || a.name.localeCompare(b.name, 'en', { numeric: true });
+    });
+    return '<option value="">None</option>' + cur.map(function (g) {
+      var fit = g.open.some(function (s) { return mine.indexOf(s) >= 0; });
+      return '<option value="' + esc(g.name) + '">' + esc(g.name) + (g.schedule ? ' · ' + esc(g.schedule) : '') +
+        (g.open.length ? ' · open: ' + esc(openText(g.open)) : '') + (fit ? ' · fits' : '') + '</option>';
+    }).join('');
+  }
   function openPlace() {
     if (!current || !current.id) return;
-    $('#place-title').textContent = 'Place ' + current.name;
+    $('#place-title').textContent = 'Convert ' + current.name + ' to a member';
     var sel = $('#place-group');
     sel.innerHTML = '<option>Loading groups</option>'; sel.disabled = true;
+    $('#place-group2-wrap').hidden = true; $('#place-add2').hidden = false; $('#place-group2').innerHTML = '';
+    var ints = (current.tags || []).filter(function (t) { return /^Interest: /.test(t); }).map(function (t) { return t.slice(10); });
+    $('#place-lessons').checked = ints.indexOf('Private lessons') >= 0 && ints.indexOf('Ensemble') < 0 && ints.indexOf('Classes') < 0;
+    $('#place-lesson-box').hidden = !$('#place-lessons').checked;
+    $('#pl-when').value = '';
     $('#place-sheet').hidden = false;
     var go = function (rows) {
-      var mine = (current.instruments || []).map(function (i) { return seatOf(i); });
-      var cur = rows.filter(function (g) { return g.when !== 'Past' && current.programs.indexOf(g.name) < 0; });
-      cur.sort(function (a, b) {
-        var fa = a.open.some(function (s) { return mine.indexOf(s) >= 0; }) ? 0 : 1, fb = b.open.some(function (s) { return mine.indexOf(s) >= 0; }) ? 0 : 1;
-        return (fa - fb) || a.name.localeCompare(b.name, 'en', { numeric: true });
-      });
-      sel.innerHTML = cur.map(function (g) {
-        var fit = g.open.some(function (s) { return mine.indexOf(s) >= 0; });
-        return '<option value="' + esc(g.name) + '">' + esc(g.name) + (g.schedule ? ' · ' + esc(g.schedule) : '') +
-          (g.open.length ? ' · open: ' + esc(openText(g.open)) : '') + (fit ? ' · fits' : '') + '</option>';
-      }).join('');
+      sel.innerHTML = groupOptions(rows);
+      if (!$('#place-lessons').checked && sel.options.length > 1) sel.selectedIndex = 1;
       sel.disabled = false; placeSteps();
     };
     if (groupsState.rows) go(groupsState.rows);
     else api('groups').then(function (r) { groupsState.rows = r; go(r); }).catch(function (e) { toast(e.message); });
+    var fill = function (list) {
+      $('#pl-teacher').innerHTML = '<option value="">Pick a teacher</option>' + list.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
+    };
+    if (placeTeachers) fill(placeTeachers);
+    else api('lessons').then(function (rows) {
+      placeTeachers = rows.map(function (r) { return r.Teacher; }).filter(Boolean).filter(function (t, i, a) { return a.indexOf(t) === i; }).sort();
+      fill(placeTeachers);
+    }).catch(function () { fill([]); });
   }
   function seatOf(i) {
     i = String(i).toLowerCase();
@@ -935,27 +956,48 @@
     if (/piano|keys/.test(i)) return 'Piano';
     return 'Horn';
   }
+  function placeChoice() {
+    var groups = [$('#place-group').value, $('#place-group2-wrap').hidden ? '' : $('#place-group2').value].filter(Boolean);
+    var lessons = $('#place-lessons').checked ? { teacher: $('#pl-teacher').value, frequency: $('#pl-freq').value,
+      length: $('#pl-len').value, when: $('#pl-when').value.trim(), instrument: (current.instruments || [])[0] || '' } : null;
+    return { groups: groups, lessons: lessons };
+  }
   function placeSteps() {
-    var g = $('#place-group').value, steps = ['Add the "' + g + '" tag in MMS'];
-    if (/^Group \d+/.test(g)) steps.push('Add the "Ensemble Member" tag (or tell you to, if MMS has teachers on it)');
+    var c = placeChoice(), steps = [], todo = [];
+    c.groups.forEach(function (g) { steps.push('Add the "' + g + '" tag in MMS'); });
+    if (c.groups.some(function (g) { return /^Group \d+/.test(g); })) steps.push('Add the "Ensemble Member" tag (or tell you to, if MMS has teachers on it)');
+    if (c.lessons) steps.push('Add them to Lessons' + (c.lessons.teacher ? ' with ' + c.lessons.teacher : '') + ', ' + c.lessons.frequency.toLowerCase() + ', ' + c.lessons.length);
     if ((current.tags || []).some(function (t) { return /^Stage: /.test(t); })) steps.push('Clear their funnel stage');
     if (current.status !== 'Active') steps.push('Change their MMS status from ' + current.status + ' to Active');
     steps.push('Log it on their timeline');
+    if (c.lessons) todo.push('Add the Private Lessons - Active tag in MMS');
+    todo.push('In MMS: assign the teacher and set billing to "same amount each month"' + (c.lessons ? ' (lessons at the $80/hr member rate)' : ' at $150/mo'));
+    if (c.groups.length) todo.push('In MMS: add them to the calendar event for ' + c.groups.join(' and ') + '. This starts billing.');
+    if (c.groups.length + (c.lessons ? 1 : 0) > 1) todo.push('Two programs: create the second recurring charge in MMS by hand');
+    todo.push('Send the onboarding email');
     $('#place-steps').innerHTML = steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('');
+    $('#place-todo').innerHTML = todo.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('');
+    var ok = (c.groups.length || c.lessons) && (!c.lessons || c.lessons.teacher);
+    $('#place-go').disabled = !ok;
   }
-  $('#place-group').addEventListener('change', placeSteps);
+  $('#place-add2').addEventListener('click', function () {
+    $('#place-group2').innerHTML = groupOptions(groupsState.rows || [], $('#place-group').value);
+    $('#place-group2-wrap').hidden = false; this.hidden = true; placeSteps();
+  });
+  $('#place-lessons').addEventListener('change', function () { $('#place-lesson-box').hidden = !this.checked; placeSteps(); });
+  ['#place-group', '#place-group2', '#pl-teacher', '#pl-freq', '#pl-len'].forEach(function (id) { $(id).addEventListener('change', placeSteps); });
   $('#place-cancel').addEventListener('click', function () { $('#place-sheet').hidden = true; });
   $('#place-sheet').addEventListener('click', function (e) { if (e.target === this) this.hidden = true; });
   $('#place-go').addEventListener('click', function () {
-    var btn = this, g = $('#place-group').value; if (!g) return;
-    btn.disabled = true; btn.textContent = 'Placing';
-    api('place', { sid: current.id, email: current.email, group: g }).then(function (r) {
-      var manual = ((r && r.done) || []).filter(function (d) { return /^Add the/.test(d); });
-      $('#place-sheet').hidden = true; toast(manual.length ? 'Placed. ' + manual[0] + '.' : 'Placed in ' + g);
-      leadsState.rows = null; groupsState.rows = null; todayState.data = null;
+    var btn = this, c = placeChoice(); if (!c.groups.length && !c.lessons) return;
+    btn.disabled = true; btn.textContent = 'Converting';
+    api('place', { sid: current.id, email: current.email, groups: c.groups, lessons: c.lessons }).then(function (r) {
+      $('#place-sheet').hidden = true;
+      toast(current.name + ' is a member. Your to-do list is on their timeline.');
+      leadsState.rows = null; groupsState.rows = null; todayState.data = null; lessonsState.rows = null;
       loadPerson(current.id);
     }).catch(function (err) { toast(err.message); })
-      .then(function () { btn.disabled = false; btn.textContent = 'Place them'; });
+      .then(function () { btn.disabled = false; btn.textContent = 'Convert'; });
   });
   $('#person').addEventListener('click', function (e) { if (e.target.closest('[data-place]')) openPlace(); });
 

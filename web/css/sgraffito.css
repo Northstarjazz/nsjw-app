@@ -238,6 +238,11 @@ a { color: var(--accent); }
 .modebar { margin: 2px 0 12px; }
 #board-tracks { margin: 4px 0 10px; }
 .trackrow { margin: 2px 0 12px; }
+.checkline { display: flex !important; flex-direction: row !important; align-items: center; gap: 10px; font-size: 15px !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--ink) !important; font-weight: 700 !important; min-height: 44px; }
+.checkline input { width: 20px !important; height: 20px !important; }
+.lessonbox { border-left: 3px solid var(--gold-deep); padding-left: 12px; display: flex; flex-direction: column; gap: 8px; }
+.steps.todo li { color: var(--muted); }
+#place-add2 { align-self: flex-start; }
 .board { display: grid; grid-auto-flow: column; grid-auto-columns: 84%; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory;
   margin: 0 -16px; padding: 4px 16px 12px; -webkit-overflow-scrolling: touch; }
 .kcol { scroll-snap-align: start; background: rgba(30,27,24,.05); border-radius: 6px; padding: 10px 8px 8px; min-height: 240px; display: flex; flex-direction: column; }

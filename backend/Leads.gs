@@ -347,33 +347,51 @@ function nextDone_(who, p) {
  * record, change Status only, PUT it back, GET again and compare every field.
  */
 function placeInGroup_(who, p) {
-  var sid = String(p.sid || ''), group = String(p.group || '');
+  var sid = String(p.sid || '');
   if (!/^sdt_/.test(sid)) throw new Error('This person is not in MMS yet.');
+  var groups = (p.groups || (p.group ? [p.group] : [])).map(String).filter(Boolean);
+  var lessons = p.lessons && p.lessons.teacher ? p.lessons : null;
+  if (!groups.length && !lessons) throw new Error('Pick a group or class, or private lessons.');
   var known = listGroups_().map(function (g) { return g.name; });
-  if (known.indexOf(group) < 0) throw new Error('Unknown group');
+  groups.forEach(function (g) { if (known.indexOf(g) < 0) throw new Error('Unknown group: ' + g); });
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) throw new Error('Another change is running. Try again in a moment.');
-  var done = [];
+  var done = [], todo = [];
   try {
-    tagWrite_(sid, group, true); done.push('Tagged ' + group);
-    if (/^Group \d+/.test(group)) {
+    groups.forEach(function (g) {
+      tagWrite_(sid, g, true); rosterProgram_(sid, g, 'Active'); done.push('Tagged ' + g);
+    });
+    if (groups.some(function (g) { return /^Group \d+/.test(g); })) {
       try { tagWrite_(sid, 'Ensemble Member', true); done.push('Tagged Ensemble Member'); }
-      catch (e) { done.push('Add the Ensemble Member tag in MMS (it has teachers on it)'); }
+      catch (e) { todo.push('Add the Ensemble Member tag in MMS'); }
+    }
+    if (lessons) {
+      saveLesson_(who, { sid: sid, email: p.email, fields: { Stage: 'Scheduling', Teacher: lessons.teacher,
+        Instrument: lessons.instrument || '', Frequency: lessons.frequency || '', Length: lessons.length || '',
+        'Day and time': lessons.when || '', 'Start date': lessons.start || '' } });
+      done.push('Private lessons with ' + lessons.teacher + ' added to Lessons');
+      todo.push('Add the Private Lessons - Active tag in MMS');
     }
     var r = rosterRows_().filter(function (x) { return x.ID === sid; })[0];
     split_(r ? r['Other tags'] : '').filter(function (t) { return /^Stage: /.test(t); }).forEach(function (t) {
       tagWrite_(sid, t, false); rosterTag_(sid, t, false);
     });
-    if (!r || r.Status !== 'Active') { setStatus_(sid, 'Active'); done.push('Status set to Active'); }
-    rosterProgram_(sid, group, 'Active');
+    if (!r || r.Status !== 'Active') { setStatus_(sid, 'Active'); rosterStatus_(sid, 'Active'); done.push('Status set to Active'); }
+    // The rest of the Member Onboarding doc stays manual in MMS.
+    todo.push('In MMS: assign the teacher, billing "same amount each month"' + (lessons ? ' (lessons at the member rate)' : ' at $150'));
+    if (groups.length) todo.push('In MMS: add them to the calendar event for ' + groups.join(' and ') + ' (this starts billing)');
+    if (groups.length + (lessons ? 1 : 0) > 1) todo.push('In MMS: create the second recurring charge (two programs)');
+    todo.push('Send the onboarding email');
   } finally {
     lock.releaseLock();
     if (done.length) {
       tab_(NOTES_TAB, ['Timestamp', 'MMS ID', 'Email', 'Author', 'Kind', 'Text', 'Due', 'Owner', 'Done'])
-        .appendRow([new Date(), sid, String(p.email || '').toLowerCase(), who, 'change', 'Placed in ' + group + ': ' + done.join('; '), '', '', '']);
+        .appendRow([new Date(), sid, String(p.email || '').toLowerCase(), who, 'change',
+          'Placed in ' + groups.concat(lessons ? ['private lessons'] : []).join(' and ') + ': ' + done.join('; ') +
+          (todo.length ? '. To do: ' + todo.join('; ') : ''), '', '', '']);
     }
   }
-  return { ok: true, done: done };
+  return { ok: true, done: done, todo: todo };
 }
 
 function setStatus_(sid, status) {

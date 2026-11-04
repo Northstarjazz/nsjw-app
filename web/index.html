@@ -8,9 +8,9 @@
 <title>North Star</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Della+Respira&family=Ysabeau+Office:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/nsjw.css?v=19">
-<link rel="stylesheet" href="css/app.css?v=19">
-<link rel="stylesheet" href="css/sgraffito.css?v=19">
+<link rel="stylesheet" href="css/nsjw.css?v=20">
+<link rel="stylesheet" href="css/app.css?v=20">
+<link rel="stylesheet" href="css/sgraffito.css?v=20">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -234,14 +234,26 @@
 <!-- Place in a group -->
 <div id="place-sheet" class="sheet" hidden>
   <div class="sheet-body scroll">
-    <div class="sheet-title" id="place-title">Place in a group</div>
-    <label class="flabel">Group or class<select id="place-group" class="field"></select></label>
-    <div class="flabel" style="margin-top:6px">This will</div>
+    <div class="sheet-title" id="place-title">Convert to member</div>
+    <label class="flabel">Ensemble or class<select id="place-group" class="field"></select></label>
+    <label class="flabel" id="place-group2-wrap" hidden>Second group or class<select id="place-group2" class="field"></select></label>
+    <button type="button" class="linkish small" id="place-add2">+ Add a second group or class</button>
+    <label class="checkline"><input type="checkbox" id="place-lessons"> Private lessons</label>
+    <div id="place-lesson-box" class="lessonbox" hidden>
+      <label class="flabel">Teacher<select id="pl-teacher" class="field"></select></label>
+      <div class="row">
+        <label class="flabel">How often<select id="pl-freq" class="field"><option>Weekly</option><option>Bi-Weekly</option><option>Monthly</option></select></label>
+        <label class="flabel">Length<select id="pl-len" class="field"><option>45 minutes</option><option selected>60 minutes</option><option>30 minutes</option><option>90 minutes</option></select></label>
+      </div>
+      <label class="flabel">Day and time (if set)<input id="pl-when" class="field" placeholder="Tuesday 4-5pm"></label>
+    </div>
+    <div class="flabel" style="margin-top:6px">The app will</div>
     <ul class="steps" id="place-steps"></ul>
-    <p class="muted small" style="margin:0">Billing and calendar events stay in MyMusicStaff. Set those up after.</p>
+    <div class="flabel">Then you do (from the Member Onboarding doc)</div>
+    <ul class="steps todo" id="place-todo"></ul>
     <div class="row end">
       <button type="button" class="btn" id="place-cancel">Cancel</button>
-      <button type="button" class="btn primary" id="place-go">Place them</button>
+      <button type="button" class="btn primary" id="place-go">Convert</button>
     </div>
   </div>
 </div>
@@ -295,6 +307,6 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="js/app.js?v=19"></script>
+<script src="js/app.js?v=20"></script>
 </body>
 </html>
