@@ -34,6 +34,7 @@ function seat_(instrument) {
   if (/bass/.test(i) && !/sax|bari|trombone/.test(i)) return 'Bass';
   if (/guitar/.test(i)) return 'Guitar';
   if (/piano|keys|keyboard/.test(i)) return 'Piano';
+  if (/violin|viola|cello|harmonica|ukulele|banjo|mandolin/.test(i)) return 'Other';
   return 'Horn';
 }
 

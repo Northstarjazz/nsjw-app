@@ -8,9 +8,9 @@
 <title>North Star</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Della+Respira&family=Ysabeau+Office:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/nsjw.css?v=21">
-<link rel="stylesheet" href="css/app.css?v=21">
-<link rel="stylesheet" href="css/sgraffito.css?v=21">
+<link rel="stylesheet" href="css/nsjw.css?v=22">
+<link rel="stylesheet" href="css/app.css?v=22">
+<link rel="stylesheet" href="css/sgraffito.css?v=22">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -321,6 +321,38 @@
   </div>
 </div>
 
+<div id="call-sheet" class="sheet" hidden>
+  <div class="sheet-body scroll">
+    <div class="sheet-title" id="call-title">Log a call</div>
+    <div class="row">
+      <label class="flabel">How<select id="call-channel" class="field"><option>Call</option><option>Text</option><option>Email</option><option>In person</option></select></label>
+      <label class="flabel">Level of interest<select id="call-interest" class="field"><option value="">Not sure</option><option>High</option><option>Medium</option><option>Low</option></select></label>
+    </div>
+    <label class="flabel">Call notes<textarea id="call-notes" rows="4" placeholder="What they play and for how long, goals, availability, any hesitations"></textarea></label>
+    <label class="flabel">Preferred teacher<select id="call-teacher" class="field"></select></label>
+    <div class="flabel">What happens next</div>
+    <div class="paths">
+      <label class="checkline"><input type="radio" name="call-path" value="qualified" checked> A. Qualified, there's space</label>
+      <label class="checkline"><input type="radio" name="call-path" value="waitlist"> B. Qualified, no space yet (waitlist)</label>
+      <label class="checkline"><input type="radio" name="call-path" value="longterm"> C. Not ready yet (long-term follow-up)</label>
+      <label class="checkline"><input type="radio" name="call-path" value="sitin"> D. Wants to sit in first</label>
+      <label class="checkline"><input type="radio" name="call-path" value="note"> Just a note, no change</label>
+    </div>
+    <div id="call-sitin-box" class="lessonbox" hidden>
+      <div class="row">
+        <label class="flabel">Sit-in date<input id="call-sitin" class="field" type="date"></label>
+        <label class="flabel">Group<select id="call-sitin-group" class="field"></select></label>
+      </div>
+    </div>
+    <p class="muted small" id="call-what" style="margin:0"></p>
+    <label class="flabel">Follow-up date (optional, overrides the default)<input id="call-follow" class="field" type="date"></label>
+    <div class="row end">
+      <button type="button" class="btn" id="call-cancel">Cancel</button>
+      <button type="button" class="btn primary" id="call-go">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- Lead filters -->
 <div id="lf-sheet" class="sheet" hidden>
   <div class="sheet-body scroll">
@@ -335,6 +367,6 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="js/app.js?v=21"></script>
+<script src="js/app.js?v=22"></script>
 </body>
 </html>

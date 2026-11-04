@@ -335,12 +335,14 @@
     var have = (p.tags || []).filter(function (t) { return /^Interest: /.test(t); }).map(function (t) { return t.slice(10); });
     return '<div class="pstage-h">Interested in' + (have.some(function (h) { return TRACKS.some(function (t) { return t[0] === h; }); }) ? '' : ' · undecided') +
       '</div><div class="optgrid trackrow">' + trackChips(have, 'data-track') + '</div>' +
-      '<button type="button" class="btn' + (tagStage(p.tags, p.status) === 'Committed' ? ' primary' : '') + '" data-place style="width:100%;margin:0 0 14px">Convert to member</button>';
+      '<div class="row2"><button type="button" class="btn' + (tagStage(p.tags, p.status) === 'Committed' ? '' : ' primary') + '" data-logcall>Log a call or text</button>' +
+      '<button type="button" class="btn' + (tagStage(p.tags, p.status) === 'Committed' ? ' primary' : '') + '" data-place>Convert to member</button></div>';
   }
 
   function renderPerson(p, tab) {
     var main = $('#person');
-    var subBits = [p.instruments.join(', '), p.skill ? 'Skill ' + p.skill : '', p.started ? 'Since ' + dayOnly(p.started) : ''].filter(Boolean);
+    var plays = p.instruments.length ? p.instruments : (p.formInstruments || []);
+    var subBits = [plays.join(', ') + (p.instruments.length || !plays.length ? '' : ' (from form)'), p.skill ? 'Skill ' + p.skill : '', p.started ? 'Since ' + dayOnly(p.started) : ''].filter(Boolean);
     var pills = [statusPill(p.status)]
       .concat(p.programs.map(function (t) { return '<span class="pill accent">' + esc(t) + '</span>'; }))
       .concat(p.tags.filter(function (t) { return /^Stage: /.test(t); }).map(function (t) { return '<span class="pill accent">' + esc(LEGACY[t.slice(7)] || t.slice(7)) + '</span>'; }))
@@ -535,6 +537,7 @@
         case 'mail-in': head = 'Email from them'; body = t.text + (t.snippet ? '\n' + t.snippet : ''); break;
         case 'mail-out': head = 'Email to them'; break;
         case 'signup': head = 'Sign-up form answers'; break;
+        case 'call': head = 'Call or text' + (t.author ? ' · ' + String(t.author).split('@')[0] : ''); break;
         default: head = t.kind;
       }
       var inner = '<div class="head">' + esc(head) + ' · ' + esc(when(t.at)) + ' ' + extra + '</div>' +
@@ -813,7 +816,8 @@
     return '<div class="kcard card' + (st ? ' stale' : '') + '" draggable="true" data-id="' + esc(l.id) + '" tabindex="0">' +
       '<div class="line1"><span class="name">' + esc(l.name) + '</span>' + tag + '</div>' +
       (bits ? '<div class="sub">' + esc(bits) + '</div>' : '') + nx +
-      '<div class="meta">' + (inStage != null ? inStage + (inStage === 1 ? ' day' : ' days') + ' here' : '') + (st ? ' · stalled' : '') + '</div></div>';
+      '<div class="meta">' + (inStage != null ? inStage + (inStage === 1 ? ' day' : ' days') + ' here' : '') +
+      (l.lastContact ? ' · last contact ' + esc(when(l.lastContact)) : ' · not contacted') + (l.repliedAt ? ' · replied ' + esc(when(l.repliedAt)) : '') + (st ? ' · stalled' : '') + '</div></div>';
   }
   function trackOk(l) {
     var t = leadsState.track; if (!t) return true;
@@ -1041,16 +1045,62 @@
     if (e.target.id === 'lt-stage' && e.target.value) { e.target.disabled = true; leadTag('stage', e.target.value, true, null); }
   });
 
+
+  // ---------- Log a call or text (Lead Intake doc, steps 4 and 5) ----------
+  function openCall() {
+    if (!current || !current.id) return;
+    $('#call-title').textContent = 'Log a call with ' + current.name;
+    $('#call-notes').value = ''; $('#call-sitin').value = ''; $('#call-follow').value = '';
+    $$('#call-sheet [name="call-path"]').forEach(function (r) { r.checked = r.value === 'qualified'; });
+    var groups = (groupsState.rows || []).filter(function (g) { return g.when !== 'Past'; });
+    var fillG = function (rows) { $('#call-sitin-group').innerHTML = '<option value="">Which group</option>' + rows.filter(function (g) { return g.when !== 'Past' && g.kind === 'Ensemble'; }).map(function (g) { return '<option>' + esc(g.name) + '</option>'; }).join(''); };
+    if (groups.length) fillG(groups); else api('groups').then(function (r) { groupsState.rows = r; fillG(r); }).catch(function () {});
+    var fillT = function (list) { $('#call-teacher').innerHTML = '<option value="">No preference</option>' + list.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join(''); };
+    if (placeTeachers) fillT(placeTeachers);
+    else api('lessons').then(function (rows) { placeTeachers = rows.map(function (r) { return r.Teacher; }).filter(Boolean).filter(function (t, i, a) { return a.indexOf(t) === i; }).sort(); fillT(placeTeachers); }).catch(function () { fillT([]); });
+    callPath(); $('#call-sheet').hidden = false;
+  }
+  function callPath() {
+    var v = ($$('#call-sheet [name="call-path"]').filter(function (r) { return r.checked; })[0] || {}).value;
+    $('#call-sitin-box').hidden = v !== 'sitin';
+    $('#call-what').textContent = {
+      qualified: 'Moves them to Qualified. Next step: match to a group or teacher, due in 2 days.',
+      waitlist: 'Moves them to Qualified and sets MMS status to Waiting. Next step: check in, due in 3 weeks.',
+      longterm: 'Moves them to Nurture (Mailchimp keeps them warm). Next step: personal check-in in about 6 weeks.',
+      sitin: 'Moves them to Qualified. Next step: follow up 2 days after the sit-in.',
+      note: 'Just saves the call to their timeline. Nothing else changes.' }[v] || '';
+  }
+  $('#call-sheet').addEventListener('change', function (e) { if (e.target.name === 'call-path') callPath(); });
+  $('#call-cancel').addEventListener('click', function () { $('#call-sheet').hidden = true; });
+  $('#call-sheet').addEventListener('click', function (e) { if (e.target === this) this.hidden = true; });
+  $('#call-go').addEventListener('click', function () {
+    var btn = this, path = ($$('#call-sheet [name="call-path"]').filter(function (r) { return r.checked; })[0] || {}).value || 'note';
+    if (path === 'sitin' && !$('#call-sitin').value) { toast('Pick the sit-in date'); return; }
+    btn.disabled = true; btn.textContent = 'Saving';
+    api('logcall', { sid: current.id, email: current.email, path: path, channel: $('#call-channel').value, notes: $('#call-notes').value.trim(),
+      interest: $('#call-interest').value, teacher: $('#call-teacher').value, sitIn: $('#call-sitin').value, sitInGroup: $('#call-sitin-group').value,
+      followUp: $('#call-follow').value })
+      .then(function () {
+        $('#call-sheet').hidden = true; toast('Call saved'); leadsState.rows = null; todayState.data = null; if (peopleState) peopleState.rows = null;
+        loadPerson(current.id);
+      }).catch(function (err) { toast(err.message); })
+      .then(function () { btn.disabled = false; btn.textContent = 'Save'; });
+  });
+  $('#person').addEventListener('click', function (e) { if (e.target.closest('[data-logcall]')) openCall(); });
+
   // ---------- Convert to member (was Place in a group) ----------
   // Follows the Member Onboarding doc: the app sets MMS status and tags; billing,
   // the calendar event and the onboarding email stay with you and are listed.
   var placeTeachers = null;
   function groupOptions(rows, exclude) {
-    var mine = (current.instruments || []).map(function (i) { return seatOf(i); });
+    var mine = ((current.instruments || []).length ? current.instruments : (current.formInstruments || [])).map(function (i) { return seatOf(i); });
+    var ints = (current.tags || []).filter(function (t) { return /^Interest: /.test(t); }).map(function (t) { return t.slice(10); });
+    var want = ints.indexOf('Ensemble') >= 0 ? 'Ensemble' : ints.indexOf('Classes') >= 0 ? 'Class' : '';
     var cur = rows.filter(function (g) { return g.when !== 'Past' && current.programs.indexOf(g.name) < 0 && g.name !== exclude; });
     cur.sort(function (a, b) {
       var fa = a.open.some(function (s) { return mine.indexOf(s) >= 0; }) ? 0 : 1, fb = b.open.some(function (s) { return mine.indexOf(s) >= 0; }) ? 0 : 1;
-      return (fa - fb) || a.name.localeCompare(b.name, 'en', { numeric: true });
+      var ka = want && a.kind !== want ? 1 : 0, kb = want && b.kind !== want ? 1 : 0;
+      return (ka - kb) || (fa - fb) || a.name.localeCompare(b.name, 'en', { numeric: true });
     });
     return '<option value="">None</option>' + cur.map(function (g) {
       var fit = g.open.some(function (s) { return mine.indexOf(s) >= 0; });
@@ -1071,7 +1121,8 @@
     $('#place-sheet').hidden = false;
     var go = function (rows) {
       sel.innerHTML = groupOptions(rows);
-      if (!$('#place-lessons').checked && sel.options.length > 1) sel.selectedIndex = 1;
+      // Preselect only a group that has a seat for their instrument; otherwise leave it on None.
+      if (!$('#place-lessons').checked && sel.options.length > 1 && / · fits$/.test(sel.options[1].textContent)) sel.selectedIndex = 1;
       sel.disabled = false; placeSteps();
     };
     if (groupsState.rows) go(groupsState.rows);

@@ -243,6 +243,10 @@ a { color: var(--accent); }
 .lessonbox { border-left: 3px solid var(--gold-deep); padding-left: 12px; display: flex; flex-direction: column; gap: 8px; }
 .steps.todo li { color: var(--muted); }
 #place-add2 { align-self: flex-start; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
+.paths { display: flex; flex-direction: column; gap: 0; }
+.paths .checkline { min-height: 40px; font-weight: 600 !important; }
+#call-sheet textarea { width: 100%; }
 .board { display: grid; grid-auto-flow: column; grid-auto-columns: 84%; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory;
   margin: 0 -16px; padding: 4px 16px 12px; -webkit-overflow-scrolling: touch; }
 .kcol { scroll-snap-align: start; background: rgba(30,27,24,.05); border-radius: 6px; padding: 10px 8px 8px; min-height: 240px; display: flex; flex-direction: column; }

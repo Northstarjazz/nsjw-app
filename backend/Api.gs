@@ -49,6 +49,7 @@ function api_(e) {
       case 'nextdone': out = nextDone_(who, p); break;
       case 'place':  out = placeInGroup_(who, p); break;
       case 'leave':  out = leaveGroup_(who, p); break;
+      case 'logcall': out = logCall_(who, p); break;
       default: throw new Error('Unknown action');
     }
   } catch (err) {
@@ -140,6 +141,7 @@ function syncRoster() {
   sh.getRange(1, 1, out.length, out[0].length).setValues(out);
   if (!sh.isSheetHidden()) sh.hideSheet();
   try { seedInterestTags_(); } catch (e) { Logger.log('Interest seeding: ' + e.message); }
+  try { mailIndex_(true); } catch (e) { Logger.log('Mail index: ' + e.message); }
   return out.length - 1;
 }
 
@@ -278,6 +280,7 @@ function getPerson_(sid, email) {
     email: email, phone: r ? r.Phone : '', started: r ? r.Started : '', skill: r ? r['Skill level'] : '',
     lastEvent: r ? r['Last event'] : '', nextEvent: r ? r['Next event'] : '',
     programs: r ? split_(r.Programs) : [], instruments: r ? split_(r.Instruments) : [],
+    formInstruments: r ? formInstruments_(signup_(r.Note).instrument) : [],
     tags: r ? split_(r['Other tags']) : [],
     mmsUrl: sid ? 'https://app.mymusicstaff.com/Teacher/v2/en/students/details?id=' + sid : '',
     nextStep: nextStep, sequences: enroll, threads: mail, timeline: timeline.slice(0, 60),

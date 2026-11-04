@@ -36,7 +36,7 @@ function signup_(note) {
     var m = line.match(/^\s*([^:]{3,60}):\s*(.+)$/);
     if (!m) return;
     var k = m[1].toLowerCase();
-    if (/^instrument/.test(k)) out.instrument = m[2].trim();
+    if (/instrument/.test(k)) out.instrument = m[2].trim();
     else if (/experience level/.test(k)) out.experience = m[2].trim();
     else if (/interested/.test(k)) out.interested = m[2].trim();
     else if (/hear about/.test(k)) out.source = m[2].trim();
@@ -100,6 +100,7 @@ function recentEnrolled_() {
 
 function leadRows_() {
   var notes = sheetObjects_(NOTES_TAB);
+  var mail = mailIndex_();
   var bySid = {};
   notes.forEach(function (n) {
     if (autoNote_(n)) return; // the app's own bookkeeping is not contact with the person
@@ -119,8 +120,11 @@ function leadRows_() {
     var tags = split_(r['Other tags']);
     var n = bySid[r.ID] || bySid['e:' + String(r.Email).toLowerCase()] || {};
     var s = signup_(r.Note);
+    var m = mail[String(r.Email).toLowerCase()] || {};
+    var lastC = [n.last ? gday_(n.last) : '', m.out || ''].filter(Boolean).sort().pop() || '';
     return {
       id: r.ID, name: r.Name, status: r.Status, email: r.Email, phone: r.Phone,
+      emailedAt: m.out || '', repliedAt: m['in'] || '',
       started: gday_(r.Started), skill: r['Skill level'],
       stage: stageOf_(r, tags),
       instruments: split_(r.Instruments),
@@ -130,11 +134,11 @@ function leadRows_() {
       form: s,
       formInterests: formInterests_(s.interested, s.form),
       formInstruments: formInstruments_(s.instrument),
-      lastContact: n.last ? gday_(n.last) : '',
+      lastContact: lastC,
       stageAt: n.stageAt ? gday_(n.stageAt) : '',
       track: track_(tracksOf_(tags, s)),
       tracks: tracksOf_(tags, s),
-      notes: n.count || 0,
+      notes: (n.count || 0) + (m.out ? 1 : 0),
       next: n.next ? { text: n.next.Text, due: gday_(n.next.Due), owner: n.next.Owner } : null
     };
   });
@@ -500,4 +504,92 @@ function rosterStatus_(sid, status) {
   if (!sh) return;
   var v = sh.getDataRange().getValues(), cs = v[0].indexOf('Status');
   for (var i = 1; i < v.length; i++) if (v[i][0] === sid) { sh.getRange(i + 1, cs + 1).setValue(status); return; }
+}
+
+
+// ---------- email counts as contact ----------
+
+/**
+ * Who you have emailed (and who wrote back) from this inbox in the last 90 days:
+ * { email: { out: 'yyyy-mm-dd', in: 'yyyy-mm-dd' } }. Kept only in the script cache
+ * (never written to the sheet) and refreshed by the roster sync; built on demand if empty.
+ */
+function mailIndex_(rebuild) {
+  var cache = CacheService.getScriptCache();
+  if (!rebuild) {
+    var hit = cache.get('mailidx');
+    if (hit) return JSON.parse(hit);
+  }
+  var me = Session.getEffectiveUser().getEmail().toLowerCase(), idx = {}, tz = Session.getScriptTimeZone();
+  var start = 0;
+  for (var page = 0; page < 6; page++) {
+    var threads = GmailApp.search('newer_than:90d -in:spam -in:trash', start, 100);
+    if (!threads.length) break;
+    GmailApp.getMessagesForThreads(threads).forEach(function (msgs) {
+      msgs.forEach(function (msg) {
+        var day = Utilities.formatDate(msg.getDate(), tz, 'yyyy-MM-dd');
+        var from = addr_(msg.getFrom())[0] || '';
+        if (from === me) {
+          addr_(msg.getTo() + ',' + msg.getCc()).forEach(function (a) {
+            if (a === me) return;
+            var o = idx[a] = idx[a] || {};
+            if (!o.out || day > o.out) o.out = day;
+          });
+        } else if (from) {
+          var o2 = idx[from] = idx[from] || {};
+          if (!o2['in'] || day > o2['in']) o2['in'] = day;
+        }
+      });
+    });
+    if (threads.length < 100) break;
+    start += 100;
+  }
+  var json = JSON.stringify(idx);
+  if (json.length < 95000) cache.put('mailidx', json, 6 * 3600);
+  return idx;
+}
+
+function addr_(s) {
+  return (String(s || '').match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || []).map(function (x) { return x.toLowerCase(); });
+}
+
+// ---------- log a call (Lead Intake doc, steps 4 and 5) ----------
+
+/**
+ * p: { sid, email, channel, path, notes, interest, teacher, sitIn, sitInGroup, followUp }
+ * path: 'qualified' (A), 'waitlist' (B), 'longterm' (C), 'sitin' (D), 'note' (no change).
+ * Writes the call to the timeline, moves the stage, sets the next step and date.
+ */
+function logCall_(who, p) {
+  var sid = String(p.sid || '');
+  if (!/^sdt_/.test(sid)) throw new Error('This person is not in MMS yet.');
+  var path = String(p.path || 'note'), channel = String(p.channel || 'Call');
+  var lines = [channel + (p.notes ? ': ' + String(p.notes).slice(0, 3000) : '')];
+  if (p.interest) lines.push('Level of interest: ' + p.interest);
+  if (p.teacher) lines.push('Preferred teacher: ' + p.teacher);
+  var next = { qualified: ['Match to a group or teacher and offer the spot', 2],
+    waitlist: ['Waitlist check-in: any seat open yet?', 21],
+    longterm: ['Long-term follow-up: check in personally', 45],
+    sitin: ['Follow up after the sit-in' + (p.sitInGroup ? ' at ' + p.sitInGroup : ''), 2] }[path];
+  if (path === 'sitin') lines.push('Sit-in' + (p.sitInGroup ? ' at ' + p.sitInGroup : '') + (p.sitIn ? ' on ' + p.sitIn : ''));
+  var stage = { qualified: 'Qualified', waitlist: 'Qualified', longterm: 'Nurture', sitin: 'Qualified' }[path];
+  var notes = tab_(NOTES_TAB, ['Timestamp', 'MMS ID', 'Email', 'Author', 'Kind', 'Text', 'Due', 'Owner', 'Done']);
+  notes.appendRow([new Date(), sid, String(p.email || '').toLowerCase(), who, 'call', lines.join('\n'), '', '', '']);
+  var done = [];
+  if (stage) { setLeadTag_(who, { sid: sid, email: p.email, field: 'stage', value: stage }); done.push('Stage set to ' + stage); }
+  if (path === 'waitlist') {
+    var r = rosterRows_().filter(function (x) { return x.ID === sid; })[0];
+    if (!r || r.Status !== 'Waiting') { setStatus_(sid, 'Waiting'); rosterStatus_(sid, 'Waiting'); done.push('MMS status set to Waiting'); }
+  }
+  if (next) {
+    var due = p.followUp ? String(p.followUp) : '';
+    if (!due) {
+      var base = path === 'sitin' && p.sitIn ? new Date(p.sitIn + 'T12:00:00') : new Date();
+      due = Utilities.formatDate(new Date(base.getTime() + next[1] * 864e5), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    }
+    nextDone_(who, { sid: sid, email: p.email });
+    notes.appendRow([new Date(), sid, String(p.email || '').toLowerCase(), who, 'next_step', next[0], due, who.split('@')[0], '']);
+    done.push('Next step: ' + next[0] + ' (' + due + ')');
+  }
+  return { ok: true, done: done };
 }
