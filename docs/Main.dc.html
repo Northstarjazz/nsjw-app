@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Person page</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#B8452B}a:hover{color:#8F3421}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FAFAF8; color: #1C1C1A; font-family: Inter, system-ui, sans-serif; font-size: 14px; display: flex; flex-direction: column; overflow: hidden">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 10px 16px">
+    <a href="Today.dc.html" aria-label="Back to Today" style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 22px; background: #F0EFEA; text-decoration: none">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1C1C1A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <div style="font-size: 13px; font-weight: 600; color: #5C5B57; letter-spacing: 0.04em">PERSON</div>
+    <button aria-label="More" style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 22px; background: #F0EFEA; border: 0">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="#1C1C1A" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+    </button>
+  </div>
+
+  <div style="padding: 4px 16px 0 16px; display: flex; flex-direction: column; gap: 10px">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <div style="width: 52px; height: 52px; border-radius: 26px; background: #B8452B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px">MR</div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div style="font-size: 22px; font-weight: 700; line-height: 1.1">Marcus Reed</div>
+        <div style="font-size: 13px; color: #5C5B57">Tenor sax · Green belt · Weeknights</div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap">
+      <span style="padding: 6px 10px; border-radius: 14px; background: #FDE8E1; color: #8F3421; font-size: 12px; font-weight: 600">Waiting</span>
+      <span style="padding: 6px 10px; border-radius: 14px; background: #F0EFEA; color: #3D3C39; font-size: 12px; font-weight: 500">Wants a band</span>
+      <span style="padding: 6px 10px; border-radius: 14px; background: #F0EFEA; color: #3D3C39; font-size: 12px; font-weight: 500">Horn Openings seq.</span>
+    </div>
+  </div>
+
+  <div style="margin: 14px 16px 0 16px; padding: 12px 14px; border-radius: 12px; background: #1C1C1A; color: #FFFFFF; display: flex; align-items: center; justify-content: space-between; gap: 12px">
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <div style="font-size: 12px; color: #B9B8B2; font-weight: 500">Next step · due Thu</div>
+      <div style="font-size: 14px; font-weight: 600">Offer the Tuesday Group 12 seat</div>
+    </div>
+    <div style="font-size: 12px; color: #B9B8B2; white-space: nowrap">Ben</div>
+  </div>
+
+  <div style="display: flex; gap: 8px; padding: 14px 16px 0 16px">
+    <button style="flex: 1; height: 44px; border-radius: 10px; border: 0; background: #B8452B; color: #FFFFFF; font-weight: 600; font-size: 14px">Email</button>
+    <button style="flex: 1; height: 44px; border-radius: 10px; border: 1px solid #D8D6CF; background: #FFFFFF; color: #1C1C1A; font-weight: 600; font-size: 14px">Text</button>
+    <button style="flex: 1; height: 44px; border-radius: 10px; border: 1px solid #D8D6CF; background: #FFFFFF; color: #1C1C1A; font-weight: 600; font-size: 14px">Note</button>
+    <button style="flex: 1.3; height: 44px; border-radius: 10px; border: 1px solid #D8D6CF; background: #FFFFFF; color: #1C1C1A; font-weight: 600; font-size: 14px">Convert</button>
+  </div>
+
+  <div style="display: flex; gap: 18px; padding: 18px 16px 0 16px; border-bottom: 1px solid #E6E4DD; font-size: 13px; font-weight: 600">
+    <div style="padding-bottom: 10px; border-bottom: 2px solid #1C1C1A">Timeline</div>
+    <div style="padding-bottom: 10px; color: #7A7974">Details</div>
+    <div style="padding-bottom: 10px; color: #7A7974">Seats</div>
+  </div>
+
+  <div style="flex: 1; overflow: hidden; padding: 12px 16px 0 16px; display: flex; flex-direction: column; gap: 10px">
+
+    <div style="display: flex; gap: 10px">
+      <div style="width: 28px; display: flex; flex-direction: column; align-items: center">
+        <div style="width: 28px; height: 28px; border-radius: 14px; background: #FFF3C4; display: flex; align-items: center; justify-content: center">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7A5A00" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/></svg>
+        </div>
+        <div style="flex: 1; width: 2px; background: #E6E4DD; margin-top: 4px"></div>
+      </div>
+      <div style="flex: 1; padding: 10px 12px; border-radius: 10px; background: #FFF9E3; display: flex; flex-direction: column; gap: 4px">
+        <div style="font-size: 12px; color: #7A7974">Note · Ben · Mon</div>
+        <div style="font-size: 13px; line-height: 1.4">Called back. Played in college, 10 yrs off. Tuesdays only. Open to a 2nd/4th week group.</div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 10px">
+      <div style="width: 28px; display: flex; flex-direction: column; align-items: center">
+        <div style="width: 28px; height: 28px; border-radius: 14px; background: #E4EEF8; display: flex; align-items: center; justify-content: center">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4E79" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+        </div>
+        <div style="flex: 1; width: 2px; background: #E6E4DD; margin-top: 4px"></div>
+      </div>
+      <div style="flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid #E6E4DD; background: #FFFFFF; display: flex; flex-direction: column; gap: 4px">
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #7A7974"><span>Marcus replied · Sun</span><span style="color: #1F6B3A; font-weight: 600">Replied</span></div>
+        <div style="font-size: 13px; line-height: 1.4">"Tuesdays work. Would love to hear about the horn opening."</div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 10px">
+      <div style="width: 28px; display: flex; flex-direction: column; align-items: center">
+        <div style="width: 28px; height: 28px; border-radius: 14px; background: #E4EEF8; display: flex; align-items: center; justify-content: center">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4E79" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+        </div>
+        <div style="flex: 1; width: 2px; background: #E6E4DD; margin-top: 4px"></div>
+      </div>
+      <div style="flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid #E6E4DD; background: #FFFFFF; display: flex; flex-direction: column; gap: 4px">
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #7A7974"><span>Horn Openings · step 2 · Fri</span><span>Opened 2x · Clicked</span></div>
+        <div style="font-size: 13px; line-height: 1.4; color: #3D3C39">A tenor seat opened in a Tuesday group...</div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 10px">
+      <div style="width: 28px; display: flex; flex-direction: column; align-items: center">
+        <div style="width: 28px; height: 28px; border-radius: 14px; background: #E8F3EA; display: flex; align-items: center; justify-content: center">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F6B3A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+      </div>
+      <div style="flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid #E6E4DD; background: #FFFFFF; display: flex; flex-direction: column; gap: 4px">
+        <div style="font-size: 12px; color: #7A7974">Signed up · Oct 14</div>
+        <div style="font-size: 13px; line-height: 1.4; color: #3D3C39">Website form. Status set to Lead.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

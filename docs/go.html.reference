@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>North Star Jazz Workshops</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+         font-family: Georgia, "Times New Roman", serif; background: #FAFAF8; color: #1C1C1A; }
+  p { font-size: 18px; }
+  a { color: #B8452B; }
+</style>
+<script>
+(function () {
+  var TRACK = "https://script.google.com/macros/s/AKfycbw0t_2tYuBAnwDyagUzHIVIAIe4yWrpRzv2gjneNE0XH248dh6oCOOYc5Ek9wKKCVE3/exec";
+  var HOME = "https://northstarjazzworkshops.com/";
+  var q = new URLSearchParams(location.search);
+  var u = q.get("u") || HOME;
+  var t = q.get("t") || "";
+  // Only follow links to our own site.
+  try {
+    var host = new URL(u, HOME).hostname.replace(/^www\./, "");
+    if (host !== "northstarjazzworkshops.com") u = HOME;
+  } catch (e) { u = HOME; }
+  if (t) {
+    var ping = TRACK + "?k=c&t=" + encodeURIComponent(t) + "&u=" + encodeURIComponent(u);
+    if (navigator.sendBeacon) { try { navigator.sendBeacon(ping); } catch (e) {} }
+    else { var i = new Image(); i.src = ping; }
+  }
+  setTimeout(function () { location.replace(u); }, t ? 150 : 0);
+  window.__go = u;
+})();
+</script>
+</head>
+<body>
+<p>Taking you to <a id="lnk" href="https://northstarjazzworkshops.com/">North Star Jazz Workshops</a>&hellip;</p>
+<script>document.getElementById("lnk").href = window.__go || "https://northstarjazzworkshops.com/";</script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+/* North Star shared stylesheet. Tokens first; components below. */
+:root {
+  --ground: #FAFAF8;
+  --surface: #FFFFFF;
+  --surface-2: #F0EFEA;
+  --line: #E6E4DD;
+  --line-strong: #D8D6CF;
+  --ink: #1C1C1A;
+  --ink-2: #3D3C39;
+  --muted: #5C5B57;
+  --faint: #7A7974;
+  --accent: #B8452B;
+  --accent-dark: #8F3421;
+  --accent-tint: #FDE8E1;
+  --good: #1F6B3A;
+  --good-tint: #E8F3EA;
+  --info: #1F4E79;
+  --info-tint: #E4EEF8;
+  --note-tint: #FFF9E3;
+  --radius: 12px;
+  --radius-sm: 10px;
+  --tap: 44px;
+  --font: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--ground); color: var(--ink); font: 14px/1.4 var(--font); -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); }
+h1 { font-size: 26px; font-weight: 700; line-height: 1.1; margin: 0; }
+h2 { font-size: 22px; font-weight: 700; line-height: 1.1; margin: 0; }
+.eyebrow { font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
+.pill { display: inline-block; padding: 4px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: var(--surface-2); color: var(--ink-2); }
+.pill.accent { background: var(--accent-tint); color: var(--accent-dark); }
+.pill.good { background: var(--good-tint); color: var(--good); }
+.btn { height: var(--tap); padding: 0 14px; border-radius: var(--radius-sm); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: 600 14px var(--font); cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+.avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
+.bar { height: 6px; border-radius: 3px; background: #EDECE6; overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--ink); }
+.bar.accent > span { background: var(--accent); }
+.tabbar { display: flex; justify-content: space-around; padding: 10px 8px 22px; border-top: 1px solid var(--line); background: var(--surface); font-size: 11px; font-weight: 600; }
+.tabbar a { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 60px; color: var(--muted); text-decoration: none; }
+.tabbar a.active { color: var(--accent); }
+.screen { max-width: 480px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; }
+.screen > main { flex: 1; padding: 0 16px; }
