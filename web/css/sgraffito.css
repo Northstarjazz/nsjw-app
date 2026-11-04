@@ -226,6 +226,13 @@ a { color: var(--accent); }
 .pstage-h { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 .pstage .stagechip.busy { opacity: .5; }
 
+.stat .dl { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 3px; }
+.pulse { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 14px 0 6px; }
+.pz { display: block; padding: 12px 14px; color: var(--ink); text-decoration: none; }
+.pz .l { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.pz .n { font: 400 28px/1.1 var(--display); margin-top: 4px; }
+.pz .s { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
 /* ---------- Wide screens: sidebar nav, roomier content, two-column lists ---------- */
 @media (min-width: 1000px) {
   .screen { overflow-anchor: none; max-width: none; display: grid; grid-template-columns: 232px minmax(0, 1fr); align-items: start; }
@@ -258,6 +265,7 @@ a { color: var(--accent); }
   .list > .loading, .list > .empty { grid-column: 1 / -1; }
   #person { max-width: 860px; }
 
+  .pulse { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .sheet { align-items: center; }
   .sheet-body { max-width: 560px; border-radius: 6px; }
 }

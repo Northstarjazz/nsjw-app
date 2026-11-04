@@ -134,10 +134,32 @@ function syncRoster() {
       prog.join('; '), inst.join('; '), other.join('; '), String(s.Note || '').slice(0, 2000), now, s.SkillLevel || '']);
   });
   var sh = tab_(ROSTER_TAB);
+  logStatusChanges_(sh, out);
   sh.clearContents();
   sh.getRange(1, 1, out.length, out[0].length).setValues(out);
   if (!sh.isSheetHidden()) sh.hideSheet();
   return out.length - 1;
+}
+
+/**
+ * Compare the old roster with the new one and log anyone who became Active or
+ * stopped being Active, so Today can count joins and departures. Only the MMS ID
+ * and the status change are written, never contact details.
+ */
+function logStatusChanges_(sh, out) {
+  if (sh.getLastRow() < 2) return;
+  var old = {};
+  sh.getRange(2, 1, sh.getLastRow() - 1, 4).getValues().forEach(function (r) { old[r[0]] = r[3]; });
+  var rows = [], now = new Date();
+  out.slice(1).forEach(function (r) {
+    var was = old[r[0]], is = r[3];
+    if (was === undefined || was === is) return;
+    if (was === 'Active' && is !== 'Active') rows.push([now, r[0], '', 'MMS sync', 'change', 'Left: MMS status went from Active to ' + is, '', '', '']);
+    if (was !== 'Active' && is === 'Active') rows.push([now, r[0], '', 'MMS sync', 'change', 'Joined: MMS status went from ' + was + ' to Active', '', '', '']);
+  });
+  if (!rows.length) return;
+  var n = tab_(NOTES_TAB, ['Timestamp', 'MMS ID', 'Email', 'Author', 'Kind', 'Text', 'Due', 'Owner', 'Done']);
+  n.getRange(n.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
 }
 
 function isProgramTag_(t) {
