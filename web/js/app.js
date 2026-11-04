@@ -200,6 +200,7 @@
       '<div class="actions">' +
         '<a class="btn" href="' + esc(mail) + '"' + (mail ? '' : ' aria-disabled="true"') + '>Email</a>' +
         '<a class="btn" href="' + esc(sms) + '"' + (sms ? '' : ' aria-disabled="true"') + '>Text</a>' +
+        '<a class="btn" target="_blank" rel="noopener" href="' + esc(p.mmsUrl) + '"' + (p.mmsUrl ? '' : ' aria-disabled="true"') + '>MMS</a>' +
         '<button class="btn" type="button" data-open="note">Note</button>' +
         '<button class="btn dark" type="button" data-open="next_step">Next step</button>' +
       '</div>' +
