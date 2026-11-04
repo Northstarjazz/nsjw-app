@@ -140,6 +140,11 @@ function tagWrite_(sid, name, on) {
     g = mms_('get', 'studentgroups').filter(function (x) { return x.ID === id || x.Name === name; })[0];
     if (!g) throw new Error('Could not create the tag ' + name);
   }
+  // MMS clears a tag's teachers on any PUT that does not list them, and the API cannot
+  // read which teachers are on a tag. So never touch a tag that has teachers on it.
+  if (Number(g.TeacherCount) > 0) {
+    throw new Error('"' + name + '" has teachers on it in MMS, and changing it from the app would remove them. Change this one in MMS.');
+  }
   Utilities.sleep(600);
   var ids = members_(g.ID);
   if (g.StudentCount != null && ids.length !== Number(g.StudentCount)) {
@@ -251,7 +256,10 @@ function placeInGroup_(who, p) {
   var done = [];
   try {
     tagWrite_(sid, group, true); done.push('Tagged ' + group);
-    if (/^Group \d+/.test(group)) { tagWrite_(sid, 'Ensemble Member', true); done.push('Tagged Ensemble Member'); }
+    if (/^Group \d+/.test(group)) {
+      try { tagWrite_(sid, 'Ensemble Member', true); done.push('Tagged Ensemble Member'); }
+      catch (e) { done.push('Add the Ensemble Member tag in MMS (it has teachers on it)'); }
+    }
     var r = rosterRows_().filter(function (x) { return x.ID === sid; })[0];
     split_(r ? r['Other tags'] : '').filter(function (t) { return /^Stage: /.test(t); }).forEach(function (t) {
       tagWrite_(sid, t, false); rosterTag_(sid, t, false);

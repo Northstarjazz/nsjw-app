@@ -717,7 +717,7 @@
   }
   function placeSteps() {
     var g = $('#place-group').value, steps = ['Add the "' + g + '" tag in MMS'];
-    if (/^Group \d+/.test(g)) steps.push('Add the "Ensemble Member" tag');
+    if (/^Group \d+/.test(g)) steps.push('Add the "Ensemble Member" tag (or tell you to, if MMS has teachers on it)');
     if ((current.tags || []).some(function (t) { return /^Stage: /.test(t); })) steps.push('Clear their funnel stage');
     if (current.status !== 'Active') steps.push('Change their MMS status from ' + current.status + ' to Active');
     steps.push('Log it on their timeline');
@@ -729,8 +729,9 @@
   $('#place-go').addEventListener('click', function () {
     var btn = this, g = $('#place-group').value; if (!g) return;
     btn.disabled = true; btn.textContent = 'Placing';
-    api('place', { sid: current.id, email: current.email, group: g }).then(function () {
-      $('#place-sheet').hidden = true; toast('Placed in ' + g);
+    api('place', { sid: current.id, email: current.email, group: g }).then(function (r) {
+      var manual = ((r && r.done) || []).filter(function (d) { return /^Add the/.test(d); });
+      $('#place-sheet').hidden = true; toast(manual.length ? 'Placed. ' + manual[0] + '.' : 'Placed in ' + g);
       leadsState.rows = null; groupsState.rows = null; todayState.data = null;
       loadPerson(current.id);
     }).catch(function (err) { toast(err.message); })

@@ -51,3 +51,10 @@ The app keeps no table of leads. A lead's funnel fields are tags on the student 
 Writes go through `tagWrite_` in `backend/Leads.gs`: read members, check the count against
 `StudentCount`, PUT the full list with one person added or removed, read back. A count mismatch
 stops the write. Tags are created on first use. Next steps and notes stay in the Notes tab.
+
+**Tags with teachers on them cannot be changed from the app.** MMS clears a tag's teachers on any
+PUT that does not list them, and the API cannot read which teachers are on a tag (search/teachers
+ignores the tag filter). Confirmed on a test tag, Nov 4 2026. So `tagWrite_` refuses any tag whose
+`TeacherCount` is above zero. Today that is Ensemble Member, Plays: Guitar, Plays: Piano/Keys,
+Plays: Voice and Private Lessons - Active, plus the teacher tags. The `mms_tag_set` MCP tool on
+Ben's Mac also misreads membership (shows 0 for tags that have students); do not use it for writes.
