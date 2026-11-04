@@ -42,6 +42,9 @@ function api_(e) {
       case 'lesson': out = saveLesson_(who, p); break;
       case 'groups': out = listGroups_(); break;
       case 'group':  out = getGroup_(String(p.name || '')); break;
+      case 'leads':  out = listLeads_(); break;
+      case 'leadtag': out = setLeadTag_(who, p); break;
+      case 'nextdone': out = nextDone_(who, p); break;
       default: throw new Error('Unknown action');
     }
   } catch (err) {

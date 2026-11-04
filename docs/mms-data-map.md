@@ -36,3 +36,18 @@ Belt level, interests beyond the sign-up note, next step and owner, follow-up da
 ## Open decision before the backend can read MMS
 
 The Person page's backend is the Sequencer Apps Script, which runs on Google, not on Ben's Mac. To read MMS it needs the MMS API key stored in the script's Script Properties (encrypted at rest, visible only to the script owner). Alternative: a scheduled sync on the Mac pushes the fields above into a hidden Sheet tab, and the script reads that. The first is live; the second keeps the key on the Mac.
+
+## Lead funnel fields are MMS tags (Nov 2026)
+
+The app keeps no table of leads. A lead's funnel fields are tags on the student in MMS:
+
+| Field | Tag | Notes |
+|---|---|---|
+| Stage | `Stage: Qualified`, `Stage: Deposit Submitted`, `Stage: Nurture`, `Stage: Closed` | One at a time. No stage tag = New Lead (or Enrolled if MMS status is Active). An "(Ensemble Deposit)" form on the student note reads as Deposit Submitted until someone sets a stage. |
+| Interested in | `Interest: Ensemble`, `Interest: Private lessons`, ... | Any number. Falls back to the sign-up form answers when none are set. |
+| Nights | `Nights: Mon` ... `Nights: Sun` | Any number. |
+| Plays | existing `Plays: ...` tags | Falls back to the form's Instrument answer. |
+
+Writes go through `tagWrite_` in `backend/Leads.gs`: read members, check the count against
+`StudentCount`, PUT the full list with one person added or removed, read back. A count mismatch
+stops the write. Tags are created on first use. Next steps and notes stay in the Notes tab.

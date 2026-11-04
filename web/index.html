@@ -8,9 +8,9 @@
 <title>North Star</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Della+Respira&family=Ysabeau+Office:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/nsjw.css?v=7">
-<link rel="stylesheet" href="css/app.css?v=7">
-<link rel="stylesheet" href="css/sgraffito.css?v=7">
+<link rel="stylesheet" href="css/nsjw.css?v=8">
+<link rel="stylesheet" href="css/app.css?v=8">
+<link rel="stylesheet" href="css/sgraffito.css?v=8">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -72,6 +72,31 @@
     </main>
   </section>
 
+  <!-- Leads -->
+  <section id="v-leads" class="view" hidden>
+    <header class="art">
+      <div class="eyebrow" id="leads-eyebrow">The funnel</div>
+      <h1>Leads</h1>
+    </header>
+    <main>
+      <div class="stagebar" id="stagebar"></div>
+      <input id="lq" class="search" type="search" placeholder="Search name, email, instrument" autocomplete="off">
+      <div class="chips" id="lead-views">
+        <button class="chip on" data-view="action">Needs action</button>
+        <button class="chip" data-view="new">New this month</button>
+        <button class="chip" data-view="nonext">No next step</button>
+        <button class="chip" data-view="all">All</button>
+      </div>
+      <div class="filterline">
+        <button class="btn" type="button" id="lead-filter-btn">Filter</button>
+        <div class="chips" id="lead-active"></div>
+      </div>
+      <div class="groups-sum muted" id="leads-sum"></div>
+      <div id="lead-list" class="list"></div>
+      <button class="btn" type="button" id="lead-more" hidden style="width:100%;margin-bottom:24px">Show more</button>
+    </main>
+  </section>
+
   <!-- Groups -->
   <section id="v-groups" class="view" hidden>
     <header class="art black">
@@ -120,6 +145,7 @@
 
   <nav class="tabbar" id="tabbar" hidden>
     <a href="#people" data-nav="people"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></svg>People</a>
+    <a href="#leads" data-nav="leads"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 4h14l-5 6v5l-4 2v-7z"/></svg>Leads</a>
     <a href="#groups" data-nav="groups"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="7" cy="7" r="3"/><circle cx="14" cy="8" r="2.5"/><path d="M2 17c0-3 2.5-5 5-5s5 2 5 5M12 17c0-2 1.5-4 4-4"/></svg>Groups</a>
     <a href="#lessons" data-nav="lessons"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 15V4l9-2v11"/><circle cx="5.5" cy="15" r="2.5"/><circle cx="14.5" cy="13" r="2.5"/></svg>Lessons</a>
   </nav>
@@ -184,8 +210,20 @@
   </form>
 </div>
 
+<!-- Lead filters -->
+<div id="lf-sheet" class="sheet" hidden>
+  <div class="sheet-body scroll">
+    <div class="sheet-title">Filter leads</div>
+    <div id="lf-groups"></div>
+    <div class="row end">
+      <button type="button" class="btn" id="lf-clear">Clear all</button>
+      <button type="button" class="btn primary" id="lf-done">Show leads</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast" hidden></div>
 
-<script src="js/app.js?v=7"></script>
+<script src="js/app.js?v=8"></script>
 </body>
 </html>
