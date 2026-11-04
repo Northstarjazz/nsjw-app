@@ -138,6 +138,7 @@ function syncRoster() {
   sh.clearContents();
   sh.getRange(1, 1, out.length, out[0].length).setValues(out);
   if (!sh.isSheetHidden()) sh.hideSheet();
+  try { seedInterestTags_(); } catch (e) { Logger.log('Interest seeding: ' + e.message); }
   return out.length - 1;
 }
 

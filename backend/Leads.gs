@@ -60,6 +60,13 @@ function listLeads_() {
   return { options: leadOptions_(), leads: leadRows_(), enrolled: recentEnrolled_(), stale: STALE_DAYS, boardDays: BOARD_DAYS };
 }
 
+/** Ensemble / Private lessons / Classes: from their Interest tags, or the sign-up form if they have none. */
+function tracksOf_(tags, s) {
+  var t = tags.filter(function (x) { return /^Interest: /.test(x); }).map(function (x) { return x.slice(10); });
+  if (!t.length) t = formInterests_(s.interested, s.form);
+  return ['Ensemble', 'Private lessons', 'Classes'].filter(function (x) { return t.indexOf(x) >= 0; });
+}
+
 /** Which program a lead is heading for, for the board: Ensemble, Lessons or Class. */
 function track_(interests) {
   if (interests.indexOf('Ensemble') >= 0) return 'Ensemble';
@@ -117,27 +124,31 @@ function leadRows_() {
       nights: tags.filter(function (t) { return /^Nights: /.test(t); }).map(function (t) { return t.slice(8); }),
       programs: split_(r.Programs),
       form: s,
-      formInterests: formInterests_(s.interested),
+      formInterests: formInterests_(s.interested, s.form),
       formInstruments: formInstruments_(s.instrument),
       lastContact: n.last ? gday_(n.last) : '',
       stageAt: n.stageAt ? gday_(n.stageAt) : '',
-      track: track_(tags.filter(function (t) { return /^Interest: /.test(t); }).map(function (t) { return t.slice(10); }).concat(formInterests_(s.interested))),
+      track: track_(tracksOf_(tags, s)),
+      tracks: tracksOf_(tags, s),
       notes: n.count || 0,
       next: n.next ? { text: n.next.Text, due: gday_(n.next.Due), owner: n.next.Owner } : null
     };
   });
 }
 
-function formInterests_(s) {
+function formInterests_(s, form) {
   s = String(s || '').toLowerCase();
+  // "Group classes (Foundations, Jazz Guitar, Voice, etc.)" is one option; read it as Classes, not Voice.
+  var classes = /group classes|course/.test(s);
+  s = s.replace(/group classes \([^)]*\)/g, ' ');
   var out = [];
   if (/ensemble|small group/.test(s)) out.push('Ensemble');
   if (/private/.test(s)) out.push('Private lessons');
   if (/foundation/.test(s)) out.push('Foundations');
-  if (/(^|[^r])class|course/.test(s)) out.push('Classes');
+  if (classes || /(^|[^r])class/.test(s) || /course|registration|playground|foundations|improvisation|voice lab/i.test(String(form || ''))) out.push('Classes');
   if (/workshop|masterclass|clinic/.test(s)) out.push('Clinics');
   if (/voice|vocal|sing/.test(s)) out.push('Voice');
-  return out;
+  return out.filter(function (x, i) { return out.indexOf(x) === i; });
 }
 
 function formInstruments_(s) {
@@ -167,7 +178,10 @@ function members_(groupId) {
 }
 
 /** Add or remove one student on one tag, safely. Creates the tag if it is new. */
-function tagWrite_(sid, name, on) {
+function tagWrite_(sid, name, on) { return tagWriteMany_(name, [sid], on); }
+
+/** Add (or remove) many students on one tag in a single safe write. */
+function tagWriteMany_(name, sids, on) {
   var groups = mms_('get', 'studentgroups');
   var g = groups.filter(function (x) { return x.Name === name; })[0];
   if (!g) {
@@ -190,9 +204,10 @@ function tagWrite_(sid, name, on) {
     throw new Error('Stopped: MMS says "' + name + '" has ' + g.StudentCount + ' people but only ' + ids.length +
       ' came back. Nothing was changed.');
   }
-  var has = ids.indexOf(sid) >= 0;
-  if (has === on) return { changed: false };
-  var next = on ? ids.concat([sid]) : ids.filter(function (x) { return x !== sid; });
+  var want = {}; sids.forEach(function (x) { want[x] = true; });
+  var next = on ? ids.concat(sids.filter(function (x) { return ids.indexOf(x) < 0; }))
+    : ids.filter(function (x) { return !want[x]; });
+  if (next.length === ids.length && (on || ids.every(function (x) { return !want[x]; }))) return { changed: false };
   var body = {};
   Object.keys(g).forEach(function (k) { body[k] = g[k]; });
   body.StudentIDs = next;
@@ -201,9 +216,54 @@ function tagWrite_(sid, name, on) {
   mms_('put', 'studentgroups/' + g.ID, body);
   Utilities.sleep(800);
   var after = members_(g.ID);
-  var ok = (after.indexOf(sid) >= 0) === on && after.length === next.length;
+  var ok = after.length === next.length && sids.every(function (x) { return (after.indexOf(x) >= 0) === on; });
   if (!ok) throw new Error('MMS did not confirm the change to "' + name + '". Check the tag in MMS.');
-  return { changed: true };
+  return { changed: true, count: after.length };
+}
+
+/**
+ * Starting interest tags from the sign-up form. For leads (Lead, Waiting, Trial)
+ * who have no Interest tag yet and were never seeded before, read "What are you
+ * interested in?" and the form name, and add Interest: Ensemble / Private lessons /
+ * Classes / Clinics. One write per tag. Each seeded person gets a timeline note,
+ * so someone you later clear by hand is never re-tagged. Runs after each roster sync.
+ */
+var SEED_INTERESTS = ['Ensemble', 'Private lessons', 'Classes', 'Clinics'];
+function seedInterestTags_() {
+  var seeded = {};
+  sheetObjects_(NOTES_TAB).forEach(function (n) {
+    if (/^Interest tags from sign-up form/.test(String(n.Text))) seeded[n['MMS ID']] = true;
+  });
+  var bySid = {}, byTag = {};
+  rosterRows_().forEach(function (r) {
+    if (['Lead', 'Waiting', 'Trial'].indexOf(r.Status) < 0 || seeded[r.ID]) return;
+    if (split_(r['Other tags']).some(function (t) { return /^Interest: /.test(t); })) return;
+    var s = signup_(r.Note);
+    var list = formInterests_(s.interested, s.form).filter(function (i) { return SEED_INTERESTS.indexOf(i) >= 0; });
+    if (!list.length) return;
+    bySid[r.ID] = list;
+    list.forEach(function (i) { (byTag[i] = byTag[i] || []).push(r.ID); });
+  });
+  if (!Object.keys(byTag).length) return 0;
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return 0; // someone is editing tags; try again next sync
+  var done = {};
+  try {
+  Object.keys(byTag).forEach(function (i) {
+    try {
+      tagWriteMany_('Interest: ' + i, byTag[i], true);
+      byTag[i].forEach(function (sid) { (done[sid] = done[sid] || []).push(i); rosterTag_(sid, 'Interest: ' + i, true); });
+    } catch (e) { Logger.log('Seeding ' + i + ' failed: ' + e.message); }
+  });
+  } finally { lock.releaseLock(); }
+  var rows = Object.keys(done).map(function (sid) {
+    return [new Date(), sid, '', 'app', 'change', 'Interest tags from sign-up form: ' + done[sid].join(', '), '', '', ''];
+  });
+  if (rows.length) {
+    var n = tab_(NOTES_TAB, ['Timestamp', 'MMS ID', 'Email', 'Author', 'Kind', 'Text', 'Due', 'Owner', 'Done']);
+    n.getRange(n.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+  }
+  return rows.length;
 }
 
 /** Rewrite one roster row's tag columns so the app shows the change before the next sync. */

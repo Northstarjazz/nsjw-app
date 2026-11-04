@@ -185,6 +185,20 @@
       }).join('') + '</div>';
   }
 
+  // Track: what they're here for. Saved as Interest tags in MMS (Class is the "Interest: Classes" tag).
+  var TRACKS = [['Ensemble', 'Ensemble'], ['Private lessons', 'Private lessons'], ['Classes', 'Class']];
+  function trackChips(have, attr) {
+    return TRACKS.map(function (t) {
+      return '<button type="button" class="chip' + (have.indexOf(t[0]) >= 0 ? ' on' : '') + '" ' + attr + '="' + esc(t[0]) + '">' + esc(t[1]) + '</button>';
+    }).join('');
+  }
+  function trackRow(p) {
+    if (!p.id || p.status === 'Active') return '';
+    var have = (p.tags || []).filter(function (t) { return /^Interest: /.test(t); }).map(function (t) { return t.slice(10); });
+    return '<div class="pstage-h">Interested in' + (have.some(function (h) { return TRACKS.some(function (t) { return t[0] === h; }); }) ? '' : ' · undecided') +
+      '</div><div class="optgrid trackrow">' + trackChips(have, 'data-track') + '</div>';
+  }
+
   function renderPerson(p, tab) {
     var main = $('#person');
     var subBits = [p.instruments.join(', '), p.skill ? 'Skill ' + p.skill : '', p.started ? 'Since ' + dayOnly(p.started) : ''].filter(Boolean);
@@ -213,7 +227,7 @@
       '<div class="hero"><div class="avatar">' + esc(initials(p.name)) + '</div><div><h2>' + esc(p.name) + '</h2>' +
       '<div class="sub">' + esc(subBits.join(' · ')) + '</div></div></div>' +
       '<div class="pills">' + pills.join('') + '</div>' +
-      stageStrip(p) +
+      stageStrip(p) + trackRow(p) +
       nextHtml +
       '<div class="actions">' +
         '<a class="btn" href="' + esc(mail) + '"' + (mail ? '' : ' aria-disabled="true"') + '>Email</a>' +
@@ -541,7 +555,7 @@
     var t = ((tags || []).filter(function (x) { return /^Stage: /.test(x); })[0] || '').slice(7);
     return LEGACY[t] || t || (status === 'Active' ? '' : status === 'Inactive' ? 'Closed' : 'First Contact');
   }
-  var leadsState = { mode: store('nsjw_lmode') || 'board', enrolled: [], stale: {}, boardDays: 60, rows: null, view: store('nsjw_lview') || 'action', stage: '', q: '', show: 60,
+  var leadsState = { track: store('nsjw_ltrack') || '', mode: store('nsjw_lmode') || 'board', enrolled: [], stale: {}, boardDays: 60, rows: null, view: store('nsjw_lview') || 'action', stage: '', q: '', show: 60,
     f: (function () { try { return JSON.parse(store('nsjw_lf') || '{}'); } catch (e) { return {}; } })() };
 
   function today0() { return new Date(new Date().toDateString()); }
@@ -653,7 +667,8 @@
   }
   function card(l) {
     var u = urgency(l), st = stale(l), inStage = daysSince(l.stageAt || l.started);
-    var bits = [TRACK[l.track] || '', allInstruments(l).join(', ')].filter(Boolean).join(' · ');
+    var tr = (l.tracks || []).map(function (t) { return t === 'Classes' ? 'Class' : t; }).join(' + ') || 'Undecided';
+    var bits = [tr, allInstruments(l).join(', ')].filter(Boolean).join(' · ');
     var nx = l.next ? '<div class="nx ' + u + '">' + esc(l.next.text) + (l.next.due ? ' · ' + esc(dayOnly(l.next.due)) : '') + '</div>' : '<div class="nx none">No next step</div>';
     var tag = l.stage === 'Committed' && COMMIT[l.track] ? '<span class="pill">' + COMMIT[l.track] + '</span>' : '';
     return '<div class="kcard card' + (st ? ' stale' : '') + '" draggable="true" data-id="' + esc(l.id) + '" tabindex="0">' +
@@ -661,8 +676,17 @@
       (bits ? '<div class="sub">' + esc(bits) + '</div>' : '') + nx +
       '<div class="meta">' + (inStage != null ? inStage + (inStage === 1 ? ' day' : ' days') + ' here' : '') + (st ? ' · stalled' : '') + '</div></div>';
   }
+  function trackOk(l) {
+    var t = leadsState.track; if (!t) return true;
+    var have = l.tracks || [];
+    return t === 'Undecided' ? !have.length : have.indexOf(t) >= 0;
+  }
   function renderBoard() {
-    var all = (leadsState.rows || []).filter(leadMatches);
+    var all = (leadsState.rows || []).filter(leadMatches).filter(trackOk);
+    $('#board-tracks').innerHTML = [['', 'All'], ['Ensemble', 'Ensemble'], ['Private lessons', 'Private lessons'], ['Classes', 'Class'], ['Undecided', 'Undecided']].map(function (t) {
+      var n = (leadsState.rows || []).filter(leadMatches).filter(function (l) { var x = leadsState.track; leadsState.track = t[0]; var ok = trackOk(l) && onBoard(l); leadsState.track = x; return ok; }).length;
+      return '<button type="button" class="chip' + (leadsState.track === t[0] ? ' on' : '') + '" data-trk="' + esc(t[0]) + '">' + esc(t[1]) + ' · ' + n + '</button>';
+    }).join('');
     var live = all.filter(onBoard), older = all.filter(function (l) { return l.stage === 'First Contact' && !onBoard(l); });
     var by = {}; COLS.forEach(function (c) { by[c] = []; });
     live.forEach(function (l) { by[l.stage].push(l); });
@@ -686,6 +710,10 @@
     $('#board-foot').innerHTML = 'Not on the board: <button type="button" class="linkish" data-goto="older">' + older.length + ' older first contacts</button> (no activity in ' + leadsState.boardDays + ' days), ' +
       '<button type="button" class="linkish" data-goto="Nurture">' + nur + ' in Nurture</button>, <button type="button" class="linkish" data-goto="Closed">' + lost + ' lost</button>.';
   }
+  $('#board-tracks').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-trk]'); if (!b) return;
+    leadsState.track = b.dataset.trk; store('nsjw_ltrack', leadsState.track); renderBoard();
+  });
   $('#lead-mode').addEventListener('click', function (e) {
     var b = e.target.closest('[data-mode]'); if (!b) return;
     leadsState.mode = b.dataset.mode; store('nsjw_lmode', leadsState.mode); renderLeads();
@@ -741,6 +769,7 @@
       return '<button type="button" class="btn' + (v === l.stage ? ' on' : '') + '" data-to="' + esc(v) + '"' + (v === l.stage ? ' disabled' : '') + '>' +
         esc(c === 'Enrolled' ? 'Enrolled (place in a group)' : c) + '</button>';
     }).join('');
+    $('#move-tracks').innerHTML = trackChips(l.tracks || [], 'data-mtrack');
     $('#lost-box').hidden = true; $('#move-go').hidden = true;
     $('#lost-reasons').innerHTML = REASONS.map(function (r) { return '<button type="button" class="chip" data-r="' + esc(r) + '">' + esc(r) + '</button>'; }).join('');
     $('#lost-other').value = '';
@@ -752,6 +781,16 @@
     var b = e.target.closest('[data-to]'); if (!b || !moving) return;
     if (b.dataset.to === 'Closed') { $('#lost-box').hidden = false; $('#move-go').hidden = false; return; }
     var l = moving; closeMove(); moveLead(l, b.dataset.to);
+  });
+  $('#move-tracks').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-mtrack]'); if (!b || !moving) return;
+    var l = moving, v = b.dataset.mtrack, on = !b.classList.contains('on');
+    b.disabled = true; b.classList.toggle('on', on);
+    api('leadtag', { sid: l.id, email: l.email, field: 'interest', value: v, on: on }).then(function () {
+      l.tracks = on ? (l.tracks || []).concat(v) : (l.tracks || []).filter(function (x) { return x !== v; });
+      l.interests = on ? l.interests.concat(v) : l.interests.filter(function (x) { return x !== v; });
+      b.disabled = false; renderLeads(); toast('Saved to MMS');
+    }).catch(function (err) { b.classList.toggle('on', !on); b.disabled = false; toast(err.message); });
   });
   $('#lost-reasons').addEventListener('click', function (e) { var b = e.target.closest('[data-r]'); if (b) b.classList.toggle('on'); });
   $('#move-go').addEventListener('click', function () {
@@ -846,6 +885,8 @@
   }
 
   $('#person').addEventListener('click', function (e) {
+    var tk = e.target.closest('[data-track]');
+    if (tk) { leadTag('interest', tk.dataset.track, !tk.classList.contains('on'), tk); return; }
     var sc = e.target.closest('[data-stage]');
     if (sc) { if (!sc.classList.contains('on')) leadTag('stage', sc.dataset.stage, true, sc); return; }
     var b = e.target.closest('[data-lt]');
