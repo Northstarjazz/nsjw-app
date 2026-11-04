@@ -491,21 +491,16 @@
       if (ago && was != null && was !== '') { var x = v - was; delta = '<div class="dl">' + (x > 0 ? '+' : '') + x + ' in a month</div>'; }
       return '<div class="stat"><div class="n">' + v + '</div><div class="l">' + label + '</div>' + delta + '</div>';
     }
-    var pct = n.added90.total ? Math.round(100 * n.added90.active / n.added90.total) : 0;
-    var fillPct = n.fill.capacity ? Math.round(100 * n.fill.filled / n.fill.capacity) : 0;
     var tracking = n.historyFrom && (Date.now() - parse(n.historyFrom)) < 31 * 864e5;
     return '<div class="sec-h"><h3>Active students · ' + n.active + '</h3></div>' +
       '<div class="stats">' +
         tile('Ensembles', p.ensembles, ago && ago.ensembles) + tile('Private lessons', p.lessons, ago && ago.lessons) +
         tile('Classes', p.classes, ago && ago.classes) + tile('Clinics', p.clinics, ago && ago.clinics) +
       '</div>' +
-      '<div class="pulse">' +
-        '<a class="card pz" href="#groups"><div class="l">Ensemble seats</div><div class="n">' + fillPct + '% full</div>' +
-          '<div class="s">' + n.fill.filled + ' of ' + n.fill.capacity + ' filled · ' + n.fill.open + ' open</div></a>' +
-        '<a class="card pz" href="#leads"><div class="l">New people, last 90 days</div><div class="n">' + n.added90.active + ' of ' + n.added90.total + '</div>' +
-          '<div class="s">now active (' + pct + '%)</div></a>' +
-        '<div class="card pz"><div class="l">This month</div><div class="n">+' + n.month.joined + ' / ' + (n.month.left ? '&minus;' : '') + n.month.left + '</div>' +
-          '<div class="s">joined / left' + (tracking ? ' · departures tracked from ' + esc(dayOnly(n.historyFrom)) : '') + '</div></div>' +
+      '<div class="stats inout">' +
+        '<div class="stat"><div class="n">+' + n.month.joined + '</div><div class="l">Joined this month</div></div>' +
+        '<div class="stat"><div class="n">' + (n.month.left ? '&minus;' : '') + n.month.left + '</div><div class="l">Left this month</div>' +
+          (tracking ? '<div class="dl">Counting from ' + esc(dayOnly(n.historyFrom)) + '</div>' : '') + '</div>' +
       '</div>';
   }
 

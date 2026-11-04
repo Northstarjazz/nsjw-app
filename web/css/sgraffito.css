@@ -227,6 +227,7 @@ a { color: var(--accent); }
 .pstage .stagechip.busy { opacity: .5; }
 
 .stat .dl { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 3px; }
+#today .stats.inout { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 16px 0 6px; padding-top: 12px; border-top: 1px solid var(--line); }
 .pulse { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 14px 0 6px; }
 .pz { display: block; padding: 12px 14px; color: var(--ink); text-decoration: none; }
 .pz .l { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
