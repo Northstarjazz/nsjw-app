@@ -445,6 +445,109 @@
       .then(function () { btn.disabled = false; btn.textContent = 'Save'; });
   });
 
+  // ---------- Groups ----------
+  var groupsState = { rows: null, when: store('nsjw_when') || 'Current', kind: store('nsjw_kind') || '' };
+
+  function seatWord(n, s) { return n + ' ' + s.toLowerCase() + (n > 1 && s !== 'Bass' ? 's' : n > 1 ? 'es' : ''); }
+  function openText(open) {
+    var c = {};
+    open.forEach(function (s) { c[s] = (c[s] || 0) + 1; });
+    return Object.keys(c).map(function (s) { return seatWord(c[s], s); }).join(', ');
+  }
+  function fillBar(g) {
+    if (!g.capacity) return '';
+    var pct = Math.min(100, Math.round(100 * (g.capacity - g.open.length) / g.capacity));
+    return '<div class="fill"><span style="width:' + pct + '%"></span></div>';
+  }
+
+  function loadGroups(force) {
+    if (groupsState.rows && !force) { renderGroups(); return; }
+    $('#group-list').innerHTML = '<div class="loading">Loading</div>';
+    api('groups').then(function (rows) { groupsState.rows = rows; renderGroups(); })
+      .catch(function (e) { $('#group-list').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+  }
+
+  function renderGroups() {
+    var all = groupsState.rows || [];
+    $$('#when-tabs .tab').forEach(function (b) { b.classList.toggle('on', b.dataset.when === groupsState.when); });
+    $$('#kind-chips .chip').forEach(function (b) { b.classList.toggle('on', b.dataset.kind === groupsState.kind); });
+    var rows = all.filter(function (g) {
+      if (g.when !== groupsState.when) return false;
+      if (groupsState.kind === 'open') return g.open.length > 0;
+      return !groupsState.kind || g.kind === groupsState.kind;
+    });
+    var people = rows.reduce(function (n, g) { return n + g.members; }, 0);
+    var seats = rows.reduce(function (n, g) { return n + g.open.length; }, 0);
+    $('#groups-sum').textContent = rows.length + (rows.length === 1 ? ' group · ' : ' groups · ') + people + ' people' +
+      (seats ? ' · ' + seats + ' open seats' : '');
+    if (!rows.length) { $('#group-list').innerHTML = '<div class="empty">Nothing here.</div>'; return; }
+    $('#group-list').innerHTML = rows.map(function (g) {
+      var sub = [g.kind, g.schedule, g.teacher].filter(Boolean).join(' · ');
+      return '<a class="card group-row" href="#g/' + encodeURIComponent(g.name) + '">' +
+        '<div class="line1"><span class="name">' + esc(g.name) + '</span><span class="count">' + g.members + (g.members === 1 ? ' person' : ' people') + '</span></div>' +
+        (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + fillBar(g) +
+        (g.open.length ? '<div class="pills"><span class="pill open">Open: ' + esc(openText(g.open)) + '</span></div>' : '') +
+        '</a>';
+    }).join('');
+  }
+
+  $('#when-tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('.tab'); if (!b) return;
+    groupsState.when = b.dataset.when; store('nsjw_when', groupsState.when); renderGroups();
+  });
+  $('#kind-chips').addEventListener('click', function (e) {
+    var b = e.target.closest('.chip'); if (!b) return;
+    groupsState.kind = b.dataset.kind; store('nsjw_kind', groupsState.kind); renderGroups();
+  });
+
+  function personRow(p, extra) {
+    return '<a class="card person-row" href="#p/' + encodeURIComponent(p.id) + '">' +
+      '<div class="avatar">' + esc(initials(p.name)) + '</div>' +
+      '<div class="who"><div class="name">' + esc(p.name) + '</div><div class="sub">' +
+      esc([p.instruments && String(p.instruments).replace(/;/g, ','), p.skill ? 'Skill ' + p.skill : '', extra].filter(Boolean).join(' · ')) +
+      '</div></div>' + statusPill(p.status) + '</a>';
+  }
+
+  function loadGroup(name) {
+    $('#group-name').textContent = name;
+    $('#group-eyebrow').textContent = ''; $('#group-sched').textContent = '';
+    var main = $('#group');
+    main.innerHTML = '<div class="loading">Loading</div>';
+    api('group', { name: name }).then(function (g) {
+      $('#group-eyebrow').textContent = [g.kind, g.when !== 'Current' ? g.when : '', g.level ? 'Level ' + g.level : ''].filter(Boolean).join(' · ');
+      $('#group-sched').textContent = [g.schedule, g.teacher].filter(Boolean).join(' · ');
+      var html = '';
+      if (g.capacity) {
+        var taken = {};
+        g.memberList.forEach(function (m) { (taken[m.seat] = taken[m.seat] || []).push(m); });
+        var tiles = [];
+        ['Drums', 'Bass', 'Guitar', 'Piano', 'Horn', 'Voice'].forEach(function (s) {
+          (taken[s] || []).forEach(function (m) {
+            tiles.push('<a class="seat" href="#p/' + encodeURIComponent(m.id) + '"><b>' + esc(String(m.instruments).split(';')[0]) + '</b><span>' + esc(m.name) + '</span></a>');
+          });
+          g.open.filter(function (o) { return o === s; }).forEach(function () {
+            tiles.push('<div class="seat open"><b>' + esc(s) + '</b><span>Open</span></div>');
+          });
+        });
+        html += '<div class="section-title">Seats · ' + (g.open.length ? g.open.length + ' open' : 'full') + '</div><div class="seats">' + tiles.join('') + '</div>';
+      }
+      if (g.open.length) {
+        html += '<div class="section-title">Could fill it</div>' +
+          (g.matches.length ? '<div class="list">' + g.matches.map(function (p) {
+            return personRow(p, p.started ? 'since ' + dayOnly(p.started) : '');
+          }).join('') + '</div>' : '<div class="empty">No waiting students or recent leads play ' + esc(openText(g.open)) + '.</div>');
+      }
+      html += '<div class="section-title">' + (g.when === 'Past' ? 'Took part' : 'Members') + ' · ' + g.memberList.length + '</div>' +
+        (g.memberList.length ? '<div class="list">' + g.memberList.map(function (p) { return personRow(p); }).join('') + '</div>' : '<div class="empty">No one active has this tag.</div>');
+      if (g.otherList.length) {
+        html += '<div class="section-title">Also tagged · ' + g.otherList.length + '</div><div class="list">' +
+          g.otherList.map(function (p) { return personRow(p); }).join('') + '</div>';
+      }
+      html += '<p class="muted small">From the "' + esc(g.name) + '" tag in MyMusicStaff. Schedule, teacher, level and seats come from the Groups tab in the Sequencer sheet.</p>';
+      main.innerHTML = html;
+    }).catch(function (e) { main.innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+  }
+
   // ---------- routing ----------
   function nav(which) {
     $('#tabbar').hidden = !which;
@@ -454,8 +557,10 @@
   function route() {
     if (!token) { nav(null); show('v-signin'); return; }
     var h = location.hash.replace(/^#/, '');
-    if (h.indexOf('p/') === 0) { nav(null); $('.back').href = backTo; $('.back').innerHTML = '&#8249; ' + (backTo === '#lessons' ? 'Lessons' : 'People'); show('v-person'); loadPerson(decodeURIComponent(h.slice(2))); return; }
+    if (h.indexOf('p/') === 0) { nav(null); $('#v-person .back').href = backTo; $('#v-person .back').innerHTML = '&#8249; ' + (backTo === '#lessons' ? 'Lessons' : backTo === '#groups' ? 'Groups' : backTo.indexOf('#g/') === 0 ? decodeURIComponent(backTo.slice(3)) : 'People'); show('v-person'); loadPerson(decodeURIComponent(h.slice(2))); return; }
     if (h === 'lessons') { backTo = '#lessons'; nav('lessons'); show('v-lessons'); loadLessons(); return; }
+    if (h === 'groups') { backTo = '#groups'; nav('groups'); show('v-groups'); loadGroups(); return; }
+    if (h.indexOf('g/') === 0) { backTo = location.hash; nav(null); show('v-group'); loadGroup(decodeURIComponent(h.slice(2))); return; }
     backTo = '#people'; nav('people');
     show('v-people');
     if (!$('#people-list').children.length) loadPeople();

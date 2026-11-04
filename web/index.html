@@ -72,6 +72,43 @@
     </main>
   </section>
 
+  <!-- Groups -->
+  <section id="v-groups" class="view" hidden>
+    <header class="art black">
+      <div class="eyebrow" id="groups-eyebrow">Ensembles, classes and clinics</div>
+      <h1>Groups</h1>
+    </header>
+    <main>
+      <div class="whenbar" id="when-tabs" role="tablist">
+        <button class="tab on" data-when="Current">Current</button>
+        <button class="tab" data-when="Upcoming">Upcoming</button>
+        <button class="tab" data-when="Past">Past</button>
+      </div>
+      <div class="chips" id="kind-chips">
+        <button class="chip on" data-kind="">All</button>
+        <button class="chip" data-kind="Ensemble">Ensembles</button>
+        <button class="chip" data-kind="Class">Classes</button>
+        <button class="chip" data-kind="Clinic">Clinics</button>
+        <button class="chip" data-kind="open">Open seats</button>
+      </div>
+      <div class="groups-sum muted" id="groups-sum"></div>
+      <div id="group-list" class="list"></div>
+    </main>
+  </section>
+
+  <!-- Group -->
+  <section id="v-group" class="view" hidden>
+    <header class="art">
+      <div class="row-top"><a class="back" href="#groups">&#8249; Groups</a></div>
+      <div>
+        <div class="eyebrow" id="group-eyebrow"></div>
+        <h1 id="group-name"></h1>
+        <div class="group-sched" id="group-sched"></div>
+      </div>
+    </header>
+    <main id="group"></main>
+  </section>
+
   <!-- Person -->
   <section id="v-person" class="view" hidden>
     <header class="top">
@@ -83,6 +120,7 @@
 
   <nav class="tabbar" id="tabbar" hidden>
     <a href="#people" data-nav="people"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></svg>People</a>
+    <a href="#groups" data-nav="groups"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="7" cy="7" r="3"/><circle cx="14" cy="8" r="2.5"/><path d="M2 17c0-3 2.5-5 5-5s5 2 5 5M12 17c0-2 1.5-4 4-4"/></svg>Groups</a>
     <a href="#lessons" data-nav="lessons"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 15V4l9-2v11"/><circle cx="5.5" cy="15" r="2.5"/><circle cx="14.5" cy="13" r="2.5"/></svg>Lessons</a>
   </nav>
 

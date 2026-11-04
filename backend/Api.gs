@@ -40,6 +40,8 @@ function api_(e) {
       case 'note':   out = addNote_(who, p); break;
       case 'lessons': out = listLessons_(); break;
       case 'lesson': out = saveLesson_(who, p); break;
+      case 'groups': out = listGroups_(); break;
+      case 'group':  out = getGroup_(String(p.name || '')); break;
       default: throw new Error('Unknown action');
     }
   } catch (err) {

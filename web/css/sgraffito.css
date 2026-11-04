@@ -139,3 +139,26 @@ a { color: var(--accent); }
 /* ---------- Sign in ---------- */
 #v-signin .art { min-height: 42vh; justify-content: flex-end; }
 .signin { justify-content: flex-start !important; padding-top: 24px !important; }
+
+/* ---------- Groups ---------- */
+.whenbar { display: flex; gap: 22px; border-bottom: 1px solid rgba(30,27,24,.35); margin-top: 4px; }
+.groups-sum { font-size: 13px; font-weight: 600; margin: 2px 0 10px; }
+.group-row { display: block; text-decoration: none; color: inherit; padding: 14px 12px; }
+.group-row .line1 { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.group-row .name { font-weight: 700; font-size: 16px; }
+.group-row .count { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.group-row .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.group-row .pills { margin: 8px 0 0; }
+.fill { height: 6px; background: var(--surface-2); box-shadow: inset 1px 1px 0 var(--line); margin-top: 10px; }
+.fill > span { display: block; height: 100%; background: var(--ink); }
+.pill.open { color: var(--accent); }
+.group-sched { font-size: 14px; margin-top: 8px; }
+.seats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.seat { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--ink); border-radius: 2px; background: var(--surface); color: var(--ink); text-decoration: none; min-height: 44px; }
+.seat b { font-size: 14px; }
+.seat span { font-size: 13px; color: var(--muted); }
+.seat.open { border-style: dashed; box-shadow: inset 0 4px 0 var(--clay); }
+.seat.open span { color: var(--accent); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: 11px; }
+.small { font-size: 12.5px; margin: 14px 2px 28px; }
+#group .list { margin-bottom: 8px; }
+.person-row { padding: 10px 12px; }
