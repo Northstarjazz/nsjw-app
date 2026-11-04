@@ -121,7 +121,7 @@ function syncRoster() {
 }
 
 function isProgramTag_(t) {
-  return /^Group \d+/.test(t) || /Ensemble/.test(t) || / - (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Spring|Summer|Fall|Winter)/.test(t) ||
+  return /^Group \d+/.test(t) || /^Vocal Ensemble/.test(t) || / - (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Spring|Summer|Fall|Winter)/.test(t) ||
     /^(Foundations|JSP|Jam Session Skills|Jazz Guitar|Jazz Singer|Jazz Voice|Improv Lab|Open Spaces|Guitar|Vocal Class|Private Lessons - Active|Workshop)/.test(t) ||
     / (Course|Class|Clinic|Workshop)$/.test(t);
 }
