@@ -38,6 +38,8 @@ function api_(e) {
       case 'person': out = getPerson_(p.sid, p.email); break;
       case 'people': out = listPeople_(p.q, p.status); break;
       case 'note':   out = addNote_(who, p); break;
+      case 'lessons': out = listLessons_(); break;
+      case 'lesson': out = saveLesson_(who, p); break;
       default: throw new Error('Unknown action');
     }
   } catch (err) {
@@ -222,8 +224,54 @@ function getPerson_(sid, email) {
     programs: r ? split_(r.Programs) : [], instruments: r ? split_(r.Instruments) : [],
     tags: r ? split_(r['Other tags']) : [],
     mmsUrl: sid ? 'https://app.mymusicstaff.com/Teacher/v2/en/students/details?id=' + sid : '',
-    nextStep: nextStep, sequences: enroll, threads: mail, timeline: timeline.slice(0, 60)
+    nextStep: nextStep, sequences: enroll, threads: mail, timeline: timeline.slice(0, 60),
+    lesson: sid ? (sheetObjects_(LESSONS_TAB).filter(function (l) { return l['MMS ID'] === sid; })[0] || null) : null
   };
+}
+
+// ---------- private lessons ----------
+// One row per lesson arrangement, keyed by MMS ID. Contact details stay in MMS.
+
+var LESSONS_TAB = 'Lessons';
+var LESSON_FIELDS = ['Stage', 'Teacher', 'Instrument', 'Frequency', 'Day and time', 'Length', 'Monthly cost',
+  'Start date', 'Contract sent', 'Billed in MMS', 'Calendar invite sent', 'Cancellation date', 'Schedule notes', 'Setup notes'];
+
+function listLessons_() {
+  var roster = {};
+  rosterRows_().forEach(function (r) { roster[r.ID] = r; });
+  return sheetObjects_(LESSONS_TAB).map(function (l) {
+    var r = roster[l['MMS ID']] || {};
+    l.email = r.Email || ''; l.phone = r.Phone || ''; l.mmsStatus = r.Status || '';
+    l.nextEvent = r['Next event'] || ''; l.lastEvent = r['Last event'] || '';
+    return l;
+  });
+}
+
+function saveLesson_(who, p) {
+  var sid = String(p.sid || '').trim();
+  if (!/^sdt_/.test(sid)) throw new Error('Lessons need an MMS student ID');
+  var sh = tab_(LESSONS_TAB);
+  var data = sh.getDataRange().getValues();
+  var head = data[0];
+  var idCol = head.indexOf('MMS ID');
+  var rowIdx = -1;
+  for (var i = 1; i < data.length; i++) if (data[i][idCol] === sid) { rowIdx = i; break; }
+  var row = rowIdx > 0 ? data[rowIdx].slice() : head.map(function () { return ''; });
+  if (rowIdx < 0) {
+    row[idCol] = sid;
+    var r = rosterRows_().filter(function (x) { return x.ID === sid; })[0];
+    row[head.indexOf('Name')] = r ? r.Name : (p.name || '');
+  }
+  var f = p.fields || {};
+  LESSON_FIELDS.forEach(function (k) {
+    var c = head.indexOf(k);
+    if (c >= 0 && Object.prototype.hasOwnProperty.call(f, k)) row[c] = String(f[k]).slice(0, 2000);
+  });
+  if (rowIdx > 0) sh.getRange(rowIdx + 1, 1, 1, row.length).setValues([row]);
+  else sh.appendRow(row);
+  addNote_(who, { sid: sid, email: p.email || '', kind: 'note', text: 'Lesson updated: ' +
+    Object.keys(f).filter(function (k) { return LESSON_FIELDS.indexOf(k) >= 0; }).map(function (k) { return k + ' ' + f[k]; }).join(', ') });
+  return { ok: true };
 }
 
 // ---------- writes ----------

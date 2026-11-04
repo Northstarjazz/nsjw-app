@@ -209,7 +209,133 @@
 
     var link = $('#mms-link');
     if (p.mmsUrl) { link.href = p.mmsUrl; link.hidden = false; } else link.hidden = true;
+
+    // Lesson card sits right under the next step.
+    var l = p.lesson;
+    var cardHtml = l
+      ? '<div class="card lesson-card"><div class="line1"><div class="label">Private lessons · ' + esc(l.Stage || '') + '</div>' +
+        '<button class="link" type="button" data-open-lesson>Edit</button></div>' +
+        '<div><b>' + esc([l.Teacher, l.Instrument].filter(Boolean).join(' · ')) + '</b></div>' +
+        '<div class="muted">' + esc([l['Day and time'], l.Frequency, money(l['Monthly cost'])].filter(Boolean).join(' · ')) + '</div>' +
+        (l['Schedule notes'] ? '<div class="muted" style="margin-top:4px">' + esc(l['Schedule notes']) + '</div>' : '') +
+        setupPills(l) + '</div>'
+      : '';
+    if (cardHtml) $('.actions', main).insertAdjacentHTML('beforebegin', cardHtml);
+    if (!l && p.id && tab === 'details') {
+      main.insertAdjacentHTML('beforeend', '<button class="btn" type="button" data-open-lesson style="width:100%;margin-bottom:24px">Set up private lessons</button>');
+    }
   }
+
+  // ---------- Lessons ----------
+  var lessonsState = { stage: 'Active', teacher: '', rows: null };
+
+  function money(v) {
+    var n = parseFloat(v);
+    return isNaN(n) ? '' : '$' + (n % 1 ? n.toFixed(2) : n);
+  }
+  function yes(v) { return v === true || /^(yes|true|v|x|sent)$/i.test(String(v || '').trim()); }
+  function setupPills(l) {
+    if (!/^(Scheduling|Active)$/.test(l.Stage)) return '';
+    // Setup checks only matter while someone is being scheduled; Monday rarely tracked them for active students.
+    var missing = l.Stage !== 'Scheduling' ? [] : [['Contract sent', 'No contract'], ['Billed in MMS', 'Not billed'], ['Calendar invite sent', 'No invite']]
+      .filter(function (c) { return !yes(l[c[0]]); })
+      .map(function (c) { return '<span class="pill warn">' + c[1] + '</span>'; });
+    if (!l.Teacher) missing.unshift('<span class="pill accent">Needs teacher</span>');
+    return missing.length ? '<div class="pills">' + missing.join('') + '</div>' : '';
+  }
+
+  function loadLessons(force) {
+    if (lessonsState.rows && !force) { renderLessons(); return; }
+    $('#lesson-list').innerHTML = '<div class="loading">Loading</div>';
+    api('lessons').then(function (rows) {
+      lessonsState.rows = rows;
+      var teachers = rows.map(function (r) { return r.Teacher; }).filter(Boolean)
+        .filter(function (t, i, a) { return a.indexOf(t) === i; }).sort();
+      $('#teacher-filter').innerHTML = '<option value="">All teachers</option>' +
+        teachers.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
+      $('#teacher-filter').value = lessonsState.teacher;
+      $('#teacher-names').innerHTML = teachers.map(function (t) { return '<option value="' + esc(t) + '">'; }).join('');
+      renderLessons();
+    }).catch(function (e) { $('#lesson-list').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+  }
+
+  function renderLessons() {
+    var all = lessonsState.rows || [];
+    var byTeacher = all.filter(function (r) { return !lessonsState.teacher || r.Teacher === lessonsState.teacher; });
+    var active = byTeacher.filter(function (r) { return r.Stage === 'Active'; });
+    var monthly = active.reduce(function (s, r) { return s + (parseFloat(r['Monthly cost']) || 0); }, 0);
+    var sched = byTeacher.filter(function (r) { return r.Stage === 'Scheduling'; }).length;
+    $('#lesson-stats').innerHTML =
+      '<div class="stat"><div class="n">' + active.length + '</div><div class="l">Active</div></div>' +
+      '<div class="stat"><div class="n">$' + Math.round(monthly).toLocaleString() + '</div><div class="l">Per month</div></div>' +
+      '<div class="stat"><div class="n">' + sched + '</div><div class="l">Scheduling</div></div>';
+    var rows = byTeacher.filter(function (r) { return !lessonsState.stage || r.Stage === lessonsState.stage; });
+    if (!rows.length) { $('#lesson-list').innerHTML = '<div class="empty">No one here.</div>'; return; }
+    $('#lesson-list').innerHTML = rows.map(function (r) {
+      var href = r['MMS ID'] ? '#p/' + encodeURIComponent(r['MMS ID']) : '';
+      var when = [r['Day and time'], r.Frequency].filter(Boolean).join(' · ');
+      return '<' + (href ? 'a href="' + href + '"' : 'div') + ' class="card lesson-row">' +
+        '<div class="line1"><span class="name">' + esc(r.Name) + '</span><span class="cost">' + esc(money(r['Monthly cost'])) + '</span></div>' +
+        '<div class="sub">' + esc([r.Teacher || 'No teacher yet', r.Instrument].filter(Boolean).join(' · ')) + '</div>' +
+        (when ? '<div class="sub">' + esc(when) + '</div>' : '') +
+        (r['Schedule notes'] ? '<div class="note">' + esc(r['Schedule notes']) + '</div>' : '') +
+        (lessonsState.stage === '' ? '<div class="pills">' + statusPill(r.Stage) + '</div>' : '') +
+        setupPills(r) + (href ? '</a>' : '</div>');
+    }).join('');
+  }
+
+  $('#stage-chips').addEventListener('click', function (e) {
+    var b = e.target.closest('.chip'); if (!b) return;
+    $$('.chip', this).forEach(function (c) { c.classList.toggle('on', c === b); });
+    lessonsState.stage = b.dataset.stage; store('nsjw_stage', lessonsState.stage);
+    renderLessons();
+  });
+  $('#teacher-filter').addEventListener('change', function () {
+    lessonsState.teacher = this.value; store('nsjw_teacher', this.value); renderLessons();
+  });
+
+  // ---------- Lesson sheet ----------
+  function toDateInput(v) {
+    if (!v) return '';
+    if (/^\d{4}-\d{2}-\d{2}/.test(String(v))) return String(v).slice(0, 10);
+    var d = new Date(v); if (isNaN(d)) return '';
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+  function openLessonSheet() {
+    if (!current) return;
+    var l = current.lesson || { Stage: 'Scheduling', Instrument: current.instruments[0] || '', Length: '60 minutes' };
+    var f = $('#lesson-form');
+    $('#lesson-title').textContent = (current.lesson ? 'Lessons: ' : 'Set up lessons: ') + current.name;
+    Array.prototype.forEach.call(f.elements, function (el) {
+      if (!el.name) return;
+      var v = l[el.name];
+      if (el.type === 'checkbox') el.checked = yes(v);
+      else if (el.type === 'date') el.value = toDateInput(v);
+      else el.value = v == null ? '' : v;
+    });
+    $('#lesson-sheet').hidden = false;
+  }
+  $('#person').addEventListener('click', function (e) { if (e.target.closest('[data-open-lesson]')) openLessonSheet(); });
+  $('#lesson-cancel').addEventListener('click', function () { $('#lesson-sheet').hidden = true; });
+  $('#lesson-sheet').addEventListener('click', function (e) { if (e.target === this) this.hidden = true; });
+  $('#lesson-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var fields = {}, old = current.lesson || {};
+    Array.prototype.forEach.call(this.elements, function (el) {
+      if (!el.name) return;
+      var v = el.type === 'checkbox' ? (el.checked ? 'Yes' : '') : el.value;
+      var was = el.type === 'checkbox' ? (yes(old[el.name]) ? 'Yes' : '') : (el.type === 'date' ? toDateInput(old[el.name]) : String(old[el.name] == null ? '' : old[el.name]));
+      if (v !== was) fields[el.name] = v; // only send what changed
+    });
+    if (!Object.keys(fields).length) { $('#lesson-sheet').hidden = true; return; }
+    var btn = $('#lesson-save'); btn.disabled = true; btn.textContent = 'Saving';
+    api('lesson', { sid: current.id, email: current.email, fields: fields }).then(function () {
+      $('#lesson-sheet').hidden = true; toast('Lessons saved');
+      lessonsState.rows = null; // refresh the list next time
+      loadPerson(current.id);
+    }).catch(function (err) { toast(err.message); })
+      .then(function () { btn.disabled = false; btn.textContent = 'Save'; });
+  });
 
   function timelineHtml(p) {
     // Fold opens and clicks into the email they belong to.
@@ -319,10 +445,17 @@
   });
 
   // ---------- routing ----------
+  function nav(which) {
+    $('#tabbar').hidden = !which;
+    $$('#tabbar a').forEach(function (a) { a.classList.toggle('active', a.dataset.nav === which); });
+  }
+  var backTo = '#people';
   function route() {
-    if (!token) { show('v-signin'); return; }
+    if (!token) { nav(null); show('v-signin'); return; }
     var h = location.hash.replace(/^#/, '');
-    if (h.indexOf('p/') === 0) { show('v-person'); loadPerson(decodeURIComponent(h.slice(2))); return; }
+    if (h.indexOf('p/') === 0) { nav(null); $('.back').href = backTo; $('.back').innerHTML = '&#8249; ' + (backTo === '#lessons' ? 'Lessons' : 'People'); show('v-person'); loadPerson(decodeURIComponent(h.slice(2))); return; }
+    if (h === 'lessons') { backTo = '#lessons'; nav('lessons'); show('v-lessons'); loadLessons(); return; }
+    backTo = '#people'; nav('people');
     show('v-people');
     if (!$('#people-list').children.length) loadPeople();
   }
@@ -332,7 +465,11 @@
   peopleState.q = store('nsjw_q') || '';
   peopleState.status = store('nsjw_status') || '';
   $('#q').value = peopleState.q;
-  $$('.chip').forEach(function (c) { c.classList.toggle('on', c.dataset.status === peopleState.status); });
+  $$('#status-chips .chip').forEach(function (c) { c.classList.toggle('on', c.dataset.status === peopleState.status); });
+  var savedStage = store('nsjw_stage');
+  if (savedStage !== null) lessonsState.stage = savedStage;
+  lessonsState.teacher = store('nsjw_teacher') || '';
+  $$('#stage-chips .chip').forEach(function (c) { c.classList.toggle('on', c.dataset.stage === lessonsState.stage); });
   setToken(store('nsjw_tok'));
   route();
   initGoogle();

@@ -46,6 +46,25 @@
     </main>
   </section>
 
+  <!-- Lessons -->
+  <section id="v-lessons" class="view" hidden>
+    <header class="top">
+      <div class="eyebrow">Private lessons</div>
+    </header>
+    <main>
+      <div class="stats" id="lesson-stats"></div>
+      <div class="chips" id="stage-chips">
+        <button class="chip on" data-stage="Active">Active</button>
+        <button class="chip" data-stage="Scheduling">Scheduling</button>
+        <button class="chip" data-stage="Cancelling">Cancelling</button>
+        <button class="chip" data-stage="Ended">Ended</button>
+        <button class="chip" data-stage="">All</button>
+      </div>
+      <select id="teacher-filter" class="search select"><option value="">All teachers</option></select>
+      <div id="lesson-list" class="list"></div>
+    </main>
+  </section>
+
   <!-- Person -->
   <section id="v-person" class="view" hidden>
     <header class="top">
@@ -55,6 +74,50 @@
     <main id="person"></main>
   </section>
 
+  <nav class="tabbar" id="tabbar" hidden>
+    <a href="#people" data-nav="people">People</a>
+    <a href="#lessons" data-nav="lessons">Lessons</a>
+  </nav>
+
+</div>
+
+<!-- Edit lesson -->
+<div id="lesson-sheet" class="sheet" hidden>
+  <form id="lesson-form" class="sheet-body scroll">
+    <div class="sheet-title" id="lesson-title">Lessons</div>
+    <div class="row">
+      <label>Stage
+        <select name="Stage"><option>Scheduling</option><option>Active</option><option>Cancelling</option><option>Ended</option></select>
+      </label>
+      <label>Teacher <input name="Teacher" list="teacher-names"></label>
+    </div>
+    <div class="row">
+      <label>Instrument <input name="Instrument"></label>
+      <label>Frequency
+        <select name="Frequency"><option></option><option>Weekly</option><option>Bi-Weekly</option><option>Monthly</option></select>
+      </label>
+    </div>
+    <div class="row">
+      <label>Day and time <input name="Day and time" placeholder="Tuesday 4-5pm"></label>
+      <label>Length <input name="Length" placeholder="60 minutes"></label>
+    </div>
+    <div class="row">
+      <label>Monthly cost <input name="Monthly cost" inputmode="decimal"></label>
+      <label>Start date <input name="Start date" type="date"></label>
+    </div>
+    <div class="checks">
+      <label><input type="checkbox" name="Contract sent"> Contract sent</label>
+      <label><input type="checkbox" name="Billed in MMS"> Billed in MMS</label>
+      <label><input type="checkbox" name="Calendar invite sent"> Calendar invite sent</label>
+    </div>
+    <label>Cancellation date <input name="Cancellation date" type="date"></label>
+    <label>Schedule notes <textarea name="Schedule notes" rows="2"></textarea></label>
+    <div class="row end">
+      <button type="button" class="btn" id="lesson-cancel">Cancel</button>
+      <button type="submit" class="btn primary" id="lesson-save">Save</button>
+    </div>
+  </form>
+  <datalist id="teacher-names"></datalist>
 </div>
 
 <!-- Add note / next step -->
