@@ -230,3 +230,79 @@ function nextDone_(who, p) {
   }
   return { ok: true };
 }
+
+// ---------- place in a group ----------
+
+/**
+ * Place a lead in a program: add the program tag (and "Ensemble Member" for
+ * numbered groups), clear their funnel stage, set MMS status to Active, and log it.
+ * Billing and calendar events stay a manual step in MMS (they need Ben's eyes).
+ *
+ * Status write follows the safe protocol from the MMS notes: GET the single
+ * record, change Status only, PUT it back, GET again and compare every field.
+ */
+function placeInGroup_(who, p) {
+  var sid = String(p.sid || ''), group = String(p.group || '');
+  if (!/^sdt_/.test(sid)) throw new Error('This person is not in MMS yet.');
+  var known = listGroups_().map(function (g) { return g.name; });
+  if (known.indexOf(group) < 0) throw new Error('Unknown group');
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) throw new Error('Another change is running. Try again in a moment.');
+  var done = [];
+  try {
+    tagWrite_(sid, group, true); done.push('Tagged ' + group);
+    if (/^Group \d+/.test(group)) { tagWrite_(sid, 'Ensemble Member', true); done.push('Tagged Ensemble Member'); }
+    var r = rosterRows_().filter(function (x) { return x.ID === sid; })[0];
+    split_(r ? r['Other tags'] : '').filter(function (t) { return /^Stage: /.test(t); }).forEach(function (t) {
+      tagWrite_(sid, t, false); rosterTag_(sid, t, false);
+    });
+    if (!r || r.Status !== 'Active') { setStatus_(sid, 'Active'); done.push('Status set to Active'); }
+    rosterProgram_(sid, group, 'Active');
+  } finally {
+    lock.releaseLock();
+    if (done.length) {
+      tab_(NOTES_TAB, ['Timestamp', 'MMS ID', 'Email', 'Author', 'Kind', 'Text', 'Due', 'Owner', 'Done'])
+        .appendRow([new Date(), sid, String(p.email || '').toLowerCase(), who, 'change', 'Placed in ' + group + ': ' + done.join('; '), '', '', '']);
+    }
+  }
+  return { ok: true, done: done };
+}
+
+function setStatus_(sid, status) {
+  var before = mms_('get', 'students/' + sid);
+  if (Array.isArray(before)) before = before[0];
+  if (!before || before.ID !== sid) throw new Error('Could not read the student from MMS.');
+  var body = JSON.parse(JSON.stringify(before));
+  body.Status = status;
+  Utilities.sleep(600);
+  mms_('put', 'students/' + sid, body);
+  Utilities.sleep(800);
+  var after = mms_('get', 'students/' + sid);
+  if (Array.isArray(after)) after = after[0];
+  if (!after || after.Status !== status) throw new Error('MMS did not take the status change. Check the student in MMS.');
+  var drift = Object.keys(before).filter(function (k) {
+    if (k === 'Status' || k === 'Active' || k === 'AccessStatus' || k === 'LastLogin') return false;
+    var a = before[k], b = after[k];
+    if ((a === '' || a == null) && (b === '' || b == null)) return false;
+    return JSON.stringify(a) !== JSON.stringify(b);
+  });
+  if (drift.length) {
+    tab_(NOTES_TAB).appendRow([new Date(), sid, '', 'app', 'change', 'Check in MMS: status change also touched ' + drift.join(', '), '', '', '']);
+  }
+}
+
+/** Reflect a placement in the roster tab right away. */
+function rosterProgram_(sid, group, status) {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ROSTER_TAB);
+  if (!sh) return;
+  var v = sh.getDataRange().getValues(), head = v[0];
+  var cp = head.indexOf('Programs'), cs = head.indexOf('Status');
+  for (var i = 1; i < v.length; i++) {
+    if (v[i][0] !== sid) continue;
+    var list = split_(v[i][cp]);
+    if (list.indexOf(group) < 0) list.push(group);
+    sh.getRange(i + 1, cp + 1).setValue(list.join('; '));
+    sh.getRange(i + 1, cs + 1).setValue(status);
+    return;
+  }
+}

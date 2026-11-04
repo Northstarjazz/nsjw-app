@@ -8,9 +8,9 @@
 <title>North Star</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Della+Respira&family=Ysabeau+Office:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/nsjw.css?v=11">
-<link rel="stylesheet" href="css/app.css?v=11">
-<link rel="stylesheet" href="css/sgraffito.css?v=11">
+<link rel="stylesheet" href="css/nsjw.css?v=12">
+<link rel="stylesheet" href="css/app.css?v=12">
+<link rel="stylesheet" href="css/sgraffito.css?v=12">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -220,6 +220,21 @@
   </form>
 </div>
 
+<!-- Place in a group -->
+<div id="place-sheet" class="sheet" hidden>
+  <div class="sheet-body scroll">
+    <div class="sheet-title" id="place-title">Place in a group</div>
+    <label class="flabel">Group or class<select id="place-group" class="field"></select></label>
+    <div class="flabel" style="margin-top:6px">This will</div>
+    <ul class="steps" id="place-steps"></ul>
+    <p class="muted small" style="margin:0">Billing and calendar events stay in MyMusicStaff. Set those up after.</p>
+    <div class="row end">
+      <button type="button" class="btn" id="place-cancel">Cancel</button>
+      <button type="button" class="btn primary" id="place-go">Place them</button>
+    </div>
+  </div>
+</div>
+
 <!-- Lead filters -->
 <div id="lf-sheet" class="sheet" hidden>
   <div class="sheet-body scroll">
@@ -234,6 +249,6 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="js/app.js?v=11"></script>
+<script src="js/app.js?v=12"></script>
 </body>
 </html>

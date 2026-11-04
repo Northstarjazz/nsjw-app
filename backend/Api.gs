@@ -46,6 +46,7 @@ function api_(e) {
       case 'today':  out = today_(); break;
       case 'leadtag': out = setLeadTag_(who, p); break;
       case 'nextdone': out = nextDone_(who, p); break;
+      case 'place':  out = placeInGroup_(who, p); break;
       default: throw new Error('Unknown action');
     }
   } catch (err) {

@@ -643,6 +643,7 @@
       grp('Interested in · pick any', 'interest', LEAD.interests, pick('Interest: ')) +
       grp('Nights they can do', 'nights', LEAD.nights, pick('Nights: ')) +
       grp('Plays', 'instrument', LEAD.instruments, p.instruments || []) +
+      '<button type="button" class="btn primary" data-place style="width:100%;margin-top:4px">Place in a group</button>' +
       '<p class="muted small" style="margin:10px 0 0">Each choice saves to MyMusicStaff as a tag.</p></div>';
   }
 
@@ -680,6 +681,62 @@
   $('#person').addEventListener('change', function (e) {
     if (e.target.id === 'lt-stage' && e.target.value) { e.target.disabled = true; leadTag('stage', e.target.value, true, null); }
   });
+
+  // ---------- Place in a group ----------
+  function openPlace() {
+    if (!current || !current.id) return;
+    $('#place-title').textContent = 'Place ' + current.name;
+    var sel = $('#place-group');
+    sel.innerHTML = '<option>Loading groups</option>'; sel.disabled = true;
+    $('#place-sheet').hidden = false;
+    var go = function (rows) {
+      var mine = (current.instruments || []).map(function (i) { return seatOf(i); });
+      var cur = rows.filter(function (g) { return g.when !== 'Past' && current.programs.indexOf(g.name) < 0; });
+      cur.sort(function (a, b) {
+        var fa = a.open.some(function (s) { return mine.indexOf(s) >= 0; }) ? 0 : 1, fb = b.open.some(function (s) { return mine.indexOf(s) >= 0; }) ? 0 : 1;
+        return (fa - fb) || a.name.localeCompare(b.name, 'en', { numeric: true });
+      });
+      sel.innerHTML = cur.map(function (g) {
+        var fit = g.open.some(function (s) { return mine.indexOf(s) >= 0; });
+        return '<option value="' + esc(g.name) + '">' + esc(g.name) + (g.schedule ? ' · ' + esc(g.schedule) : '') +
+          (g.open.length ? ' · open: ' + esc(openText(g.open)) : '') + (fit ? ' · fits' : '') + '</option>';
+      }).join('');
+      sel.disabled = false; placeSteps();
+    };
+    if (groupsState.rows) go(groupsState.rows);
+    else api('groups').then(function (r) { groupsState.rows = r; go(r); }).catch(function (e) { toast(e.message); });
+  }
+  function seatOf(i) {
+    i = String(i).toLowerCase();
+    if (/drum|percuss/.test(i)) return 'Drums';
+    if (/voice|vocal/.test(i)) return 'Voice';
+    if (/bass/.test(i)) return 'Bass';
+    if (/guitar/.test(i)) return 'Guitar';
+    if (/piano|keys/.test(i)) return 'Piano';
+    return 'Horn';
+  }
+  function placeSteps() {
+    var g = $('#place-group').value, steps = ['Add the "' + g + '" tag in MMS'];
+    if (/^Group \d+/.test(g)) steps.push('Add the "Ensemble Member" tag');
+    if ((current.tags || []).some(function (t) { return /^Stage: /.test(t); })) steps.push('Clear their funnel stage');
+    if (current.status !== 'Active') steps.push('Change their MMS status from ' + current.status + ' to Active');
+    steps.push('Log it on their timeline');
+    $('#place-steps').innerHTML = steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('');
+  }
+  $('#place-group').addEventListener('change', placeSteps);
+  $('#place-cancel').addEventListener('click', function () { $('#place-sheet').hidden = true; });
+  $('#place-sheet').addEventListener('click', function (e) { if (e.target === this) this.hidden = true; });
+  $('#place-go').addEventListener('click', function () {
+    var btn = this, g = $('#place-group').value; if (!g) return;
+    btn.disabled = true; btn.textContent = 'Placing';
+    api('place', { sid: current.id, email: current.email, group: g }).then(function () {
+      $('#place-sheet').hidden = true; toast('Placed in ' + g);
+      leadsState.rows = null; groupsState.rows = null; todayState.data = null;
+      loadPerson(current.id);
+    }).catch(function (err) { toast(err.message); })
+      .then(function () { btn.disabled = false; btn.textContent = 'Place them'; });
+  });
+  $('#person').addEventListener('click', function (e) { if (e.target.closest('[data-place]')) openPlace(); });
 
   // ---------- Groups ----------
   var groupsState = { rows: null, when: store('nsjw_when') || 'Current', kind: store('nsjw_kind') || '' };
