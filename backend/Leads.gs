@@ -520,7 +520,9 @@ function mailIndex_(rebuild) {
     var hit = cache.get('mailidx');
     if (hit) return JSON.parse(hit);
   }
-  var me = Session.getEffectiveUser().getEmail().toLowerCase(), idx = {}, tz = Session.getScriptTimeZone();
+  var idx = {}, tz = Session.getScriptTimeZone();
+  // Ours = anything sent from a North Star address (no extra Google permission needed).
+  var ours = function (a) { return /@northstarjazzworkshops\.com$/.test(a); };
   var start = 0;
   for (var page = 0; page < 6; page++) {
     var threads = GmailApp.search('newer_than:90d -in:spam -in:trash', start, 100);
@@ -529,9 +531,9 @@ function mailIndex_(rebuild) {
       msgs.forEach(function (msg) {
         var day = Utilities.formatDate(msg.getDate(), tz, 'yyyy-MM-dd');
         var from = addr_(msg.getFrom())[0] || '';
-        if (from === me) {
+        if (ours(from)) {
           addr_(msg.getTo() + ',' + msg.getCc()).forEach(function (a) {
-            if (a === me) return;
+            if (ours(a)) return;
             var o = idx[a] = idx[a] || {};
             if (!o.out || day > o.out) o.out = day;
           });
