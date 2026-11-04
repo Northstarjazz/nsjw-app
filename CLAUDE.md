@@ -39,7 +39,8 @@ app: Scope" (Claude Docs, Nov 2026).
   combed black (#141312), gold seams (#C9A14A, never as text on plaster),
   Della Respira for display at 28px and up, Ysabeau Office for UI, 2 to 6px
   corners, no drop shadows, diamond markers instead of dots, 44px tap targets.
-  No third-party artwork in this public repo without the artist's permission.
+  web/img/piano.jpg is third-party art Ben chose to use (Nov 2026); get the
+  artist's permission or replace it before sharing the app more widely.
 
 ## Rules (do not loosen these)
 
