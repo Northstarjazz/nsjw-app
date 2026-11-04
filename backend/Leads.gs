@@ -314,3 +314,68 @@ function rosterProgram_(sid, group, status) {
     return;
   }
 }
+
+// ---------- take out of a group / end membership ----------
+
+/**
+ * p: { sid, email, group, end, reason }
+ * group: take them out of that one program tag. end: take them out of every
+ * program tag and set MMS status to Inactive. Tags with teachers on them are
+ * never written (tagWrite_ refuses); those come back as manual steps.
+ * Billing and calendar events stay manual in MMS.
+ */
+function leaveGroup_(who, p) {
+  var sid = String(p.sid || ''), end = !!p.end, reason = String(p.reason || '').trim().slice(0, 500);
+  if (!/^sdt_/.test(sid)) throw new Error('This person is not in MMS yet.');
+  var r = rosterRows_().filter(function (x) { return x.ID === sid; })[0];
+  if (!r) throw new Error('Could not find them on the roster. Try again after the next sync.');
+  var programs = split_(r.Programs);
+  var targets = end ? programs : [String(p.group || '')];
+  if (!end && programs.indexOf(targets[0]) < 0) throw new Error('They are not in ' + targets[0] + '.');
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) throw new Error('Another change is running. Try again in a moment.');
+  var done = [], manual = [];
+  try {
+    targets.forEach(function (t) {
+      try { tagWrite_(sid, t, false); rosterProgramOff_(sid, t); done.push('Removed ' + t); }
+      catch (e) { manual.push('Remove the "' + t + '" tag in MMS'); }
+    });
+    var left = programs.filter(function (t) { return targets.indexOf(t) < 0; });
+    var tags = split_(r['Other tags']);
+    if (tags.indexOf('Ensemble Member') >= 0 && !left.some(function (t) { return /^Group \d+/.test(t); })) {
+      manual.push('Remove the "Ensemble Member" tag in MMS');
+    }
+    if (end && r.Status !== 'Inactive') {
+      setStatus_(sid, 'Inactive'); done.push('Status set to Inactive');
+      rosterStatus_(sid, 'Inactive');
+    }
+    manual.push(end ? 'Stop their recurring billing and future lessons in MMS' : 'Check their billing in MMS');
+  } finally {
+    lock.releaseLock();
+    if (done.length || manual.length) {
+      var text = (end ? 'Membership ended' : 'Taken out of ' + targets[0]) + (reason ? ' (' + reason + ')' : '') +
+        ': ' + done.concat(manual.map(function (m) { return 'to do: ' + m; })).join('; ');
+      tab_(NOTES_TAB, ['Timestamp', 'MMS ID', 'Email', 'Author', 'Kind', 'Text', 'Due', 'Owner', 'Done'])
+        .appendRow([new Date(), sid, String(p.email || '').toLowerCase(), who, 'change', text, '', '', '']);
+    }
+  }
+  return { ok: true, done: done, manual: manual };
+}
+
+function rosterProgramOff_(sid, group) {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ROSTER_TAB);
+  if (!sh) return;
+  var v = sh.getDataRange().getValues(), cp = v[0].indexOf('Programs');
+  for (var i = 1; i < v.length; i++) {
+    if (v[i][0] !== sid) continue;
+    sh.getRange(i + 1, cp + 1).setValue(split_(v[i][cp]).filter(function (x) { return x !== group; }).join('; '));
+    return;
+  }
+}
+
+function rosterStatus_(sid, status) {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ROSTER_TAB);
+  if (!sh) return;
+  var v = sh.getDataRange().getValues(), cs = v[0].indexOf('Status');
+  for (var i = 1; i < v.length; i++) if (v[i][0] === sid) { sh.getRange(i + 1, cs + 1).setValue(status); return; }
+}

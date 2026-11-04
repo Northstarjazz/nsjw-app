@@ -217,3 +217,41 @@ a { color: var(--accent); }
 .steps { margin: 4px 0 4px; padding-left: 20px; }
 .steps li { margin: 4px 0; font-size: 14.5px; }
 #place-group { height: 48px; padding: 0 12px; font: 600 14.5px var(--font); }
+
+@media (max-width: 999px) { .tabbar.detail { display: none; } }
+
+/* ---------- Wide screens: sidebar nav, roomier content, two-column lists ---------- */
+@media (min-width: 1000px) {
+  .screen { overflow-anchor: none; max-width: none; display: grid; grid-template-columns: 232px minmax(0, 1fr); align-items: start; }
+  .screen:has(> #v-signin:not([hidden])) { grid-template-columns: minmax(0, 1fr); }
+  .screen > .view { grid-column: -2; min-width: 0; min-height: 100dvh; display: flex; flex-direction: column; }
+  .screen > .view[hidden] { display: none; }
+  .screen > main, .view > main { padding: 8px 48px 48px; max-width: 1180px; width: 100%; box-sizing: border-box; }
+
+  .tabbar { grid-column: 1; grid-row: 1 / span 30; position: sticky; top: 0; height: 100dvh; flex-direction: column;
+    justify-content: flex-start; gap: 4px; padding: 0 14px 24px; }
+  .tabbar::before { content: "North Star"; position: static; display: block; height: auto; clip-path: none; background: none;
+    font: 400 26px var(--display); color: var(--lime); padding: 30px 12px 26px; border-bottom: 2px solid var(--gold); margin-bottom: 14px; }
+  .tabbar a { flex: none; width: auto; flex-direction: row; justify-content: flex-start; gap: 12px; padding: 0 12px; font-size: 15px; letter-spacing: .02em; border-radius: 4px; }
+  .tabbar a:hover { color: var(--lime); background: rgba(255,255,255,.05); }
+  .tabbar a.active { background: rgba(255,255,255,.07); }
+  .tabbar a.active::before { top: 10px; bottom: 10px; left: 0; right: auto; width: 4px; height: auto; clip-path: none; }
+
+  .art { padding: 26px 48px 56px; min-height: 190px; }
+  #v-today .art.photo { min-height: 320px; background-size: auto 132%; background-position: right 6% bottom; }
+
+  #v-signin:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(360px, 1fr); }
+  #v-signin .art.photo { min-height: 100dvh; padding: 56px; background-size: cover; background-position: center bottom; }
+  #v-signin .art::after { display: none; }
+  #v-signin main { align-self: center; padding: 64px; }
+
+  .list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .list > .card { border-bottom: 1px solid var(--line); }
+  .list > .card:nth-child(odd) { border-right: 1px solid var(--line); }
+  .list > .card:last-child:nth-child(odd) { grid-column: 1 / -1; border-right: 0; }
+  .list > .loading, .list > .empty { grid-column: 1 / -1; }
+  #person { max-width: 860px; }
+
+  .sheet { align-items: center; }
+  .sheet-body { max-width: 560px; border-radius: 6px; }
+}

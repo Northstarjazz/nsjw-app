@@ -8,9 +8,9 @@
 <title>North Star</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Della+Respira&family=Ysabeau+Office:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/nsjw.css?v=13">
-<link rel="stylesheet" href="css/app.css?v=13">
-<link rel="stylesheet" href="css/sgraffito.css?v=13">
+<link rel="stylesheet" href="css/nsjw.css?v=14">
+<link rel="stylesheet" href="css/app.css?v=14">
+<link rel="stylesheet" href="css/sgraffito.css?v=14">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -235,6 +235,21 @@
   </div>
 </div>
 
+<div id="leave-sheet" class="sheet" hidden>
+  <div class="sheet-body scroll">
+    <div class="sheet-title" id="leave-title">Take out of a group</div>
+    <label class="flabel">What is changing<select id="leave-what" class="field"></select></label>
+    <label class="flabel">Why (optional, goes on their timeline)<input id="leave-why" class="field" placeholder="Moving away, schedule, taking a break"></label>
+    <div class="flabel" style="margin-top:6px">This will</div>
+    <ul class="steps" id="leave-steps"></ul>
+    <p class="muted small" style="margin:0" id="leave-manual"></p>
+    <div class="row end">
+      <button type="button" class="btn" id="leave-cancel">Cancel</button>
+      <button type="button" class="btn primary" id="leave-go">Take them out</button>
+    </div>
+  </div>
+</div>
+
 <!-- Lead filters -->
 <div id="lf-sheet" class="sheet" hidden>
   <div class="sheet-body scroll">
@@ -249,6 +264,6 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="js/app.js?v=13"></script>
+<script src="js/app.js?v=14"></script>
 </body>
 </html>

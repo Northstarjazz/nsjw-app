@@ -47,6 +47,7 @@ function api_(e) {
       case 'leadtag': out = setLeadTag_(who, p); break;
       case 'nextdone': out = nextDone_(who, p); break;
       case 'place':  out = placeInGroup_(who, p); break;
+      case 'leave':  out = leaveGroup_(who, p); break;
       default: throw new Error('Unknown action');
     }
   } catch (err) {

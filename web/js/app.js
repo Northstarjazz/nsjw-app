@@ -122,6 +122,8 @@
     clearTimeout(toast._t); toast._t = setTimeout(function () { t.hidden = true; }, 2600);
   }
   function show(id) { $$('.view').forEach(function (v) { v.hidden = v.id !== id; }); window.scrollTo(0, 0); }
+  // #today, #group and #person are also element ids, so the browser jumps to them on load. Start at the top.
+  window.addEventListener('load', function () { setTimeout(function () { window.scrollTo(0, 0); }, 0); });
 
   // ---------- People ----------
   var peopleState = { q: '', status: '', seq: 0 };
@@ -644,6 +646,7 @@
       grp('Nights they can do', 'nights', LEAD.nights, pick('Nights: ')) +
       grp('Plays', 'instrument', LEAD.instruments, p.instruments || []) +
       '<button type="button" class="btn primary" data-place style="width:100%;margin-top:4px">Place in a group</button>' +
+      ((p.programs || []).length || p.status === 'Active' ? '<button type="button" class="btn" data-leave style="width:100%;margin-top:8px">Take out of a group or end membership</button>' : '') +
       '<p class="muted small" style="margin:10px 0 0">Each choice saves to MyMusicStaff as a tag.</p></div>';
   }
 
@@ -738,6 +741,50 @@
       .then(function () { btn.disabled = false; btn.textContent = 'Place them'; });
   });
   $('#person').addEventListener('click', function (e) { if (e.target.closest('[data-place]')) openPlace(); });
+
+  // ---------- Take out of a group / end membership ----------
+  var END = '__end__';
+  function openLeave() {
+    if (!current || !current.id) return;
+    $('#leave-title').textContent = 'Changes for ' + current.name;
+    $('#leave-what').innerHTML = (current.programs || []).map(function (g) {
+      return '<option value="' + esc(g) + '">Take them out of ' + esc(g) + '</option>';
+    }).join('') + '<option value="' + END + '">End their membership</option>';
+    $('#leave-why').value = '';
+    $('#leave-sheet').hidden = false; leaveSteps();
+  }
+  function leaveSteps() {
+    var v = $('#leave-what').value, end = v === END, progs = current.programs || [], steps = [], manual = [];
+    var out = end ? progs : [v];
+    out.forEach(function (g) { steps.push('Remove the "' + g + '" tag in MMS'); });
+    var left = progs.filter(function (g) { return out.indexOf(g) < 0; });
+    if ((current.tags || []).indexOf('Ensemble Member') >= 0 && !left.some(function (g) { return /^Group \d+/.test(g); })) {
+      manual.push('Ensemble Member has teachers on it in MMS, so remove that tag there.');
+    }
+    if (end && current.status !== 'Inactive') steps.push('Change their MMS status from ' + current.status + ' to Inactive');
+    steps.push('Log it on their timeline');
+    manual.push(end ? 'Stop their recurring billing and future lessons in MyMusicStaff after.' : 'Check their billing in MyMusicStaff after.');
+    $('#leave-steps').innerHTML = steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('');
+    $('#leave-manual').textContent = manual.join(' ');
+    $('#leave-go').textContent = end ? 'End membership' : 'Take them out';
+  }
+  $('#leave-what').addEventListener('change', leaveSteps);
+  $('#leave-cancel').addEventListener('click', function () { $('#leave-sheet').hidden = true; });
+  $('#leave-sheet').addEventListener('click', function (e) { if (e.target === this) this.hidden = true; });
+  $('#leave-go').addEventListener('click', function () {
+    var btn = this, v = $('#leave-what').value, end = v === END, label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Saving';
+    api('leave', { sid: current.id, email: current.email, group: end ? '' : v, end: end, reason: $('#leave-why').value })
+      .then(function (r) {
+        var m = ((r && r.manual) || []).filter(function (x) { return !/billing/.test(x); });
+        $('#leave-sheet').hidden = true;
+        toast((end ? 'Membership ended.' : 'Taken out of ' + v + '.') + (m.length ? ' ' + m[0] + '.' : ' Check billing in MMS.'));
+        leadsState.rows = null; groupsState.rows = null; todayState.data = null;
+        loadPerson(current.id);
+      }).catch(function (err) { toast(err.message); })
+      .then(function () { btn.disabled = false; btn.textContent = label; });
+  });
+  $('#person').addEventListener('click', function (e) { if (e.target.closest('[data-leave]')) openLeave(); });
 
   // ---------- Groups ----------
   var groupsState = { rows: null, when: store('nsjw_when') || 'Current', kind: store('nsjw_kind') || '' };
@@ -844,7 +891,9 @@
 
   // ---------- routing ----------
   function nav(which) {
-    $('#tabbar').hidden = !which;
+    // Detail screens (a person, a group) hide the tab bar on phones; wide screens keep it as a sidebar.
+    $('#tabbar').hidden = !token;
+    $('#tabbar').classList.toggle('detail', !which);
     $$('#tabbar a').forEach(function (a) { a.classList.toggle('active', a.dataset.nav === which); });
   }
   var backTo = '#people';
