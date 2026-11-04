@@ -87,3 +87,4 @@ Everything else in the scope doc is an action launched from one of these four.
   Sequences means changing the ENROLL / SEQ maps in the script and the
   front end in the same commit.
 - Commit small. Push through GitHub Desktop (this sandbox has no git auth).
+- Bump the ?v= number on the css and js links in web/index.html with every front-end change, or phones keep the old files.
