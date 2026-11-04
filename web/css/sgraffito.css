@@ -209,8 +209,8 @@ a { color: var(--accent); }
 .small-empty { padding: 14px 4px !important; text-align: left !important; font-size: 13.5px; }
 
 /* ---------- Art header (sign-in and Today) ---------- */
-/* The artwork sits below the title; the red above it is the painting's own ground color. */
-.art.photo { background: #A94030 url("../img/piano.jpg") no-repeat; background-size: 100% auto; justify-content: flex-start; }
-#v-signin .art.photo { min-height: 60vh; padding-top: 48px; background-position: center 140px; justify-content: flex-start !important; }
-#v-today .art.photo { min-height: 320px; background-position: center 70px; }
+/* Hands-on-keys artwork anchored to the bottom; the red above it is the painting's own ground color. */
+.art.photo { background: #BA4533 url("../img/hands.jpg") no-repeat center bottom; background-size: 100% auto; justify-content: flex-start; }
+#v-signin .art.photo { min-height: 62vh; padding-top: 48px; justify-content: flex-start !important; }
+#v-today .art.photo { min-height: 350px; }
 #v-today .art.photo h1 { margin-top: 10px; }
