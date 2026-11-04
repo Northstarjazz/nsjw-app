@@ -18,6 +18,16 @@ var NOTES_TAB = 'Notes';
 
 // ---------- router ----------
 
+/**
+ * The app posts JSON as text/plain (no CORS preflight), so the sign-in token
+ * travels in the body, never in a URL.
+ */
+function doPost(e) {
+  var p = {};
+  try { p = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (err) {}
+  return api_({ parameter: p });
+}
+
 function api_(e) {
   var p = (e && e.parameter) || {};
   var out;

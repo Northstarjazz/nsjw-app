@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#FAFAF8">
+<title>North Star</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/nsjw.css">
+<link rel="stylesheet" href="css/app.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+<div class="screen">
+
+  <!-- Sign in -->
+  <section id="v-signin" class="view" hidden>
+    <main class="signin">
+      <div class="eyebrow">North Star Jazz Workshops</div>
+      <h1>Student Journey</h1>
+      <p class="muted">Sign in with your North Star Google account.</p>
+      <div id="gsi-button"></div>
+      <p id="signin-error" class="error" hidden></p>
+    </main>
+  </section>
+
+  <!-- People -->
+  <section id="v-people" class="view" hidden>
+    <header class="top">
+      <div class="eyebrow">People</div>
+      <button class="link" id="signout" type="button">Sign out</button>
+    </header>
+    <main>
+      <input id="q" class="search" type="search" placeholder="Search name, email, group, instrument" autocomplete="off">
+      <div class="chips" id="status-chips" role="tablist">
+        <button class="chip on" data-status="">All</button>
+        <button class="chip" data-status="Lead">Lead</button>
+        <button class="chip" data-status="Trial">Trial</button>
+        <button class="chip" data-status="Waiting">Waiting</button>
+        <button class="chip" data-status="Active">Active</button>
+        <button class="chip" data-status="Inactive">Inactive</button>
+      </div>
+      <div id="people-list" class="list"></div>
+    </main>
+  </section>
+
+  <!-- Person -->
+  <section id="v-person" class="view" hidden>
+    <header class="top">
+      <a class="back" href="#people" aria-label="Back to people">&#8249; People</a>
+      <a class="link" id="mms-link" target="_blank" rel="noopener">Open in MMS</a>
+    </header>
+    <main id="person"></main>
+  </section>
+
+</div>
+
+<!-- Add note / next step -->
+<div id="sheet" class="sheet" hidden>
+  <form id="note-form" class="sheet-body">
+    <div class="seg" role="tablist">
+      <button type="button" class="seg-btn on" data-kind="note">Note</button>
+      <button type="button" class="seg-btn" data-kind="next_step">Next step</button>
+    </div>
+    <textarea id="note-text" rows="4" placeholder="What happened, or what's next" required></textarea>
+    <div class="row next-only" hidden>
+      <label>Due <input id="note-due" type="date"></label>
+      <label>Owner <input id="note-owner" type="text" placeholder="Ben"></label>
+    </div>
+    <div class="row end">
+      <button type="button" class="btn" id="note-cancel">Cancel</button>
+      <button type="submit" class="btn primary" id="note-save">Save</button>
+    </div>
+  </form>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
