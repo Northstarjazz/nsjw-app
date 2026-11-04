@@ -41,7 +41,8 @@ function settings() {
     maxPerRun: Number(s['Max sends per run'] || 150),
     signature: String(s['Signature'] || ''),
     sendHour: Number(s['Send hour'] || 7),
-    tz: String(s['Timezone'] || 'America/Chicago')
+    tz: String(s['Timezone'] || 'America/Chicago'),
+    senderEmail: String(s['Sender email'] || 'hello@northstarjazzworkshops.com').trim()
   };
 }
 
@@ -187,6 +188,9 @@ function toHtml_(text, token, cfg) {
 // ---------- reply detection ----------
 
 function findReply_(email, lastSent, threadId) {
+  // Sending to our own address (a self-test): our sent copy would look like a reply.
+  var me = String(settings().senderEmail || '').toLowerCase();
+  if (String(email).toLowerCase() === me) return null;
   var since = lastSent instanceof Date ? lastSent : new Date(lastSent);
   var after = Utilities.formatDate(new Date(since.getTime() - 86400000), 'GMT', 'yyyy/MM/dd');
   var threads = GmailApp.search('from:' + email + ' after:' + after, 0, 10);
