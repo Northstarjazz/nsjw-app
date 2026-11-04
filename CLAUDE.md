@@ -52,7 +52,11 @@ app: Scope" (Claude Docs, Nov 2026).
 5. Texting (when added) is opt-in only, with STOP handling, from a registered
    North Star number.
 6. Secrets never go in this repo: no API keys, no MMS credentials, no OAuth
-   client secrets. The MMS key lives in ~/.nsjw/mms.env on Ben's Mac.
+   client secrets. The MMS key lives in ~/.nsjw/mms.env on Ben's Mac and,
+   for the backend, in the Apps Script's Script Properties as MMS_API_KEY
+   (set by Ben, never by Claude). GOOGLE_CLIENT_ID sits beside it.
+   Every API action verifies a northstarjazzworkshops.com Google ID token
+   (`backend/Api.gs`); never add an action that skips it.
 7. No em dashes in any copy. Warm, direct, plain language. Match the North Star
    voice (see the nsjw-brand-voice skill).
 
