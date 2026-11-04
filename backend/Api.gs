@@ -198,6 +198,7 @@ function rosterRows_() {
 function listContacts_() {
   var last = {};
   sheetObjects_(NOTES_TAB).forEach(function (n) {
+    if (autoNote_(n)) return;
     var ts = n.Timestamp instanceof Date ? n.Timestamp : new Date(n.Timestamp);
     if (isNaN(ts)) return;
     var k = n['MMS ID'] || ('e:' + String(n.Email).toLowerCase());

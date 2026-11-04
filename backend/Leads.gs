@@ -60,6 +60,9 @@ function listLeads_() {
   return { options: leadOptions_(), leads: leadRows_(), enrolled: recentEnrolled_(), stale: STALE_DAYS, boardDays: BOARD_DAYS };
 }
 
+/** Notes the app or the roster sync wrote by itself (not a person reaching out). */
+function autoNote_(n) { return n.Author === 'app' || n.Author === 'MMS sync'; }
+
 /** Ensemble / Private lessons / Classes: from their Interest tags, or the sign-up form if they have none. */
 function tracksOf_(tags, s) {
   var t = tags.filter(function (x) { return /^Interest: /.test(x); }).map(function (x) { return x.slice(10); });
@@ -99,6 +102,7 @@ function leadRows_() {
   var notes = sheetObjects_(NOTES_TAB);
   var bySid = {};
   notes.forEach(function (n) {
+    if (autoNote_(n)) return; // the app's own bookkeeping is not contact with the person
     var k = n['MMS ID'] || ('e:' + String(n.Email).toLowerCase());
     var o = bySid[k] = bySid[k] || { last: null, next: null, count: 0 };
     o.count++;
