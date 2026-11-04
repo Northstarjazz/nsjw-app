@@ -125,38 +125,176 @@
   // #today, #group and #person are also element ids, so the browser jumps to them on load. Start at the top.
   window.addEventListener('load', function () { setTimeout(function () { window.scrollTo(0, 0); }, 0); });
 
-  // ---------- People ----------
-  var peopleState = { q: '', status: '', seq: 0 };
+  // ---------- People (HubSpot-style list: view tabs, quick filters, sortable table, pages) ----------
+  var PVIEWS = [
+    { id: 'all', name: 'All people', f: {}, sort: 'lastActivity:desc' },
+    { id: 'active', name: 'Active members', f: { status: 'Active' }, sort: 'name:asc' },
+    { id: 'leads', name: 'Leads by last activity', f: { status: 'Lead' }, sort: 'lastActivity:desc' },
+    { id: 'new', name: 'New this month', f: { created: '30' }, sort: 'created:desc' },
+    { id: 'past', name: 'Inactive', f: { status: 'Inactive' }, sort: 'name:asc' }
+  ];
+  function savedViews() { try { return JSON.parse(store('nsjw_pviews') || '[]'); } catch (e) { return []; } }
+  var peopleState = { rows: null, view: store('nsjw_pview') || 'all', f: {}, adv: {}, sort: 'lastActivity:desc', q: '', page: 1,
+    per: Number(store('nsjw_pper')) || 25 };
+  function allViews() { return PVIEWS.concat(savedViews()); }
+  function setView(id) {
+    var v = allViews().filter(function (x) { return x.id === id; })[0] || PVIEWS[0];
+    peopleState.view = v.id; peopleState.f = JSON.parse(JSON.stringify(v.f || {})); peopleState.adv = JSON.parse(JSON.stringify(v.adv || {}));
+    peopleState.sort = v.sort || 'lastActivity:desc'; peopleState.page = 1; store('nsjw_pview', v.id);
+  }
+  setView(peopleState.view);
 
-  function loadPeople() {
-    var mySeq = ++peopleState.seq, list = $('#people-list');
-    list.innerHTML = '<div class="loading">Loading</div>';
-    api('people', { q: peopleState.q, status: peopleState.status }).then(function (rows) {
-      if (mySeq !== peopleState.seq) return;
-      if (!rows.length) { list.innerHTML = '<div class="empty">No one matches that.</div>'; return; }
-      list.innerHTML = rows.map(function (r) {
-        var sub = [r.instruments, r.programs].filter(Boolean).join(' · ') || r.email || '';
-        return '<a class="card person-row" href="#p/' + encodeURIComponent(r.id) + '">' +
-          '<div class="avatar">' + esc(initials(r.name)) + '</div>' +
-          '<div class="who"><div class="name">' + esc(r.name) + '</div><div class="sub">' + esc(sub.replace(/;/g, ',')) + '</div></div>' +
-          statusPill(r.status) + '</a>';
-      }).join('');
-    }).catch(function (e) {
-      if (mySeq === peopleState.seq) list.innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
+  function loadPeople(force) {
+    if (peopleState.rows && !force) { renderPeople(); return; }
+    $('#people-list').innerHTML = '<div class="loading">Loading</div>';
+    api('contacts').then(function (rows) { peopleState.rows = rows; renderPeople(); })
+      .catch(function (e) { $('#people-list').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+  }
+  function daysAgo(d) { return d ? (Date.now() - parse(String(d).slice(0, 10))) / 864e5 : Infinity; }
+  function pMatch(r) {
+    var f = peopleState.f, a = peopleState.adv, q = peopleState.q;
+    if (f.status && r.status !== f.status) return false;
+    if (f.program && r.programs.indexOf(f.program) < 0) return false;
+    if (f.track && (f.track === 'none' ? r.tracks.length : r.tracks.indexOf(f.track) < 0)) return false;
+    if (f.created && !(daysAgo(r.created) <= Number(f.created))) return false;
+    if (f.activity && (f.activity === 'none' ? r.lastActivity : !(daysAgo(r.lastActivity) <= Number(f.activity)))) return false;
+    function any(k, have) { return !a[k] || !a[k].length || a[k].some(function (x) { return have.indexOf(x) >= 0; }); }
+    if (!any('Status', [r.status]) || !any('Stage', [r.stage]) || !any('Program', r.programs) ||
+      !any('Interested in', r.tracks) || !any('Instrument', r.instruments) || !any('Source', [r.source])) return false;
+    if (q && (r.name + ' ' + r.email + ' ' + r.phone + ' ' + r.programs.join(' ') + ' ' + r.instruments.join(' ')).toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  }
+  function pSorted(rows) {
+    var sp = peopleState.sort.split(':'), k = sp[0], dir = sp[1] === 'desc' ? -1 : 1;
+    return rows.slice().sort(function (x, y) {
+      var a = x[k] || '', b = y[k] || '';
+      if (!a && b) return 1; if (a && !b) return -1;   // blanks last either way
+      return dir * String(a).localeCompare(String(b), 'en', { numeric: true, sensitivity: 'base' });
     });
   }
-
+  function actText(d) {
+    if (!d) return '';
+    var day = d.slice(0, 10), t = today0(), dd = parse(day), diff = Math.round((t - dd) / 864e5);
+    var time = d.length > 10 ? new Date(d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+    if (diff === 0) return 'Today' + (time ? ' at ' + time : '');
+    if (diff === 1) return 'Yesterday';
+    return dayOnly(day);
+  }
+  var PCOLS = [['name', 'Name'], ['email', 'Email'], ['status', 'Status'], ['programs', 'Programs'], ['tracks', 'Interested in'], ['created', 'Created'], ['lastActivity', 'Last activity']];
+  function renderPeople() {
+    var rows = peopleState.rows; if (!rows) return;
+    // tabs
+    var vs = allViews();
+    $('#pview-tabs').innerHTML = vs.map(function (v) {
+      return '<button type="button" class="vtab' + (v.id === peopleState.view ? ' on' : '') + '" data-v="' + esc(v.id) + '">' + esc(v.name) +
+        (v.saved ? '<span class="vx" data-del="' + esc(v.id) + '" title="Remove view">&times;</span>' : '') + '</button>';
+    }).join('');
+    // program options
+    var progs = {}; rows.forEach(function (r) { r.programs.forEach(function (p) { progs[p] = 1; }); });
+    var ps = $('#pquick [data-q="program"]');
+    if (ps.options.length < 2) ps.innerHTML = '<option value="">Program</option>' + Object.keys(progs).sort(function (a, b) { return a.localeCompare(b, 'en', { numeric: true }); })
+      .map(function (p) { return '<option>' + esc(p) + '</option>'; }).join('');
+    $$('#pquick select').forEach(function (s) { s.value = peopleState.f[s.dataset.q] || ''; s.classList.toggle('on', !!s.value); });
+    $('#psort').value = peopleState.sort;
+    var nAdv = Object.keys(peopleState.adv).reduce(function (n, k) { return n + (peopleState.adv[k] || []).length; }, 0);
+    $('#pfilter-btn').textContent = nAdv ? 'Filter · ' + nAdv : 'Filter';
+    $('#pclear').hidden = !(Object.keys(peopleState.f).some(function (k) { return peopleState.f[k]; }) || nAdv);
+    var list = pSorted(rows.filter(pMatch)), per = peopleState.per, pages = Math.max(1, Math.ceil(list.length / per));
+    if (peopleState.page > pages) peopleState.page = pages;
+    var pg = list.slice((peopleState.page - 1) * per, peopleState.page * per);
+    $('#pcount').textContent = list.length + (list.length === 1 ? ' person' : ' people');
+    var sp = peopleState.sort.split(':');
+    var head = '<div class="prow phead">' + PCOLS.map(function (c) {
+      var on = sp[0] === c[0], sortable = c[0] !== 'programs' && c[0] !== 'tracks';
+      return '<span class="pc pc-' + c[0] + (sortable ? ' sortable' : '') + (on ? ' on' : '') + '"' + (sortable ? ' data-sort="' + c[0] + '"' : '') + '>' + c[1] +
+        (on ? (sp[1] === 'desc' ? ' &darr;' : ' &uarr;') : '') + '</span>';
+    }).join('') + '</div>';
+    $('#people-list').innerHTML = pg.length ? head + pg.map(function (r) {
+      var tr = r.tracks.map(function (t) { return t === 'Classes' ? 'Class' : t; }).join(', ');
+      return '<a class="card prow" href="#p/' + encodeURIComponent(r.id) + '">' +
+        '<span class="pc pc-name"><span class="avatar sm">' + esc(initials(r.name)) + '</span><span class="nm">' + esc(r.name) + '</span></span>' +
+        '<span class="pc pc-email">' + esc(r.email) + '</span>' +
+        '<span class="pc pc-status">' + statusPill(r.status === 'Active' || r.status === 'Inactive' ? r.status : (r.stage || r.status)) + '</span>' +
+        '<span class="pc pc-programs">' + esc(r.programs.join(', ') || r.instruments.join(', ')) + '</span>' +
+        '<span class="pc pc-tracks">' + esc(tr) + '</span>' +
+        '<span class="pc pc-created">' + esc(r.created ? dayOnly(r.created) : '') + '</span>' +
+        '<span class="pc pc-lastActivity">' + esc(actText(r.lastActivity) || 'None yet') + '</span></a>';
+    }).join('') : '<div class="empty">No one matches. Try another view or clear a filter.</div>';
+    // pager
+    var nums = [], p = peopleState.page;
+    for (var i = 1; i <= pages; i++) if (i === 1 || i === pages || Math.abs(i - p) <= 2) nums.push(i); else if (nums[nums.length - 1] !== '…') nums.push('…');
+    $('#ppager').innerHTML = pages > 1 || list.length > 25 ? '<button type="button" class="pg" data-pg="' + (p - 1) + '"' + (p === 1 ? ' disabled' : '') + '>&lsaquo; Prev</button>' +
+      nums.map(function (n) { return n === '…' ? '<span class="pg gap">…</span>' : '<button type="button" class="pg' + (n === p ? ' on' : '') + '" data-pg="' + n + '">' + n + '</button>'; }).join('') +
+      '<button type="button" class="pg" data-pg="' + (p + 1) + '"' + (p === pages ? ' disabled' : '') + '>Next &rsaquo;</button>' +
+      '<select id="pper" aria-label="Per page">' + [25, 50, 100].map(function (n) { return '<option value="' + n + '"' + (n === per ? ' selected' : '') + '>' + n + ' per page</option>'; }).join('') + '</select>' : '';
+  }
+  $('#pview-tabs').addEventListener('click', function (e) {
+    var d = e.target.closest('[data-del]');
+    if (d) { e.stopPropagation(); store('nsjw_pviews', JSON.stringify(savedViews().filter(function (v) { return v.id !== d.dataset.del; }))); setView('all'); renderPeople(); return; }
+    var b = e.target.closest('[data-v]'); if (!b) return; setView(b.dataset.v); renderPeople();
+  });
+  $('#pquick').addEventListener('change', function (e) {
+    var s = e.target.closest('select[data-q]'); if (!s) return;
+    peopleState.f[s.dataset.q] = s.value; peopleState.page = 1; renderPeople();
+  });
+  $('#psort').addEventListener('change', function () { peopleState.sort = this.value; peopleState.page = 1; renderPeople(); });
+  $('#people-list').addEventListener('click', function (e) {
+    var h = e.target.closest('[data-sort]'); if (!h) return;
+    var k = h.dataset.sort, cur = peopleState.sort.split(':');
+    peopleState.sort = k + ':' + (cur[0] === k && cur[1] === 'asc' ? 'desc' : cur[0] === k ? 'asc' : (k === 'name' || k === 'email' || k === 'status' ? 'asc' : 'desc'));
+    peopleState.page = 1; renderPeople();
+  });
+  $('#ppager').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-pg]'); if (!b || b.disabled) return;
+    peopleState.page = Number(b.dataset.pg); renderPeople(); $('#pcount').scrollIntoView({ block: 'start' });
+  });
+  $('#ppager').addEventListener('change', function (e) {
+    if (e.target.id !== 'pper') return; peopleState.per = Number(e.target.value); store('nsjw_pper', peopleState.per); peopleState.page = 1; renderPeople();
+  });
+  $('#pclear').addEventListener('click', function () { peopleState.f = {}; peopleState.adv = {}; peopleState.page = 1; renderPeople(); });
+  $('#psave').addEventListener('click', function () {
+    var bits = [];
+    Object.keys(peopleState.f).forEach(function (k) {
+      var v = peopleState.f[k]; if (!v) return;
+      var sel = $('#pquick [data-q="' + k + '"]'), opt = sel && Array.prototype.filter.call(sel.options, function (o) { return o.value === v; })[0];
+      bits.push(k === 'status' || k === 'program' || k === 'track' ? (opt ? opt.textContent : v) : (opt ? (k === 'created' ? 'created ' : 'active ') + opt.textContent.toLowerCase() : v));
+    });
+    Object.keys(peopleState.adv).forEach(function (k) { if ((peopleState.adv[k] || []).length) bits.push(peopleState.adv[k].join('/')); });
+    if (!bits.length) { toast('Pick some filters first, then save them as a view.'); return; }
+    var v = { id: 'v' + Date.now(), name: bits.join(', ').slice(0, 40), f: peopleState.f, adv: peopleState.adv, sort: peopleState.sort, saved: true };
+    store('nsjw_pviews', JSON.stringify(savedViews().concat(v))); setView(v.id); renderPeople(); toast('Saved as a view on this device');
+  });
   var qTimer;
   $('#q').addEventListener('input', function (e) {
     clearTimeout(qTimer);
-    qTimer = setTimeout(function () { peopleState.q = e.target.value.trim(); store('nsjw_q', peopleState.q); loadPeople(); }, 250);
+    qTimer = setTimeout(function () { peopleState.q = e.target.value.trim().toLowerCase(); peopleState.page = 1; renderPeople(); }, 150);
   });
-  $('#status-chips').addEventListener('click', function (e) {
-    var b = e.target.closest('.chip'); if (!b) return;
-    $$('.chip', this).forEach(function (c) { c.classList.toggle('on', c === b); });
-    peopleState.status = b.dataset.status; store('nsjw_status', peopleState.status);
-    loadPeople();
+  // Advanced filters: multi-select by field
+  function pfGroups() {
+    var rows = peopleState.rows || [], uniq = function (fn) { var o = {}; rows.forEach(function (r) { [].concat(fn(r)).forEach(function (x) { if (x) o[x] = 1; }); }); return Object.keys(o).sort(function (a, b) { return a.localeCompare(b, 'en', { numeric: true }); }); };
+    return [['Status', ['Lead', 'Trial', 'Waiting', 'Active', 'Inactive']], ['Stage', LEAD.stages.concat(['Enrolled'])],
+      ['Interested in', ['Ensemble', 'Private lessons', 'Classes']], ['Program', uniq(function (r) { return r.programs; })],
+      ['Instrument', uniq(function (r) { return r.instruments; })], ['Source', uniq(function (r) { return r.source; })]];
+  }
+  function renderPf() {
+    $('#pf-groups').innerHTML = pfGroups().map(function (g) {
+      var have = peopleState.adv[g[0]] || [];
+      return '<div class="flabel">' + esc(g[0]) + '</div><div class="optgrid">' + g[1].map(function (v) {
+        return '<button type="button" class="chip' + (have.indexOf(v) >= 0 ? ' on' : '') + '" data-pk="' + esc(g[0]) + '" data-pv="' + esc(v) + '">' + esc(v === 'Classes' ? 'Class' : v) + '</button>';
+      }).join('') + '</div>';
+    }).join('');
+  }
+  $('#pfilter-btn').addEventListener('click', function () { renderPf(); $('#pf-sheet').hidden = false; });
+  $('#pf-groups').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-pk]'); if (!b) return;
+    var k = b.dataset.pk, v = b.dataset.pv, cur = peopleState.adv[k] || [];
+    peopleState.adv[k] = cur.indexOf(v) >= 0 ? cur.filter(function (x) { return x !== v; }) : cur.concat(v);
+    b.classList.toggle('on');
   });
+  function closePf() { $('#pf-sheet').hidden = true; peopleState.page = 1; renderPeople(); }
+  $('#pf-done').addEventListener('click', closePf);
+  $('#pf-clear').addEventListener('click', function () { peopleState.adv = {}; renderPf(); });
+  $('#pf-sheet').addEventListener('click', function (e) { if (e.target === this) closePf(); });
   $('#signout').addEventListener('click', signOut);
 
   // ---------- Person ----------
@@ -1167,15 +1305,13 @@
     if (h === '' || h === 'today') { backTo = '#today'; nav('today'); show('v-today'); loadToday(); return; }
     backTo = '#people'; nav('people');
     show('v-people');
-    if (!$('#people-list').children.length) loadPeople();
+    loadPeople();
   }
   window.addEventListener('hashchange', route);
 
   // ---------- start ----------
-  peopleState.q = store('nsjw_q') || '';
-  peopleState.status = store('nsjw_status') || '';
+
   $('#q').value = peopleState.q;
-  $$('#status-chips .chip').forEach(function (c) { c.classList.toggle('on', c.dataset.status === peopleState.status); });
   var savedStage = store('nsjw_stage');
   if (savedStage !== null) lessonsState.stage = savedStage;
   lessonsState.teacher = store('nsjw_teacher') || '';

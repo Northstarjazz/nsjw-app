@@ -272,6 +272,35 @@ a { color: var(--accent); }
 #move-sheet .row.end { flex-wrap: wrap; }
 #move-open { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; margin-right: auto; }
 
+/* People: HubSpot-style list */
+.viewtabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--line-strong); margin: 4px -16px 12px; padding: 0 16px; scrollbar-width: none; }
+.vtab { flex: none; background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 12px 9px; font: 600 14px var(--font); color: var(--muted); cursor: pointer; min-height: 44px; white-space: nowrap; }
+.vtab.on { color: var(--ink); border-bottom-color: var(--gold-deep); background: rgba(30,27,24,.05); border-radius: 4px 4px 0 0; }
+.vtab .vx { margin-left: 8px; color: var(--muted); font-weight: 400; }
+.ptools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ptools .search { flex: 1 1 220px; margin: 0; }
+.sortby { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.sortby select, .quickf select, #pper { height: 40px; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--surface); font: 600 14px var(--font); color: var(--ink); padding: 0 8px; }
+.quickf { display: flex; gap: 8px; overflow-x: auto; margin: 10px -16px 6px; padding: 0 16px 4px; align-items: center; scrollbar-width: none; }
+.quickf select { flex: none; border-style: dashed; max-width: 190px; }
+.quickf select.on { background: var(--ink); color: var(--lime); border-style: solid; }
+.quickf .linkish { flex: none; white-space: nowrap; }
+.ptable .phead { display: none; }
+.prow { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "name status" "prog prog" "act act"; gap: 2px 10px; align-items: center; color: var(--ink); text-decoration: none; padding: 10px 12px; }
+.prow .pc-name { grid-area: name; display: flex; align-items: center; gap: 10px; font-weight: 700; min-width: 0; }
+.prow .pc-name .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prow .pc-status { grid-area: status; }
+.prow .pc-programs { grid-area: prog; font-size: 13px; color: var(--muted); padding-left: 42px; }
+.prow .pc-lastActivity { grid-area: act; font-size: 12px; color: var(--muted); padding-left: 42px; }
+.prow .pc-lastActivity::before { content: "Last activity: "; }
+.prow .pc-email, .prow .pc-tracks, .prow .pc-created { display: none; }
+.avatar.sm { width: 32px; height: 32px; font-size: 13px; flex: none; }
+.pager { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; margin: 4px 0 28px; }
+.pg { min-width: 40px; height: 40px; border: 0; background: none; font: 700 14px var(--font); color: var(--ink); border-radius: 4px; cursor: pointer; }
+.pg.on { border: 1px solid var(--ink); }
+.pg:disabled { color: var(--muted); cursor: default; }
+.pg.gap { cursor: default; display: inline-flex; align-items: center; justify-content: center; }
+
 /* ---------- Wide screens: sidebar nav, roomier content, two-column lists ---------- */
 @media (min-width: 1000px) {
   .screen { overflow-anchor: none; max-width: none; display: grid; grid-template-columns: 232px minmax(0, 1fr); align-items: start; }
@@ -307,6 +336,17 @@ a { color: var(--accent); }
   .pulse { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .board { grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: visible; margin: 0; padding: 4px 0 12px; }
   .kcol { min-height: 60vh; }
+  .ptable { display: block; }
+  .ptable .phead, .ptable .prow { display: grid; grid-template-columns: minmax(170px, 1.4fr) minmax(150px, 1.2fr) 150px minmax(110px, 1.1fr) minmax(115px, .9fr) 100px 140px; grid-template-areas: none; gap: 0 14px; padding: 10px 14px; }
+  .ptable .prow > .pc { grid-area: auto; padding-left: 0; display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+  .ptable .prow .pc-name { display: flex; }
+  .ptable .prow .pc-lastActivity::before { content: none; }
+  .ptable .prow .pc-email, .ptable .prow .pc-programs, .ptable .prow .pc-tracks, .ptable .prow .pc-created { color: var(--muted); }
+  .ptable .phead { position: sticky; top: 0; z-index: 2; background: var(--surface); border-bottom: 2px solid var(--ink); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .phead .sortable { cursor: pointer; user-select: none; }
+  .phead .sortable:hover, .phead .on { color: var(--ink); }
+  .ptable > .card { grid-column: auto; border-right: 0 !important; }
+  .viewtabs, .quickf { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; }
   .sheet { align-items: center; }
   .sheet-body { max-width: 560px; border-radius: 6px; }
 }

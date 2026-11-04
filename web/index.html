@@ -8,9 +8,9 @@
 <title>North Star</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Della+Respira&family=Ysabeau+Office:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/nsjw.css?v=20">
-<link rel="stylesheet" href="css/app.css?v=20">
-<link rel="stylesheet" href="css/sgraffito.css?v=20">
+<link rel="stylesheet" href="css/nsjw.css?v=21">
+<link rel="stylesheet" href="css/app.css?v=21">
+<link rel="stylesheet" href="css/sgraffito.css?v=21">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -36,16 +36,33 @@
       <h1>People</h1>
     </header>
     <main>
-      <input id="q" class="search" type="search" placeholder="Search name, email, group, instrument" autocomplete="off">
-      <div class="chips" id="status-chips" role="tablist">
-        <button class="chip on" data-status="">All</button>
-        <button class="chip" data-status="Lead">Lead</button>
-        <button class="chip" data-status="Trial">Trial</button>
-        <button class="chip" data-status="Waiting">Waiting</button>
-        <button class="chip" data-status="Active">Active</button>
-        <button class="chip" data-status="Inactive">Inactive</button>
+      <div class="viewtabs" id="pview-tabs" role="tablist"></div>
+      <div class="ptools">
+        <input id="q" class="search" type="search" placeholder="Search name, email, group, instrument" autocomplete="off">
+        <button type="button" class="btn" id="pfilter-btn">Filter</button>
+        <label class="sortby">Sort by
+          <select id="psort">
+            <option value="lastActivity:desc">Last activity, newest</option>
+            <option value="created:desc">Create date, newest</option>
+            <option value="created:asc">Create date, oldest</option>
+            <option value="name:asc">Name, A to Z</option>
+            <option value="name:desc">Name, Z to A</option>
+            <option value="status:asc">Status</option>
+          </select>
+        </label>
       </div>
-      <div id="people-list" class="list"></div>
+      <div class="quickf" id="pquick">
+        <select data-q="status" aria-label="Status"><option value="">Status</option><option>Lead</option><option>Trial</option><option>Waiting</option><option>Active</option><option>Inactive</option></select>
+        <select data-q="program" aria-label="Program"><option value="">Program</option></select>
+        <select data-q="track" aria-label="Interested in"><option value="">Interested in</option><option>Ensemble</option><option>Private lessons</option><option value="Classes">Class</option><option value="none">Undecided</option></select>
+        <select data-q="created" aria-label="Create date"><option value="">Create date</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last year</option></select>
+        <select data-q="activity" aria-label="Last activity"><option value="">Last activity</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="none">No activity yet</option></select>
+        <button type="button" class="linkish small" id="pclear" hidden>Clear filters</button>
+        <button type="button" class="linkish small" id="psave">Save as view</button>
+      </div>
+      <div class="groups-sum muted" id="pcount"></div>
+      <div id="people-list" class="list ptable"></div>
+      <div class="pager" id="ppager"></div>
     </main>
   </section>
 
@@ -293,6 +310,17 @@
   </div>
 </div>
 
+<div id="pf-sheet" class="sheet" hidden>
+  <div class="sheet-body scroll">
+    <div class="sheet-title">Filter people</div>
+    <div id="pf-groups"></div>
+    <div class="row end">
+      <button type="button" class="btn" id="pf-clear">Clear all</button>
+      <button type="button" class="btn primary" id="pf-done">Show people</button>
+    </div>
+  </div>
+</div>
+
 <!-- Lead filters -->
 <div id="lf-sheet" class="sheet" hidden>
   <div class="sheet-body scroll">
@@ -307,6 +335,6 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="js/app.js?v=20"></script>
+<script src="js/app.js?v=21"></script>
 </body>
 </html>

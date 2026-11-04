@@ -37,6 +37,7 @@ function api_(e) {
       case 'whoami': out = { email: who }; break;
       case 'person': out = getPerson_(p.sid, p.email); break;
       case 'people': out = listPeople_(p.q, p.status); break;
+      case 'contacts': out = listContacts_(); break;
       case 'note':   out = addNote_(who, p); break;
       case 'lessons': out = listLessons_(); break;
       case 'lesson': out = saveLesson_(who, p); break;
@@ -186,6 +187,29 @@ function rosterRows_() {
   var head = v.shift();
   return v.map(function (r) {
     var o = {}; head.forEach(function (h, i) { o[h] = r[i]; }); return o;
+  });
+}
+
+/**
+ * Everyone on the roster with the columns the People table shows. The page filters,
+ * sorts and pages in the browser. Last activity = the newest timeline entry
+ * (note, call, stage change, email log) in the Notes tab.
+ */
+function listContacts_() {
+  var last = {};
+  sheetObjects_(NOTES_TAB).forEach(function (n) {
+    var ts = n.Timestamp instanceof Date ? n.Timestamp : new Date(n.Timestamp);
+    if (isNaN(ts)) return;
+    var k = n['MMS ID'] || ('e:' + String(n.Email).toLowerCase());
+    if (!last[k] || ts > last[k]) last[k] = ts;
+  });
+  return rosterRows_().map(function (r) {
+    var tags = split_(r['Other tags']), s = signup_(r.Note);
+    var la = last[r.ID] || last['e:' + String(r.Email).toLowerCase()];
+    return { id: r.ID, name: r.Name, email: r.Email, phone: r.Phone, status: r.Status,
+      stage: stageOf_(r, tags), programs: split_(r.Programs), instruments: split_(r.Instruments),
+      tracks: tracksOf_(tags, s), source: s.source || '', created: gday_(r.Started),
+      lastActivity: la ? Utilities.formatDate(la, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm") : '' };
   });
 }
 
