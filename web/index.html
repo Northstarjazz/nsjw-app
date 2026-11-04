@@ -4,12 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#FAFAF8">
+<meta name="theme-color" content="#E07A55">
 <title>North Star</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Della+Respira&family=Ysabeau+Office:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/nsjw.css">
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/sgraffito.css">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -17,9 +18,11 @@
 
   <!-- Sign in -->
   <section id="v-signin" class="view" hidden>
-    <main class="signin">
+    <header class="art">
       <div class="eyebrow">North Star Jazz Workshops</div>
       <h1>Student Journey</h1>
+    </header>
+    <main class="signin">
       <p class="muted">Sign in with your North Star Google account.</p>
       <div id="gsi-button"></div>
       <p id="signin-error" class="error" hidden></p>
@@ -28,9 +31,12 @@
 
   <!-- People -->
   <section id="v-people" class="view" hidden>
-    <header class="top">
-      <div class="eyebrow">People</div>
-      <button class="link" id="signout" type="button">Sign out</button>
+    <header class="art">
+      <div class="row-top">
+        <div class="eyebrow">North Star Jazz Workshops</div>
+        <button class="link" id="signout" type="button">Sign out</button>
+      </div>
+      <h1>People</h1>
     </header>
     <main>
       <input id="q" class="search" type="search" placeholder="Search name, email, group, instrument" autocomplete="off">
@@ -48,8 +54,9 @@
 
   <!-- Lessons -->
   <section id="v-lessons" class="view" hidden>
-    <header class="top">
+    <header class="art black">
       <div class="eyebrow">Private lessons</div>
+      <h1>Lessons</h1>
     </header>
     <main>
       <div class="stats" id="lesson-stats"></div>
@@ -75,8 +82,8 @@
   </section>
 
   <nav class="tabbar" id="tabbar" hidden>
-    <a href="#people" data-nav="people">People</a>
-    <a href="#lessons" data-nav="lessons">Lessons</a>
+    <a href="#people" data-nav="people"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></svg>People</a>
+    <a href="#lessons" data-nav="lessons"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 15V4l9-2v11"/><circle cx="5.5" cy="15" r="2.5"/><circle cx="14.5" cy="13" r="2.5"/></svg>Lessons</a>
   </nav>
 
 </div>

@@ -34,8 +34,12 @@ app: Scope" (Claude Docs, Nov 2026).
 - Backend: the Sequencer Apps Script exposed as a JSON web app. Add endpoints
   there; do not stand up another server.
 - Phone first. Design from the mockups on the "Student Journey app: screens"
-  canvas: Inter, warm off-white ground (#FAFAF8), ink (#1C1C1A), coral accent
-  (#B8452B), 12px card radius, 44px tap targets.
+  canvas, in the Sgraffito style (`web/css/sgraffito.css`, loaded last):
+  plaster ground (#EFE6D6), ink (#1E1B18), terracotta clay fields (#E07A55),
+  combed black (#141312), gold seams (#C9A14A, never as text on plaster),
+  Della Respira for display at 28px and up, Ysabeau Office for UI, 2 to 6px
+  corners, no drop shadows, diamond markers instead of dots, 44px tap targets.
+  No third-party artwork in this public repo without the artist's permission.
 
 ## Rules (do not loosen these)
 
