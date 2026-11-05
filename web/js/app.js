@@ -631,7 +631,109 @@
     if (!todayState.data) $('#today').innerHTML = '<div class="loading">Loading</div>';
     api('today').then(function (d) { todayState.data = d; todayState.at = Date.now(); renderToday(); })
       .catch(function (e) { $('#today').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+    loadTeaching();
   }
+
+  // ---------- Teaching: my week and subs ----------
+  var teachState = null;
+  function loadTeaching() {
+    api('myteaching').then(function (d) { teachState = d; renderTeaching(); }).catch(function () { teachState = null; renderTeaching(); });
+  }
+  function subWhen(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s.date || '')), d = m ? new Date(+m[1], m[2] - 1, +m[3]) : null;
+    return (d ? d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : s.date) + (s.time ? ' · ' + s.time : '');
+  }
+  function subStatus(s) {
+    if (s.status === 'Covered') return '<span class="pill good">Covered by ' + esc(String(s.coveredBy || '').replace(/\s*<.*$/, '')) + '</span>';
+    return '<span class="pill warn">Waiting on ' + s.asked.length + (s.asked.length === 1 ? ' teacher' : ' teachers') + '</span>';
+  }
+  function renderTeaching() {
+    var box = $('#teaching'); if (!box) return;
+    var d = teachState, html = '';
+    if (!d || (!d.teacher && !(d.allSubs || []).length)) { box.innerHTML = ''; return; }
+    if (d.teacher && (d.groups.length || d.lessons.length || d.mine.length || d.asked.length)) {
+      var rows = d.groups.map(function (g) {
+        return '<div class="card teach-row"><div class="who"><div class="line1"><a class="name" href="#g/' + encodeURIComponent(g.name) + '">' + esc(g.name) + '</a></div>' +
+          '<div class="sub">' + esc([g.schedule, g.members ? g.members + ' people' : '', g.when === 'Upcoming' ? 'Starts soon' : ''].filter(Boolean).join(' · ')) + '</div></div>' +
+          '<button type="button" class="btn small" data-subfor="' + esc(g.name) + '" data-subtime="' + esc(String(g.schedule || '').split(' · ')[0]) + '">Need a sub</button></div>';
+      }).concat(d.lessons.map(function (l) {
+        var label = 'Lesson with ' + l.name;
+        return '<div class="card teach-row"><div class="who"><div class="line1"><a class="name" href="#p/' + encodeURIComponent(l.sid) + '">' + esc(label) + '</a></div>' +
+          '<div class="sub">' + esc([l.when, l.instrument, l.frequency, l.stage === 'Scheduling' ? 'Scheduling' : ''].filter(Boolean).join(' · ')) + '</div></div>' +
+          '<button type="button" class="btn small" data-subfor="' + esc(label) + '" data-subtime="' + esc(l.when || '') + '">Need a sub</button></div>';
+      }));
+      html += '<div class="sec-h"><h3>Your teaching</h3></div>' + (rows.length ? '<div class="list">' + rows.join('') + '</div>' : '<div class="empty small-empty">No groups or lessons with your name on them yet.</div>');
+      if (d.asked.length) {
+        html += '<div class="sec-h"><h3>Can you cover?</h3></div><div class="list">' + d.asked.map(function (s) {
+          var open = s.status === 'Open';
+          return '<div class="card teach-row"><div class="who"><div class="line1"><span class="name">' + esc(s.cls) + '</span></div>' +
+            '<div class="sub">' + esc(subWhen(s)) + ' · for ' + esc(s.teacher) + '</div>' + (s.note ? '<div class="meta">' + esc(s.note) + '</div>' : '') +
+            (open ? '' : '<div class="pills">' + subStatus(s) + '</div>') + '</div>' +
+            (open ? '<button type="button" class="btn primary small" data-subtake="' + esc(s.id) + '">I can cover it</button>' : '') + '</div>';
+        }).join('') + '</div>';
+      }
+      if (d.mine.length) {
+        html += '<div class="sec-h"><h3>Your sub requests</h3></div><div class="list">' + d.mine.map(function (s) {
+          return '<div class="card teach-row"><div class="who"><div class="line1"><span class="name">' + esc(s.cls) + '</span></div>' +
+            '<div class="sub">' + esc(subWhen(s)) + '</div><div class="pills">' + subStatus(s) + '</div></div>' +
+            '<button type="button" class="linkish small" data-subcancel="' + esc(s.id) + '">Cancel</button></div>';
+        }).join('') + '</div>';
+      }
+    }
+    if (d.admin && (d.allSubs || []).length) {
+      html += '<div class="sec-h"><h3>Subs · ' + d.allSubs.length + '</h3></div><div class="list">' + d.allSubs.map(function (s) {
+        return '<div class="card teach-row"><div class="who"><div class="line1"><span class="name">' + esc(s.cls) + '</span></div>' +
+          '<div class="sub">' + esc(subWhen(s)) + ' · ' + esc(s.teacher) + ' is out</div><div class="pills">' + subStatus(s) + '</div>' +
+          (s.status === 'Covered' ? '<div class="meta">Change the teacher on this event in MMS</div>' : '') + '</div></div>';
+      }).join('') + '</div>';
+    }
+    box.innerHTML = html;
+  }
+  function openSub(cls, time) {
+    var d = teachState; if (!d || !d.teacher) return;
+    $('#sub-title').textContent = 'Need a sub: ' + cls;
+    $('#sub-cls').value = cls; $('#sub-time').value = time || ''; $('#sub-date').value = ''; $('#sub-note').value = '';
+    $('#sub-err').textContent = '';
+    $('#sub-to').innerHTML = d.teachers.map(function (t) {
+      return '<label class="checkline"><input type="checkbox" value="' + esc(t.email) + '"> ' + esc(t.name) + '</label>';
+    }).join('');
+    $('#sub-sheet').hidden = false;
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-subfor]');
+    if (b) { openSub(b.dataset.subfor, b.dataset.subtime); return; }
+    var tk = e.target.closest('[data-subtake]');
+    if (tk) {
+      tk.disabled = true;
+      api('subtake', { id: tk.dataset.subtake }).then(function (r) { toast(r.msg); loadTeaching(); })
+        .catch(function (err) { toast(err.message); tk.disabled = false; });
+      return;
+    }
+    var cx = e.target.closest('[data-subcancel]');
+    if (cx) {
+      if (cx.dataset.sure !== '1') { cx.dataset.sure = '1'; cx.textContent = 'Tap again to cancel'; return; }
+      api('subcancel', { id: cx.dataset.subcancel }).then(function () { toast('Cancelled. We let everyone know.'); loadTeaching(); })
+        .catch(function (err) { toast(err.message); });
+    }
+  });
+  $('#sub-cancel').addEventListener('click', function () { $('#sub-sheet').hidden = true; });
+  $('#sub-sheet').addEventListener('click', function (e) { if (e.target === this) this.hidden = true; });
+  $('#sub-all').addEventListener('click', function () {
+    var boxes = $$('#sub-to input'), all = boxes.every(function (x) { return x.checked; });
+    boxes.forEach(function (x) { x.checked = !all; });
+  });
+  $('#sub-send').addEventListener('click', function () {
+    var to = $$('#sub-to input').filter(function (x) { return x.checked; }).map(function (x) { return x.value; });
+    var date = $('#sub-date').value;
+    if (!date) { $('#sub-err').textContent = 'Pick the date you need covered.'; return; }
+    if (!to.length) { $('#sub-err').textContent = 'Pick at least one teacher to ask.'; return; }
+    var btn = this; btn.disabled = true; btn.textContent = 'Sending';
+    api('subrequest', { cls: $('#sub-cls').value, date: date, time: $('#sub-time').value, note: $('#sub-note').value, to: to }).then(function (r) {
+      $('#sub-sheet').hidden = true; toast('Asked ' + r.asked + (r.asked === 1 ? ' teacher' : ' teachers') + '. You will get an email when someone says yes.');
+      loadTeaching();
+    }).catch(function (err) { $('#sub-err').textContent = err.message; })
+      .then(function () { btn.disabled = false; btn.textContent = 'Send request'; });
+  });
   function todayRow(l, line) {
     var bits = [l.instruments.join(', '), l.interests.join(', ')].filter(Boolean).join(' · ');
     return '<a class="card lead-row" href="#p/' + encodeURIComponent(l.id) + '"><span class="lz ' + (l.next ? urgency(l) : 'none') + '"></span>' +
@@ -682,7 +784,8 @@
         '<div class="sub">' + esc([g.schedule, g.teacher].filter(Boolean).join(' · ')) + '</div>' +
         '<div class="pills"><span class="pill open">Open: ' + esc(openText(g.open)) + '</span></div></a>';
     }).join('') + '</div>' : '<div class="empty small-empty">Every group is full.</div>');
-    $('#today').innerHTML = html;
+    $('#today').innerHTML = '<div id="teaching"></div>' + html;
+    renderTeaching();
   }
 
   // ---------- Leads ----------

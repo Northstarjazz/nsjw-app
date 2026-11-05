@@ -209,6 +209,7 @@ function findReply_(email, lastSent, threadId) {
 function doGet(e) {
   var p = (e && e.parameter) || {};
   if (p.action) return api_(e); // Student Journey app API (Api.gs)
+  if (p.sub) return subPage_(p); // "I can cover it" link in a sub request email (Teachers.gs)
   var kind = p.k === 'c' ? 'click' : 'open';
   try {
     var parts = Utilities.newBlob(Utilities.base64DecodeWebSafe(p.t || '')).getDataAsString().split('|');

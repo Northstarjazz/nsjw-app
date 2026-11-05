@@ -8,10 +8,10 @@
 <title>North Star</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/nsjw.css?v=29">
-<link rel="stylesheet" href="css/app.css?v=29">
-<link rel="stylesheet" href="css/sgraffito.css?v=29">
-<link rel="stylesheet" href="css/natural.css?v=29">
+<link rel="stylesheet" href="css/nsjw.css?v=30">
+<link rel="stylesheet" href="css/app.css?v=30">
+<link rel="stylesheet" href="css/sgraffito.css?v=30">
+<link rel="stylesheet" href="css/natural.css?v=30">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -373,6 +373,26 @@
   </div>
 </div>
 
+<div id="sub-sheet" class="sheet" hidden>
+  <div class="sheet-body scroll">
+    <div class="sheet-title" id="sub-title">Need a sub</div>
+    <input type="hidden" id="sub-cls">
+    <div class="row">
+      <label class="flabel">Date<input id="sub-date" class="field" type="date"></label>
+      <label class="flabel">Time<input id="sub-time" class="field" placeholder="7:45 to 9:45pm"></label>
+    </div>
+    <label class="flabel">Note for the sub (optional)<textarea id="sub-note" rows="3" placeholder="Tunes we're working on, where the charts are, anything they should know"></textarea></label>
+    <div class="flabel sub-h"><span>Who should we ask?</span><button type="button" class="linkish small" id="sub-all">Select all</button></div>
+    <div id="sub-to" class="sub-to"></div>
+    <p class="muted small" style="margin:0">Each person gets an email with a link to take it. First yes gets it, and we let you and Ben know.</p>
+    <p class="error small" id="sub-err"></p>
+    <div class="row end">
+      <button type="button" class="btn" id="sub-cancel">Cancel</button>
+      <button type="button" class="btn primary" id="sub-send">Send request</button>
+    </div>
+  </div>
+</div>
+
 <div class="selbar" id="selbar" hidden>
   <span id="sel-count">0 selected</span>
   <button type="button" class="btn" id="sel-clear">Clear</button>
@@ -393,6 +413,6 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="js/app.js?v=29"></script>
+<script src="js/app.js?v=30"></script>
 </body>
 </html>

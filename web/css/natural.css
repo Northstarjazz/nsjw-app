@@ -42,3 +42,13 @@ h2 { font-size: 32px; line-height: 1.05; }
 @media (min-width: 1000px) { #v-today .art.photo { background-size: cover; background-position: center 70%; } }
 #v-today .art.photo::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(20,40,36,.7) 0%, rgba(20,40,36,.35) 45%, rgba(20,40,36,0) 75%); }
 #v-today .art.photo > * { position: relative; z-index: 1; }
+
+/* Teaching on Today */
+.teach-row { display: flex; align-items: center; gap: 12px; }
+.teach-row .who { flex: 1; min-width: 0; }
+.teach-row .name { color: var(--ink); text-decoration: none; font-weight: 600; }
+.teach-row .btn.small { flex: none; margin: 0; }
+.sub-h { display: flex; justify-content: space-between; align-items: center; }
+.sub-to { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+.sub-to .checkline { font-weight: 500 !important; font-size: 14px !important; min-height: 40px; }
+.sub-h .small { margin: 0; }

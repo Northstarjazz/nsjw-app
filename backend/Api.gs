@@ -51,6 +51,10 @@ function api_(e) {
       case 'leave':  out = leaveGroup_(who, p); break;
       case 'logcall': out = logCall_(who, p); break;
       case 'groupmail': out = sendGroupEmail_(who, p); break;
+      case 'myteaching': out = myTeaching_(who, p); break;
+      case 'subrequest': out = requestSub_(who, p); break;
+      case 'subtake': out = takeSubApi_(who, p); break;
+      case 'subcancel': out = cancelSub_(who, p); break;
       default: throw new Error('Unknown action');
     }
   } catch (err) {
