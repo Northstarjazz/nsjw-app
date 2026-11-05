@@ -9,8 +9,8 @@
   --clay: #E07A55; --black: #141312; --black-inset: #1F1D1B; --lime: #F3EBDD; --lime-muted: #A89D8C;
   --gold: #C9A14A; --gold-deep: #9A7424; --sage: #A9B3A3;
   --radius: 6px; --radius-sm: 2px;
-  --font: "Ysabeau Office", "Gill Sans", "Segoe UI", sans-serif;
-  --display: "Della Respira", Georgia, serif;
+  --font: "Lexend Deca", Helvetica, Arial, sans-serif;
+  --display: "Lexend Deca", Helvetica, Arial, sans-serif;
   --comb: repeating-linear-gradient(-28deg, rgba(30,27,24,0) 0 3px, rgba(30,27,24,.045) 3px 4px, rgba(255,252,245,.35) 4px 5px);
   --comb-black: repeating-radial-gradient(circle at 130% 140%, rgba(243,235,221,0) 0 2px, rgba(243,235,221,.06) 2px 3px, rgba(0,0,0,.35) 3px 4px);
   --light-black: radial-gradient(120% 90% at 0% 0%, rgba(201,161,74,.10), rgba(201,161,74,0) 60%);
@@ -18,11 +18,11 @@
   --gold-seg: polygon(0 40%, 18% 0, 64% 20%, 100% 0, 96% 100%, 40% 80%, 3% 100%);
   --seam: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 390 34' preserveAspectRatio='none'%3E%3Cpath d='M0,22 C78,6 164,32 242,17 C304,7 351,11 390,3 L390,34 L0,34 Z' fill='%23EFE6D6'/%3E%3Cpath d='M0,22 C78,6 164,32 242,17 C304,7 351,11 390,3' fill='none' stroke='%23C9A14A' stroke-width='2' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
 }
-html, body { background: var(--sage); font: 15px/1.5 var(--font); font-feature-settings: "kern", "liga", "lnum"; }
+html, body { background: var(--sage); font: 14px/1.5 var(--font); }
 .screen { background-color: var(--ground); background-image: var(--comb); }
-h1, h2 { font-family: var(--display); font-weight: 400; letter-spacing: -0.01em; }
-h1 { font-size: 40px; line-height: 1; }
-h2 { font-size: 32px; line-height: 1.02; }
+h1, h2 { font-family: var(--display); font-weight: 500; letter-spacing: -0.02em; }
+h1 { font-size: 32px; line-height: 1.1; }
+h2 { font-size: 26px; line-height: 1.15; }
 .eyebrow { font-size: 11.5px; font-weight: 600; letter-spacing: .14em; color: var(--muted); }
 a { color: var(--accent); }
 ::selection { background: var(--clay); color: var(--ink); }
@@ -85,7 +85,7 @@ a { color: var(--accent); }
   background-color: var(--black); background-image: var(--light-black), var(--comb-black); color: var(--lime);
 }
 #person .hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 34px; background: var(--seam) center / 100% 100% no-repeat; }
-#person .hero h2 { color: var(--lime); font-size: 34px; }
+#person .hero h2 { color: var(--lime); font-size: 28px; }
 #person .hero .sub { color: var(--lime-muted); }
 #person .hero .avatar { width: 58px; height: 58px; font-size: 22px; background: var(--clay); color: var(--ink); }
 .next { background: var(--surface); border: 0; box-shadow: none; position: relative; padding: 18px 16px 14px;
