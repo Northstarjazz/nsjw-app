@@ -34,9 +34,10 @@ html.calm .art .eyebrow, html.calm .art.black .eyebrow { color: var(--muted); }
 html.calm .art h1, html.calm .art.black h1, html.calm .art .link, html.calm .art .back,
 html.calm .art.black .link, html.calm .art.black .back, html.calm #v-person .top .back, html.calm #v-person .top .link { color: var(--ink); }
 html.calm .art .back, html.calm #v-person .top .back { font-weight: 500; font-size: 14px; color: var(--muted); }
+html.calm { --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M15.7 1.2 L17.5 12.0 L21.6 10.3 L19.7 14.5 L30.4 15.9 L19.8 17.5 L21.5 21.7 L17.6 19.7 L15.6 31.1 L14.4 19.9 L10.3 22.0 L12.0 17.7 L1.4 16.3 L12.2 14.3 L10.5 10.5 L14.3 12.1 Z' fill='%23D97757' stroke='%23C6613F' stroke-width='1' stroke-linejoin='round'/%3E%3C/svg%3E"); }
 html.calm #v-today .art h1::before {
-  content: ""; display: inline-block; width: 26px; height: 26px; margin-right: 10px; vertical-align: -3px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg stroke='%23D97757' stroke-width='3' stroke-linecap='round' fill='none'%3E%3Cpath d='M16 3.5c.3 4.6-.4 8.9.2 12.6'/%3E%3Cpath d='M16.2 16.1c.2 4.1-.5 8.3 0 12.4'/%3E%3Cpath d='M4 15.4c4.3.6 8.2.2 12.2.7'/%3E%3Cpath d='M16.2 16.1c4.3-.3 8.1.4 11.8-.3'/%3E%3Cpath d='M7.3 6.8c3 2.9 5.7 6 8.9 9.3'/%3E%3Cpath d='M16.2 16.1c3 2.8 5.6 6.1 8.6 9'/%3E%3Cpath d='M25.6 6.3c-3.2 3.1-6.2 6.4-9.4 9.8'/%3E%3Cpath d='M16.2 16.1c-3 3.1-6.3 6-9.3 9.2'/%3E%3C/g%3E%3C/svg%3E") no-repeat center / contain; }
+  content: ""; display: inline-block; width: 28px; height: 28px; margin-right: 10px; vertical-align: -4px;
+  background: var(--star) no-repeat center / contain; }
 
 /* Inputs, chips */
 html.calm .search, html.calm .sheet input, html.calm .sheet select, html.calm .sheet textarea, html.calm textarea,
@@ -171,3 +172,9 @@ html.calm .group-row .count { color: var(--ink-2); }
 html.calm .kh { flex-wrap: nowrap; }
 html.calm .kh .kx { display: none; }
 html.calm .kmail { padding: 2px 9px; font-size: 12px; }
+
+/* North Stars: the folksy touch */
+html.calm .empty::before, html.calm .small-empty::before { content: ""; display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px; background: var(--star) no-repeat center / contain; opacity: .7; }
+@media (min-width: 1000px) {
+  html.calm .tabbar::before { padding-left: 46px; background: var(--star) no-repeat 12px 24px / 24px 24px; }
+}
