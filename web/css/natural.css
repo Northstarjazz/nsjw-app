@@ -51,11 +51,11 @@ h2 { font-size: 32px; line-height: 1.05; }
 .sub-to .checkline { font-weight: 500 !important; font-size: 14px !important; min-height: 40px; }
 .sub-h .small { margin: 0; }
 
-/* White logo instead of the "North Star" text */
+/* Sidebar title: the name in the app's heading font */
 @media (min-width: 1000px) {
-  .tabbar::before { content: ""; height: 62px; margin: 26px 12px 14px; padding: 0 0 18px;
-    background: url("../img/logo-white.png") left top / contain no-repeat; background-origin: content-box; }
+  .tabbar::before { content: "North Star Jazz Workshops"; height: auto; margin: 0 0 14px; padding: 28px 12px 22px;
+    background: none; font: 500 26px/1.1 var(--display); letter-spacing: -0.01em; color: var(--lime); }
 }
-.signin-logo { display: block; width: 220px; max-width: 70%; height: auto; margin-bottom: 22px; }
+.signin-name { font: 500 22px/1.15 var(--display); color: var(--lime); margin-bottom: 14px; }
 
 #v-today .art.photo, #v-signin .art.photo { background-size: cover !important; background-position: center !important; }
