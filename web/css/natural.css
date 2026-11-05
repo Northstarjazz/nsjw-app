@@ -59,3 +59,7 @@ h2 { font-size: 32px; line-height: 1.05; }
 .signin-name { font: 500 22px/1.15 var(--display); color: var(--lime); margin-bottom: 14px; }
 
 #v-today .art.photo, #v-signin .art.photo { background-size: cover !important; background-position: center !important; }
+.viewas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 18px 0 4px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.viewas > span { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.viewas .chip { min-height: 36px; }
+.viewas-note { margin: 6px 2px 0 !important; }

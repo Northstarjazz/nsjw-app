@@ -655,10 +655,38 @@
   }
 
   // ---------- Teaching: my week and subs ----------
-  var teachState = null;
+  var teachState = null, viewAs = '', teacherList = null;
   function loadTeaching() {
-    swr('myteaching', null, function (d) { teachState = d; renderTeaching(); }).catch(function () { teachState = null; renderTeaching(); });
+    swr('myteaching', viewAs ? { as: viewAs } : null, function (d) {
+      teachState = d;
+      if (d.admin && !viewAs && d.teacher) teacherList = [d.teacher].concat(d.teachers || []);
+      renderTeaching();
+    }).catch(function () { teachState = null; renderTeaching(); });
   }
+  // Ben (hello@) can see Today the way any teacher sees it.
+  function viewAsBar(d) {
+    if (!teacherList || !(d.admin || viewAs)) return '';
+    var meEmail = teacherList[0].email;
+    var pref = ['Joe Hartnett', 'Chris Bates'];
+    var list = teacherList.slice(1).sort(function (a, b) {
+      var ia = pref.indexOf(a.name), ib = pref.indexOf(b.name);
+      return (ia < 0 ? 9 : ia) - (ib < 0 ? 9 : ib) || a.name.localeCompare(b.name);
+    });
+    return '<div class="viewas"><span>View Today as</span>' +
+      '<button type="button" class="chip' + (!viewAs ? ' on' : '') + '" data-viewas="">Me</button>' +
+      list.slice(0, 2).map(function (t) { return '<button type="button" class="chip' + (viewAs === t.email ? ' on' : '') + '" data-viewas="' + esc(t.email) + '">' + esc(t.first || t.name) + '</button>'; }).join('') +
+      '<select class="field inline" data-viewas-sel><option value="">Other teacher</option>' + list.slice(2).map(function (t) {
+        return '<option value="' + esc(t.email) + '"' + (viewAs === t.email ? ' selected' : '') + '>' + esc(t.name) + '</option>';
+      }).join('') + '</select></div>' +
+      (viewAs ? '<p class="muted small viewas-note">You are seeing what ' + esc((teacherList.filter(function (t) { return t.email === viewAs; })[0] || {}).name || viewAs) + ' sees in Your teaching. Sub requests you send here go out in their name.</p>' : '');
+  }
+  function setViewAs(v) { viewAs = v || ''; teachState = null; renderTeaching(); loadTeaching(); }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-viewas]'); if (b) setViewAs(b.dataset.viewas);
+  });
+  document.addEventListener('change', function (e) {
+    if (e.target.matches && e.target.matches('[data-viewas-sel]')) setViewAs(e.target.value);
+  });
   function subWhen(s) {
     var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s.date || '')), d = m ? new Date(+m[1], m[2] - 1, +m[3]) : null;
     return (d ? d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : s.date) + (s.time ? ' · ' + s.time : '');
@@ -670,7 +698,9 @@
   function renderTeaching() {
     var box = $('#teaching'); if (!box) return;
     var d = teachState, html = '';
-    if (!d || (!d.teacher && !(d.allSubs || []).length)) { box.innerHTML = ''; return; }
+    if (!d) { box.innerHTML = viewAs ? viewAsBar({ admin: true }) + '<div class="loading">Loading</div>' : ''; return; }
+    html += viewAsBar(d);
+    if (!d.teacher && !(d.allSubs || []).length) { box.innerHTML = html; return; }
     if (d.teacher && (d.groups.length || d.lessons.length || d.mine.length || d.asked.length)) {
       var rows = d.groups.map(function (g) {
         return '<div class="card teach-row"><div class="who"><div class="line1"><a class="name" href="#g/' + encodeURIComponent(g.name) + '">' + esc(g.name) + '</a></div>' +
@@ -689,7 +719,7 @@
           return '<div class="card teach-row"><div class="who"><div class="line1"><span class="name">' + esc(s.cls) + '</span></div>' +
             '<div class="sub">' + esc(subWhen(s)) + ' · for ' + esc(s.teacher) + '</div>' + (s.note ? '<div class="meta">' + esc(s.note) + '</div>' : '') +
             (open ? '' : '<div class="pills">' + subStatus(s) + '</div>') + '</div>' +
-            (open ? '<button type="button" class="btn primary small" data-subtake="' + esc(s.id) + '">I can cover it</button>' : '') + '</div>';
+            (open && !viewAs ? '<button type="button" class="btn primary small" data-subtake="' + esc(s.id) + '">I can cover it</button>' : '') + '</div>';
         }).join('') + '</div>';
       }
       if (d.mine.length) {
@@ -748,7 +778,7 @@
     if (!date) { $('#sub-err').textContent = 'Pick the date you need covered.'; return; }
     if (!to.length) { $('#sub-err').textContent = 'Pick at least one teacher to ask.'; return; }
     var btn = this; btn.disabled = true; btn.textContent = 'Sending';
-    api('subrequest', { cls: $('#sub-cls').value, date: date, time: $('#sub-time').value, note: $('#sub-note').value, to: to }).then(function (r) {
+    api('subrequest', { as: viewAs || undefined, cls: $('#sub-cls').value, date: date, time: $('#sub-time').value, note: $('#sub-note').value, to: to }).then(function (r) {
       $('#sub-sheet').hidden = true; toast('Asked ' + r.asked + (r.asked === 1 ? ' teacher' : ' teachers') + '. You will get an email when someone says yes.');
       loadTeaching();
     }).catch(function (err) { $('#sub-err').textContent = err.message; })
