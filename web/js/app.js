@@ -296,13 +296,7 @@
   $('#pf-clear').addEventListener('click', function () { peopleState.adv = {}; renderPf(); });
   $('#pf-sheet').addEventListener('click', function (e) { if (e.target === this) closePf(); });
   $('#signout').addEventListener('click', signOut);
-  // New look (calm.css): a per-device switch while we try it.
-  function lookLabel() { $('#lookswitch').textContent = document.documentElement.classList.contains('calm') ? 'Old look' : 'New look'; }
-  $('#lookswitch').addEventListener('click', function () {
-    var on = !document.documentElement.classList.contains('calm');
-    document.documentElement.classList.toggle('calm', on); try { if (on) localStorage.removeItem('nsjw_look'); else localStorage.setItem('nsjw_look', 'old'); } catch (e) {} lookLabel();
-  });
-  lookLabel();
+
 
   // ---------- Person ----------
   var current = null;
