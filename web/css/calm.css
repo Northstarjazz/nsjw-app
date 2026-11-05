@@ -178,3 +178,23 @@ html.calm .empty::before, html.calm .small-empty::before { content: ""; display:
 @media (min-width: 1000px) {
   html.calm .tabbar::before { padding-left: 46px; background: var(--star) no-repeat 12px 24px / 24px 24px; }
 }
+
+/* Dropdowns: our own chevron with room to breathe (Safari's native arrow sits on the edge) */
+html.calm select, html.calm .quickf select, html.calm .sortby select, html.calm #pper, html.calm .sheet select, html.calm select.field {
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.75 6 6.25l4.5-4.5' fill='none' stroke='%236B6A63' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; background-size: 12px 8px;
+  padding-right: 38px; padding-left: 14px; line-height: 1.2; }
+html.calm .quickf select, html.calm .sortby select, html.calm #pper { height: 38px; font: 500 14px var(--font); color: var(--ink-2); }
+html.calm .quickf select.on { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.75 6 6.25l4.5-4.5' fill='none' stroke='%23A84E31' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+html.calm .quickf select:focus { outline: 2px solid var(--accent-tint); outline-offset: 1px; border-color: var(--accent); box-shadow: none; }
+html.calm .quickf { align-items: center; gap: 8px; }
+html.calm .quickf .linkish { align-self: center; line-height: 38px; font-size: 14px; color: var(--muted); text-decoration: none; }
+html.calm .quickf .linkish:hover { color: var(--ink); text-decoration: underline; }
+html.calm .ptools { align-items: center; }
+html.calm .ptools .search, html.calm .ptools .btn { height: 42px; }
+html.calm .ptools .sortby select { height: 42px; }
+html.calm .sortby { font-weight: 500; font-size: 13.5px; }
+html.calm .quickf select.on { background-color: var(--accent-tint); background-repeat: no-repeat; background-position: right 14px center; background-size: 12px 8px; }
+html.calm .quickf .linkish { height: 38px; display: inline-flex; align-items: center; }
+html.calm .quickf .linkish { margin: 0; }
