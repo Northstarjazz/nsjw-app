@@ -37,7 +37,7 @@ app: Scope" (Claude Docs, Nov 2026).
   canvas, in the Sgraffito style (`web/css/sgraffito.css`, loaded last):
   plaster ground (#EFE6D6), ink (#1E1B18), terracotta clay fields (#E07A55),
   combed black (#141312), gold seams (#C9A14A, never as text on plaster),
-  Lexend Deca for everything (HubSpot's UI font, Ben's pick Nov 2026), 2 to 6px
+  natural palette and EB Garamond + Figtree from web/css/natural.css (Nov 2026), 2 to 6px
   corners, no drop shadows, diamond markers instead of dots, 44px tap targets.
   web/img/hands.jpg is third-party art Ben chose to use (Nov 2026); get the
   artist's permission or replace it before sharing the app more widely.

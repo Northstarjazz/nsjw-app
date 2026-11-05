@@ -1,0 +1,39 @@
+/* Natural palette (Nov 2026), from the Wispr Flow look Ben liked: near-black, forest green,
+   cream, with lavender and warm orange as small accents. Loaded last; only colors and fonts.
+   Remove this file's <link> in index.html to go back to the Sgraffito colors. */
+:root {
+  --ground: #F6F5EA; --surface: #FFFFF4; --surface-2: #ECEADB;
+  --line: #DEDBC8; --line-strong: #C9C5AF;
+  --ink: #1A1A1A; --ink-2: #33332F; --muted: #5B5A52; --faint: #7B7A70;
+  --accent: #204E46; --accent-dark: #204E46; --accent-tint: #DCE7E0;
+  --good: #2F5B3E; --good-tint: #DCE7DA; --info: #2F4757; --info-tint: #DDE3E3; --note-tint: #F7EED8;
+  --clay: #204E46; --black: #1A1A1A; --black-inset: #242422; --lime: #FFFFED; --lime-muted: #B8B7A6;
+  --gold: #F3AD5A; --gold-deep: #A8691F; --sage: #204E46; --lav: #ECD7FC;
+  --font: "Figtree", Helvetica, Arial, sans-serif;
+  --display: "EB Garamond", Georgia, serif;
+  --comb: none;
+  --light-black: none;
+  --seam: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 390 34' preserveAspectRatio='none'%3E%3Cpath d='M0,22 C78,6 164,32 242,17 C304,7 351,11 390,3 L390,34 L0,34 Z' fill='%23F6F5EA'/%3E%3C/svg%3E");
+}
+html, body { font: 15px/1.5 var(--font); }
+h1, h2 { font-family: var(--display); font-weight: 500; letter-spacing: -0.025em; }
+h1 { font-size: 42px; line-height: 1; }
+h2 { font-size: 32px; line-height: 1.05; }
+#person .hero h2 { font-size: 34px; }
+.next .text { font-weight: 500; }
+
+/* Header bands: forest green with cream type */
+.art { background-image: none; color: var(--lime); }
+.art .eyebrow { color: var(--lime-muted); }
+.art h1, .art .link, .art .back { color: var(--lime); }
+.art.black .eyebrow { color: var(--lime-muted); }
+
+/* Lavender for people (avatars), orange stays the small highlight */
+.avatar, #person .hero .avatar { background: var(--lav); color: var(--ink); box-shadow: none; }
+.chip.on { box-shadow: none; }
+::selection { background: var(--lav); color: var(--ink); }
+.tl .dot.signup { background: var(--lav); }
+
+/* The hands photo picks up the green instead of red */
+.art.photo { background-color: var(--clay); background-blend-mode: luminosity; }
+.kcard.stale { border-left-color: #A8691F; background: #FBEBD3; }
