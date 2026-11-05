@@ -53,12 +53,12 @@ h2 { font-size: 32px; line-height: 1.05; }
 .sub-to .checkline { font-weight: 500 !important; font-size: 14px !important; min-height: 40px; }
 .sub-h .small { margin: 0; }
 
-/* Logo in white instead of the "North Star" text */
+/* The trumpet player instead of the "North Star" text */
 @media (min-width: 1000px) {
-  .tabbar::before { content: ""; height: 62px; margin: 26px 12px 14px; padding: 0 0 18px;
-    background: url("../img/logo-white.png") left top / contain no-repeat; background-origin: content-box; }
+  .tabbar::before { content: ""; height: 112px; margin: 22px 12px 14px; padding: 0 0 18px;
+    background: url("../img/trumpet-outline.png") left top / contain no-repeat; background-origin: content-box; }
 }
-.signin-logo { display: block; width: 220px; max-width: 70%; height: auto; margin-bottom: 22px; }
+.signin-logo { display: block; width: 120px; height: auto; margin-bottom: 18px; }
 
 /* Little musicians on empty lists (errors stay plain) */
 .empty:not(.err)::before { content: ""; display: block; width: 104px; height: 104px; margin: 0 auto 12px;
