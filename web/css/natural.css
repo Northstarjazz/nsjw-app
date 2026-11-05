@@ -52,3 +52,10 @@ h2 { font-size: 32px; line-height: 1.05; }
 .sub-to { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
 .sub-to .checkline { font-weight: 500 !important; font-size: 14px !important; min-height: 40px; }
 .sub-h .small { margin: 0; }
+
+/* Logo in white instead of the "North Star" text */
+@media (min-width: 1000px) {
+  .tabbar::before { content: ""; height: 62px; margin: 26px 12px 14px; padding: 0 0 18px;
+    background: url("../img/logo-white.png") left top / contain no-repeat; background-origin: content-box; }
+}
+.signin-logo { display: block; width: 220px; max-width: 70%; height: auto; margin-bottom: 22px; }
