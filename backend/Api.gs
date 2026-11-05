@@ -33,18 +33,19 @@ function api_(e) {
   var out;
   try {
     var who = verifyUser_(p.id_token);
+    if (!READS_[p.action]) bumpVer_(); // any write makes cached reads stale
     switch (p.action) {
       case 'whoami': out = { email: who }; break;
-      case 'person': out = getPerson_(p.sid, p.email); break;
+      case 'person': out = cachedRead_('person:' + (p.sid || p.email), 300, function () { return getPerson_(p.sid, p.email); }); break;
       case 'people': out = listPeople_(p.q, p.status); break;
-      case 'contacts': out = listContacts_(); break;
+      case 'contacts': out = cachedRead_('contacts', 900, listContacts_); break;
       case 'note':   out = addNote_(who, p); break;
-      case 'lessons': out = listLessons_(); break;
+      case 'lessons': out = cachedRead_('lessons', 900, listLessons_); break;
       case 'lesson': out = saveLesson_(who, p); break;
-      case 'groups': out = listGroups_(); break;
+      case 'groups': out = cachedRead_('groups', 900, listGroups_); break;
       case 'group':  out = getGroup_(String(p.name || '')); break;
-      case 'leads':  out = listLeads_(); break;
-      case 'today':  out = today_(); break;
+      case 'leads':  out = cachedRead_('leads', 600, listLeads_); break;
+      case 'today':  out = cachedRead_('today', 600, today_); break;
       case 'leadtag': out = setLeadTag_(who, p); break;
       case 'nextdone': out = nextDone_(who, p); break;
       case 'place':  out = placeInGroup_(who, p); break;
@@ -57,11 +58,55 @@ function api_(e) {
       case 'subcancel': out = cancelSub_(who, p); break;
       default: throw new Error('Unknown action');
     }
+    if (!READS_[p.action]) bumpVer_(); // again after the write, so nothing cached mid-write survives
   } catch (err) {
     out = { error: String((err && err.message) || err) };
   }
   return ContentService.createTextOutput(JSON.stringify(out))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------- read cache ----------
+// Reads are cached in CacheService under a version stamp. Any write, and every roster
+// sync, bumps the stamp, so a cached answer is never older than the last change.
+// Values over 90 KB are split across keys (CacheService caps one value at 100 KB).
+var READS_ = { whoami: 1, person: 1, people: 1, contacts: 1, lessons: 1, groups: 1, group: 1, leads: 1, today: 1, myteaching: 1, templates: 1 };
+
+function cacheVer_() {
+  var c = CacheService.getScriptCache(), v = c.get('ver');
+  if (!v) { v = String(Date.now()); c.put('ver', v, 21600); }
+  return v;
+}
+function bumpVer_() { CacheService.getScriptCache().put('ver', String(Date.now()), 21600); }
+
+function cachedRead_(key, ttl, fn) {
+  var c = CacheService.getScriptCache(), base = 'r:' + cacheVer_() + ':' + key;
+  try {
+    var n = Number(c.get(base));
+    if (n) {
+      var keys = []; for (var i = 0; i < n; i++) keys.push(base + ':' + i);
+      var got = c.getAll(keys), parts = [];
+      for (var j = 0; j < n; j++) { if (got[keys[j]] == null) { parts = null; break; } parts.push(got[keys[j]]); }
+      if (parts) return JSON.parse(parts.join(''));
+    }
+  } catch (e) { /* fall through to a fresh read */ }
+  var out = fn();
+  try {
+    var str = JSON.stringify(out), size = 90000, chunks = {}, count = Math.ceil(str.length / size);
+    if (count <= 40) {
+      for (var k = 0; k < count; k++) chunks[base + ':' + k] = str.slice(k * size, (k + 1) * size);
+      c.putAll(chunks, ttl);
+      c.put(base, String(count), ttl);
+    }
+  } catch (e2) { /* caching is best effort */ }
+  return out;
+}
+
+/** After each roster sync: new stamp, then build the big reads so the first screen is quick. */
+function warmCache_() {
+  bumpVer_();
+  [['today', 600, today_], ['leads', 600, listLeads_], ['contacts', 900, listContacts_], ['groups', 900, listGroups_], ['lessons', 900, listLessons_]]
+    .forEach(function (x) { try { cachedRead_(x[0], x[1], x[2]); } catch (e) { Logger.log('warm ' + x[0] + ': ' + e.message); } });
 }
 
 // ---------- auth ----------
@@ -147,6 +192,7 @@ function syncRoster() {
   if (!sh.isSheetHidden()) sh.hideSheet();
   try { seedInterestTags_(); } catch (e) { Logger.log('Interest seeding: ' + e.message); }
   try { mailIndex_(true); } catch (e) { Logger.log('Mail index: ' + e.message); }
+  try { warmCache_(); } catch (e) { Logger.log('Warm cache: ' + e.message); }
   return out.length - 1;
 }
 
@@ -266,10 +312,11 @@ function getPerson_(sid, email) {
   var nextStep = notes.filter(function (n) { return n.Kind === 'next_step' && !n.Done; }).pop() || null;
 
   // Gmail threads with this person
-  var threads = email ? GmailApp.search('from:' + email + ' OR to:' + email, 0, 15) : [];
-  var mail = threads.map(function (t) {
+  var threads = email ? GmailApp.search('from:' + email + ' OR to:' + email, 0, 10) : [];
+  var allMsgs = threads.length ? GmailApp.getMessagesForThreads(threads) : [];
+  var mail = threads.map(function (t, ti) {
     var last = t.getLastMessageDate();
-    var msgs = t.getMessages();
+    var msgs = allMsgs[ti];
     var lastMsg = msgs[msgs.length - 1];
     var theyWrote = lastMsg.getFrom().toLowerCase().indexOf(email) >= 0;
     timeline.push({ at: last, kind: theyWrote ? 'mail-in' : 'mail-out', text: t.getFirstMessageSubject(),

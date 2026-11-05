@@ -38,6 +38,7 @@
   }
 
   function signOut() {
+    clearCache();
     setToken(null);
     try { google.accounts.id.disableAutoSelect(); } catch (e) {}
     route();
@@ -80,6 +81,24 @@
         }
         return d;
       });
+  }
+
+  // Show the last answer straight away, then refresh in the background (stale while revalidate).
+  // Kept in this browser only, per signed-in account, and cleared on sign-out.
+  var CK = 'nsjw_c1:';
+  function ckey(a, p) { return CK + (me && me.email || '') + ':' + a + ':' + JSON.stringify(p || {}); }
+  function clearCache() {
+    try { Object.keys(localStorage).filter(function (k) { return k.indexOf('nsjw_c') === 0; }).forEach(function (k) { localStorage.removeItem(k); }); } catch (e) {}
+  }
+  function swr(action, params, onData) {
+    var k = ckey(action, params), raw = null, hit = null;
+    try { raw = localStorage.getItem(k); hit = raw ? JSON.parse(raw) : null; } catch (e) { raw = null; }
+    if (hit) { try { onData(hit, true); } catch (e) { hit = null; raw = null; } }
+    return api(action, params).then(function (d) {
+      var str = JSON.stringify(d);
+      try { localStorage.setItem(k, str); } catch (e) { clearCache(); try { localStorage.setItem(k, str); } catch (e2) {} }
+      if (str !== raw) onData(d, false);
+    }, function (err) { if (!hit) throw err; });
   }
 
   // ---------- helpers ----------
@@ -147,7 +166,7 @@
   function loadPeople(force) {
     if (peopleState.rows && !force) { renderPeople(); return; }
     $('#people-list').innerHTML = '<div class="loading">Loading</div>';
-    api('contacts').then(function (rows) { peopleState.rows = rows; renderPeople(); })
+    swr('contacts', null, function (rows) { peopleState.rows = rows; renderPeople(); })
       .catch(function (e) { $('#people-list').innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
   }
   function daysAgo(d) { return d ? (Date.now() - parse(String(d).slice(0, 10))) / 864e5 : Infinity; }
@@ -306,9 +325,10 @@
     var main = $('#person');
     main.innerHTML = '<div class="loading">Loading</div>';
     $('#mms-link').hidden = true;
-    api('person', { sid: sid }).then(function (p) {
+    swr('person', { sid: sid }, function (p) {
+      var same = current && current.id === p.id && $('#person .tab.on');
       current = p;
-      renderPerson(p, 'timeline');
+      renderPerson(p, same ? $('#person .tab.on').dataset.tab : 'timeline');
       if (pendingPlace && pendingPlace === p.id) { pendingPlace = null; openPlace(); }
     }).catch(function (e) { main.innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
   }
@@ -422,7 +442,7 @@
   function loadLessons(force) {
     if (lessonsState.rows && !force) { renderLessons(); return; }
     $('#lesson-list').innerHTML = '<div class="loading">Loading</div>';
-    api('lessons').then(function (rows) {
+    swr('lessons', null, function (rows) {
       lessonsState.rows = rows;
       var teachers = rows.map(function (r) { return r.Teacher; }).filter(Boolean)
         .filter(function (t, i, a) { return a.indexOf(t) === i; }).sort();
@@ -627,9 +647,9 @@
     $('#today-date').textContent = now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
     var h = now.getHours();
     $('#today-hello').textContent = (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + (me && me.given_name ? ', ' + me.given_name : '');
-    if (todayState.data && !force && Date.now() - todayState.at < 120000) { renderToday(); return; }
+    if (todayState.data && !force && Date.now() - todayState.at < 30000) { renderToday(); return; }
     if (!todayState.data) $('#today').innerHTML = '<div class="loading">Loading</div>';
-    api('today').then(function (d) { todayState.data = d; todayState.at = Date.now(); renderToday(); })
+    swr('today', null, function (d) { todayState.data = d; todayState.at = Date.now(); renderToday(); })
       .catch(function (e) { $('#today').innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
     loadTeaching();
   }
@@ -637,7 +657,7 @@
   // ---------- Teaching: my week and subs ----------
   var teachState = null;
   function loadTeaching() {
-    api('myteaching').then(function (d) { teachState = d; renderTeaching(); }).catch(function () { teachState = null; renderTeaching(); });
+    swr('myteaching', null, function (d) { teachState = d; renderTeaching(); }).catch(function () { teachState = null; renderTeaching(); });
   }
   function subWhen(s) {
     var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s.date || '')), d = m ? new Date(+m[1], m[2] - 1, +m[3]) : null;
@@ -819,7 +839,7 @@
   function loadLeads(force) {
     if (leadsState.rows && !force) { renderLeads(); return; }
     $('#lead-list').innerHTML = $('#lead-board').innerHTML = '<div class="loading">Loading</div>';
-    api('leads').then(function (d) {
+    swr('leads', null, function (d) {
       leadsState.rows = d.leads; leadsState.enrolled = d.enrolled || [];
       leadsState.stale = d.stale || {}; leadsState.boardDays = d.boardDays || 60; renderLeads();
     }).catch(function (e) { $('#lead-list').innerHTML = $('#lead-board').innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
@@ -1357,7 +1377,7 @@
   function loadGroups(force) {
     if (groupsState.rows && !force) { renderGroups(); return; }
     $('#group-list').innerHTML = '<div class="loading">Loading</div>';
-    api('groups').then(function (rows) { groupsState.rows = rows; renderGroups(); })
+    swr('groups', null, function (rows) { groupsState.rows = rows; renderGroups(); })
       .catch(function (e) { $('#group-list').innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
   }
 
@@ -1407,7 +1427,7 @@
     $('#group-eyebrow').textContent = ''; $('#group-sched').textContent = '';
     var main = $('#group');
     main.innerHTML = '<div class="loading">Loading</div>';
-    api('group', { name: name }).then(function (g) {
+    swr('group', { name: name }, function (g) {
       $('#group-eyebrow').textContent = [g.kind, g.when !== 'Current' ? g.when : '', g.level ? 'Level ' + g.level : ''].filter(Boolean).join(' · ');
       $('#group-sched').textContent = [g.schedule, g.teacher].filter(Boolean).join(' · ');
       var html = '';
