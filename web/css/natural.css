@@ -59,3 +59,10 @@ h2 { font-size: 32px; line-height: 1.05; }
     background: url("../img/logo-white.png") left top / contain no-repeat; background-origin: content-box; }
 }
 .signin-logo { display: block; width: 220px; max-width: 70%; height: auto; margin-bottom: 22px; }
+
+/* Little musicians on empty lists (errors stay plain) */
+.empty:not(.err)::before { content: ""; display: block; width: 104px; height: 104px; margin: 0 auto 12px;
+  background: url("../img/empty-trumpet.png") center / contain no-repeat; }
+.empty.small-empty:not(.err) { display: flex; align-items: center; gap: 14px; text-align: left !important; }
+.empty.small-empty:not(.err)::before { width: 56px; height: 56px; margin: 0; flex: none; }
+.empty.small-empty:not(.err)::before { background-image: url("../img/empty-piano.png"); }

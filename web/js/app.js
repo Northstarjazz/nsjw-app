@@ -148,7 +148,7 @@
     if (peopleState.rows && !force) { renderPeople(); return; }
     $('#people-list').innerHTML = '<div class="loading">Loading</div>';
     api('contacts').then(function (rows) { peopleState.rows = rows; renderPeople(); })
-      .catch(function (e) { $('#people-list').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+      .catch(function (e) { $('#people-list').innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
   }
   function daysAgo(d) { return d ? (Date.now() - parse(String(d).slice(0, 10))) / 864e5 : Infinity; }
   function pMatch(r) {
@@ -310,7 +310,7 @@
       current = p;
       renderPerson(p, 'timeline');
       if (pendingPlace && pendingPlace === p.id) { pendingPlace = null; openPlace(); }
-    }).catch(function (e) { main.innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+    }).catch(function (e) { main.innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
   }
 
   // Lead stage, one tap to change, right under the name. Hidden once they are an active member.
@@ -431,7 +431,7 @@
       $('#teacher-filter').value = lessonsState.teacher;
       $('#teacher-names').innerHTML = teachers.map(function (t) { return '<option value="' + esc(t) + '">'; }).join('');
       renderLessons();
-    }).catch(function (e) { $('#lesson-list').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+    }).catch(function (e) { $('#lesson-list').innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
   }
 
   function renderLessons() {
@@ -630,7 +630,7 @@
     if (todayState.data && !force && Date.now() - todayState.at < 120000) { renderToday(); return; }
     if (!todayState.data) $('#today').innerHTML = '<div class="loading">Loading</div>';
     api('today').then(function (d) { todayState.data = d; todayState.at = Date.now(); renderToday(); })
-      .catch(function (e) { $('#today').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+      .catch(function (e) { $('#today').innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
     loadTeaching();
   }
 
@@ -822,7 +822,7 @@
     api('leads').then(function (d) {
       leadsState.rows = d.leads; leadsState.enrolled = d.enrolled || [];
       leadsState.stale = d.stale || {}; leadsState.boardDays = d.boardDays || 60; renderLeads();
-    }).catch(function (e) { $('#lead-list').innerHTML = $('#lead-board').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+    }).catch(function (e) { $('#lead-list').innerHTML = $('#lead-board').innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
   }
 
   function leadMatches(l) {
@@ -1358,7 +1358,7 @@
     if (groupsState.rows && !force) { renderGroups(); return; }
     $('#group-list').innerHTML = '<div class="loading">Loading</div>';
     api('groups').then(function (rows) { groupsState.rows = rows; renderGroups(); })
-      .catch(function (e) { $('#group-list').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+      .catch(function (e) { $('#group-list').innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
   }
 
   function renderGroups() {
@@ -1441,7 +1441,7 @@
       }
       html += '<p class="muted small">From the "' + esc(g.name) + '" tag in MyMusicStaff. Schedule, teacher, level and seats come from the Groups tab in the Sequencer sheet.</p>';
       main.innerHTML = html;
-    }).catch(function (e) { main.innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
+    }).catch(function (e) { main.innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
   }
 
 
