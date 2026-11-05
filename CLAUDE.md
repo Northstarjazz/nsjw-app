@@ -1,4 +1,4 @@
-# North Star Student Journey app
+# North Star HQ (was "Student Journey")
 
 One screen for the whole student journey at North Star Jazz Workshops: lead to
 member to alumni. Replaces Monday.com. Scope doc: "North Star Student Journey
@@ -39,8 +39,6 @@ app: Scope" (Claude Docs, Nov 2026).
   combed black (#141312), gold seams (#C9A14A, never as text on plaster),
   natural palette and EB Garamond + Figtree from web/css/natural.css (Nov 2026), 2 to 6px
   corners, no drop shadows, diamond markers instead of dots, 44px tap targets.
-  web/img/hands.jpg is third-party art Ben chose to use (Nov 2026); get the
-  artist's permission or replace it before sharing the app more widely.
 
 ## Rules (do not loosen these)
 

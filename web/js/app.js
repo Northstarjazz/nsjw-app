@@ -1,4 +1,4 @@
-/* North Star Student Journey app. Plain JS, no build step. */
+/* North Star HQ (the Student Journey app). Plain JS, no build step. */
 (function () {
   'use strict';
 

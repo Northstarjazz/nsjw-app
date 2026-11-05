@@ -34,14 +34,12 @@ h2 { font-size: 32px; line-height: 1.05; }
 ::selection { background: var(--lav); color: var(--ink); }
 .tl .dot.signup { background: var(--lav); }
 
-/* The hands photo picks up the green instead of red */
-.art.photo { background-color: var(--clay); background-blend-mode: luminosity; }
 .kcard.stale { border-left-color: #A8691F; background: #FBEBD3; }
-/* Today: the hands photo runs the full width of the header */
-#v-today .art.photo { background-size: cover; background-position: center 70%; }
-@media (min-width: 1000px) { #v-today .art.photo { background-size: cover; background-position: center 70%; } }
-#v-today .art.photo::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(20,40,36,.7) 0%, rgba(20,40,36,.35) 45%, rgba(20,40,36,0) 75%); }
-#v-today .art.photo > * { position: relative; z-index: 1; }
+/* Headers that used the hands photo are plain forest green now */
+.art.photo { background: var(--clay); }
+#v-today .art.photo { min-height: 170px; }
+#v-signin .art.photo { min-height: 46vh; }
+@media (min-width: 1000px) { #v-today .art.photo { min-height: 190px; } }
 
 /* Teaching on Today */
 .teach-row { display: flex; align-items: center; gap: 12px; }
