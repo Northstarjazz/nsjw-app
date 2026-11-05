@@ -64,12 +64,31 @@ function myTeaching_(who, p) {
   out.groups = listGroups_().filter(function (g) { return g.when !== 'Past' && teaches_(g.teacher, t); })
     .map(function (g) { return { name: g.name, kind: g.kind, schedule: g.schedule, when: g.when, members: g.members }; });
   out.lessons = sheetObjects_(LESSONS_TAB).filter(function (l) {
-    return (l.Stage === 'Active' || l.Stage === 'Scheduling') && teaches_(l.Teacher, t);
+    return l.Stage === 'Active' && teaches_(l.Teacher, t);
   }).map(function (l) { return { sid: l['MMS ID'], name: l.Name, when: l['Day and time'], instrument: l.Instrument, frequency: l.Frequency, stage: l.Stage }; });
+  try { out.events = cachedRead_('events:' + t.id, 600, function () { return teacherEvents_(t, 28); }); }
+  catch (e) { out.events = []; out.eventsError = String(e.message || e); }
   out.mine = subs.filter(function (s) { return String(s.by).toLowerCase() === t.email; });
   out.asked = subs.filter(function (s) { return s.asked.indexOf(t.email) >= 0 && String(s.by).toLowerCase() !== t.email; });
   out.teachers = mmsTeachers_().filter(function (x) { return x.email !== t.email; });
   return out;
+}
+
+/** The teacher's dated MMS calendar events for the next `days` days. */
+function teacherEvents_(t, days) {
+  var tz = Session.getScriptTimeZone(), now = new Date();
+  var from = Utilities.formatDate(now, tz, "yyyy-MM-dd'T'00:00:00");
+  var to = Utilities.formatDate(new Date(now.getTime() + days * 864e5), tz, "yyyy-MM-dd'T'23:59:59");
+  var rows = mms_('post', 'search/calendar/events', { StartDate: from, EndDate: to, TeacherIDs: [t.id] });
+  return rows.filter(function (e) { return e.TeacherID === t.id; }).map(function (e) {
+    var cat = (e.EventCategory && e.EventCategory.Name) || '';
+    var title = String(e.Description || cat || 'Event').replace(/^North Star Jazz Workshops\s+/i, '').trim();
+    var m = /^Private Lesson\s*-\s*(.+?)\s*&\s*.+$/i.exec(title);
+    if (m) title = 'Lesson with ' + m[1];
+    var addr = (e.EventLocation && (e.EventLocation.ResolvedAddress || (e.EventLocation.Address || {}).Address)) || '';
+    return { id: e.ID, start: e.StartDate, mins: e.Duration || 60, title: title, kind: cat,
+      people: (e.Attendances || []).length, place: String(addr).split(',')[0] };
+  }).sort(function (a, b) { return String(a.start).localeCompare(String(b.start)); });
 }
 
 function subSecret_() {

@@ -63,3 +63,36 @@ h2 { font-size: 32px; line-height: 1.05; }
 .viewas > span { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
 .viewas .chip { min-height: 36px; }
 .viewas-note { margin: 6px 2px 0 !important; }
+
+/* Teacher calendar: day list on phones, week grid on desktop */
+.cal { display: flex; flex-direction: column; gap: 14px; }
+.wk-h { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.wk-days { display: flex; flex-direction: column; gap: 8px; }
+.day.noev { display: none; }
+.day { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 10px 10px; }
+.day.today { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.day.past { opacity: .55; }
+.day-h { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.day-h b { color: var(--ink); font-size: 16px; font-weight: 600; }
+.day.today .day-h b { color: var(--accent); }
+.ev { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 0 8px; width: 100%; text-align: left; padding: 8px 10px; margin-top: 6px;
+  background: var(--accent-tint); border: 0; border-left: 3px solid var(--accent); border-radius: 3px; font: inherit; color: var(--ink); cursor: pointer; min-height: 44px; }
+.ev.lesson { background: #EFE7F6; border-left-color: #7A5C99; }
+.ev:hover:not(:disabled) { filter: brightness(.97); }
+.ev:disabled { cursor: default; }
+.ev-t { grid-row: span 2; font-weight: 700; font-size: 13px; }
+.ev-n { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.ev-m { font-size: 12px; color: var(--muted); }
+.ev-sub { grid-column: 2; margin-top: 4px; font-size: 12px; font-weight: 700; color: #A8691F; }
+.ev-sub.ok { color: var(--good); }
+.cal-hint { margin: 6px 2px 0 !important; }
+@media (min-width: 1000px) {
+  .wk-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+  .day.noev { display: block; }
+  .day { min-height: 96px; padding: 6px 6px 8px; }
+  .ev { display: block; padding: 6px 7px; min-height: 0; }
+  .ev-t, .ev-n, .ev-m, .ev-sub { display: block; }
+  .ev-t { font-size: 12px; }
+  .ev-n { font-size: 13px; line-height: 1.25; }
+  .ev-m { font-size: 11px; }
+}

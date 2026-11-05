@@ -701,6 +701,7 @@
     if (!d) { box.innerHTML = viewAs ? viewAsBar({ admin: true }) + '<div class="loading">Loading</div>' : ''; return; }
     html += viewAsBar(d);
     if (!d.teacher && !(d.allSubs || []).length) { box.innerHTML = html; return; }
+    if (d.teacher && (d.events || []).length) html += calendarHtml(d.events, d.mine || []);
     if (d.teacher && (d.groups.length || d.lessons.length || d.mine.length || d.asked.length)) {
       var rows = d.groups.map(function (g) {
         return '<div class="card teach-row"><div class="who"><div class="line1"><a class="name" href="#g/' + encodeURIComponent(g.name) + '">' + esc(g.name) + '</a></div>' +
@@ -712,7 +713,7 @@
           '<div class="sub">' + esc([l.when, l.instrument, l.frequency, l.stage === 'Scheduling' ? 'Scheduling' : ''].filter(Boolean).join(' · ')) + '</div></div>' +
           '<button type="button" class="btn small" data-subfor="' + esc(label) + '" data-subtime="' + esc(l.when || '') + '">Need a sub</button></div>';
       }));
-      html += '<div class="sec-h"><h3>Your teaching</h3></div>' + (rows.length ? '<div class="list">' + rows.join('') + '</div>' : '<div class="empty small-empty">No groups or lessons with your name on them yet.</div>');
+      html += '<div class="sec-h"><h3>Your groups and lessons</h3></div>' + (rows.length ? '<div class="list">' + rows.join('') + '</div>' : '<div class="empty small-empty">No groups or lessons with your name on them yet.</div>');
       if (d.asked.length) {
         html += '<div class="sec-h"><h3>Can you cover?</h3></div><div class="list">' + d.asked.map(function (s) {
           var open = s.status === 'Open';
@@ -739,10 +740,44 @@
     }
     box.innerHTML = html;
   }
-  function openSub(cls, time) {
+  // Next four weeks of the teacher's MMS calendar: a week grid on desktop, a day list on phones.
+  function ymd(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function clock(d) { var h = d.getHours(), m = d.getMinutes(); return (h % 12 || 12) + (m ? ':' + ('0' + m).slice(-2) : '') + (h < 12 ? 'am' : 'pm'); }
+  function calendarHtml(events, mine) {
+    var byDay = {};
+    events.forEach(function (e) { var d = parse(e.start); if (!d || isNaN(d)) return; (byDay[ymd(d)] = byDay[ymd(d)] || []).push(e); });
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    var html = '<div class="sec-h"><h3>Your calendar</h3><span class="muted small">Next 4 weeks, from MMS</span></div><div class="cal">';
+    for (var w = 0; w < 4; w++) {
+      var ws = new Date(monday); ws.setDate(monday.getDate() + w * 7);
+      var label = w === 0 ? 'This week' : w === 1 ? 'Next week' : 'Week of ' + ws.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      html += '<div class="wk"><div class="wk-h">' + label + '</div><div class="wk-days">';
+      for (var i = 0; i < 7; i++) {
+        var day = new Date(ws); day.setDate(ws.getDate() + i);
+        var key = ymd(day), evs = byDay[key] || [], past = day < today;
+        html += '<div class="day' + (evs.length ? '' : ' noev') + (key === ymd(today) ? ' today' : '') + (past ? ' past' : '') + '">' +
+          '<div class="day-h"><span>' + day.toLocaleDateString([], { weekday: 'short' }) + '</span> <b>' + day.getDate() + '</b>' +
+          (day.getDate() === 1 || (w === 0 && i === 0) ? ' <span>' + day.toLocaleDateString([], { month: 'short' }) + '</span>' : '') + '</div>' +
+          evs.map(function (e) {
+            var st = parse(e.start), en = new Date(st.getTime() + (e.mins || 60) * 60000), time = clock(st) + ' to ' + clock(en);
+            var sub = mine.filter(function (x) { return x.date === key && x.cls === e.title; })[0];
+            return '<button type="button" class="ev' + (e.kind === 'Private Lesson' ? ' lesson' : '') + '"' + (past ? ' disabled' : '') +
+              ' data-subfor="' + esc(e.title) + '" data-subtime="' + esc(time) + '" data-subdate="' + key + '">' +
+              '<span class="ev-t">' + esc(clock(st)) + '</span><span class="ev-n">' + esc(e.title) + '</span>' +
+              '<span class="ev-m">' + esc([e.people ? e.people + (e.people === 1 ? ' person' : ' people') : '', e.place].filter(Boolean).join(' · ')) + '</span>' +
+              (sub ? '<span class="ev-sub' + (sub.status === 'Covered' ? ' ok' : '') + '">' + (sub.status === 'Covered' ? 'Sub: ' + esc(String(sub.coveredBy || '').replace(/\s*<.*$/, '')) : 'Sub requested') + '</span>' : '') +
+              '</button>';
+          }).join('') + '</div>';
+      }
+      html += '</div></div>';
+    }
+    return html + '</div><p class="muted small cal-hint">Tap a class or lesson to ask for a sub.</p>';
+  }
+  function openSub(cls, time, date) {
     var d = teachState; if (!d || !d.teacher) return;
     $('#sub-title').textContent = 'Need a sub: ' + cls;
-    $('#sub-cls').value = cls; $('#sub-time').value = time || ''; $('#sub-date').value = ''; $('#sub-note').value = '';
+    $('#sub-cls').value = cls; $('#sub-time').value = time || ''; $('#sub-date').value = date || ''; $('#sub-note').value = '';
     $('#sub-err').textContent = '';
     $('#sub-to').innerHTML = d.teachers.map(function (t) {
       return '<label class="checkline"><input type="checkbox" value="' + esc(t.email) + '"> ' + esc(t.name) + '</label>';
@@ -751,7 +786,7 @@
   }
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-subfor]');
-    if (b) { openSub(b.dataset.subfor, b.dataset.subtime); return; }
+    if (b) { openSub(b.dataset.subfor, b.dataset.subtime, b.dataset.subdate); return; }
     var tk = e.target.closest('[data-subtake]');
     if (tk) {
       tk.disabled = true;
