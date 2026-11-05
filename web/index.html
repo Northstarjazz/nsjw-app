@@ -8,9 +8,9 @@
 <title>North Star</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Della+Respira&family=Ysabeau+Office:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/nsjw.css?v=22">
-<link rel="stylesheet" href="css/app.css?v=22">
-<link rel="stylesheet" href="css/sgraffito.css?v=22">
+<link rel="stylesheet" href="css/nsjw.css?v=23">
+<link rel="stylesheet" href="css/app.css?v=23">
+<link rel="stylesheet" href="css/sgraffito.css?v=23">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -353,6 +353,31 @@
   </div>
 </div>
 
+<div id="mail-sheet" class="sheet" hidden>
+  <div class="sheet-body scroll">
+    <div class="sheet-title" id="mail-title">Email</div>
+    <div class="flabel">To · each person gets their own email from your inbox</div>
+    <div class="optgrid mailto" id="mail-to"></div>
+    <p class="error small" id="mail-cap" hidden>That's more than 50 people. Remove some, or send it from Mailchimp.</p>
+    <label class="flabel">Subject<input id="mail-subject" class="field" placeholder="Rehearsal this Sunday"></label>
+    <label class="flabel">Message<textarea id="mail-body" rows="8" placeholder="Hi {first},"></textarea></label>
+    <p class="muted small" style="margin:0">Type {first} and it becomes each person's first name.</p>
+    <p class="error small" id="mail-err"></p>
+    <p class="muted small" id="mail-confirm" hidden></p>
+    <div class="row end">
+      <button type="button" class="btn" id="mail-cancel">Cancel</button>
+      <button type="button" class="btn" id="mail-test">Send me a test</button>
+      <button type="button" class="btn primary" id="mail-send">Send</button>
+    </div>
+  </div>
+</div>
+
+<div class="selbar" id="selbar" hidden>
+  <span id="sel-count">0 selected</span>
+  <button type="button" class="btn" id="sel-clear">Clear</button>
+  <button type="button" class="btn primary" id="sel-mail">Email them</button>
+</div>
+
 <!-- Lead filters -->
 <div id="lf-sheet" class="sheet" hidden>
   <div class="sheet-body scroll">
@@ -367,6 +392,6 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="js/app.js?v=22"></script>
+<script src="js/app.js?v=23"></script>
 </body>
 </html>

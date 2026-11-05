@@ -595,3 +595,41 @@ function logCall_(who, p) {
   }
   return { ok: true, done: done };
 }
+
+// ---------- email a group (one-to-one copies from this inbox) ----------
+
+/**
+ * p: { sids: [...], subject, body, test }
+ * Sends each person their own copy from this inbox ({first} becomes their first
+ * name), logs it on their timeline, and caps a send at 50 people (rule 3: bigger
+ * lists belong in Mailchimp). test: sends one copy, filled in for the first person,
+ * to whoever is signed in.
+ */
+var GROUP_MAIL_MAX = 50;
+function sendGroupEmail_(who, p) {
+  var subject = String(p.subject || '').trim(), body = String(p.body || '').trim();
+  if (!subject || !body) throw new Error('Add a subject and a message.');
+  var want = {}; (p.sids || []).forEach(function (s) { want[String(s)] = true; });
+  var people = rosterRows_().filter(function (r) { return want[r.ID] && /@/.test(String(r.Email)); });
+  if (!people.length) throw new Error('None of these people have an email address in MMS.');
+  if (people.length > GROUP_MAIL_MAX) throw new Error('That is ' + people.length + ' people. Send to ' + GROUP_MAIL_MAX + ' or fewer from here, or use Mailchimp.');
+  var fill = function (s, r) { return s.replace(/\{first\}/gi, r.First || String(r.Name).split(' ')[0] || 'there'); };
+  var opts = { name: 'North Star Jazz Workshops' };
+  if (p.test) {
+    GmailApp.sendEmail(who, '[Test] ' + fill(subject, people[0]), fill(body, people[0]), opts);
+    return { ok: true, test: true, to: who };
+  }
+  if (MailApp.getRemainingDailyQuota() < people.length) throw new Error('Gmail has fewer than ' + people.length + ' sends left today. Try tomorrow.');
+  var sent = [], failed = [], now = new Date();
+  people.forEach(function (r) {
+    try { GmailApp.sendEmail(String(r.Email).trim(), fill(subject, r), fill(body, r), opts); sent.push(r); }
+    catch (e) { failed.push(r.Name); }
+  });
+  if (sent.length) {
+    var n = tab_(NOTES_TAB, ['Timestamp', 'MMS ID', 'Email', 'Author', 'Kind', 'Text', 'Due', 'Owner', 'Done']);
+    n.getRange(n.getLastRow() + 1, 1, sent.length, 9).setValues(sent.map(function (r) {
+      return [now, r.ID, String(r.Email).toLowerCase(), who, 'email', 'Group email: ' + subject, '', '', ''];
+    }));
+  }
+  return { ok: true, sent: sent.length, failed: failed };
+}

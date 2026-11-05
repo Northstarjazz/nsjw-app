@@ -50,6 +50,7 @@ function api_(e) {
       case 'place':  out = placeInGroup_(who, p); break;
       case 'leave':  out = leaveGroup_(who, p); break;
       case 'logcall': out = logCall_(who, p); break;
+      case 'groupmail': out = sendGroupEmail_(who, p); break;
       default: throw new Error('Unknown action');
     }
   } catch (err) {

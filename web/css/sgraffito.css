@@ -247,6 +247,21 @@ a { color: var(--accent); }
 .paths { display: flex; flex-direction: column; gap: 0; }
 .paths .checkline { min-height: 40px; font-weight: 600 !important; }
 #call-sheet textarea { width: 100%; }
+.pick { flex: none; width: 22px; height: 22px; border: 1.5px solid var(--ink); border-radius: 3px; background: var(--surface); cursor: pointer; position: relative; margin-right: 10px; align-self: center; }
+.pick::after { content: ""; position: absolute; inset: -11px; }
+.pick.on { background: var(--ink); }
+.pick.on::before { content: ""; position: absolute; left: 6px; top: 2px; width: 6px; height: 11px; border: solid var(--lime); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.lead-row { display: flex; align-items: flex-start; }
+.prow .pick { grid-area: pick; }
+.selbar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 9; display: flex; gap: 10px; align-items: center; background: var(--black); color: var(--lime); padding: 8px 10px 8px 16px; border-radius: 6px; font-weight: 700; box-shadow: 0 0 0 2px var(--gold); }
+.selbar .btn { min-height: 40px; }
+.selbar .btn:not(.primary) { background: transparent; color: var(--lime); border-color: var(--lime-muted); }
+.kmail { margin-left: auto; order: 3; background: none; border: 1px solid var(--line-strong); border-radius: 4px; font: 700 12px var(--font); padding: 4px 8px; cursor: pointer; color: var(--ink); }
+.kh .kn { order: 2; }
+.btn.small { min-height: 32px; padding: 0 10px; font-size: 13px; margin-left: 8px; }
+.mailto .chip { display: inline-flex; align-items: center; gap: 6px; }
+.mailto .x { background: none; border: 0; color: inherit; font-size: 16px; cursor: pointer; padding: 0 2px; }
+#mail-sheet textarea { width: 100%; }
 .board { display: grid; grid-auto-flow: column; grid-auto-columns: 84%; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory;
   margin: 0 -16px; padding: 4px 16px 12px; -webkit-overflow-scrolling: touch; }
 .kcol { scroll-snap-align: start; background: rgba(30,27,24,.05); border-radius: 6px; padding: 10px 8px 8px; min-height: 240px; display: flex; flex-direction: column; }
@@ -290,7 +305,7 @@ a { color: var(--accent); }
 .quickf select.on { background: var(--ink); color: var(--lime); border-style: solid; }
 .quickf .linkish { flex: none; white-space: nowrap; }
 .ptable .phead { display: none; }
-.prow { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "name status" "prog prog" "act act"; gap: 2px 10px; align-items: center; color: var(--ink); text-decoration: none; padding: 10px 12px; }
+.prow { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "pick name status" "pick prog prog" "pick act act"; gap: 2px 10px; align-items: center; color: var(--ink); text-decoration: none; padding: 10px 12px; }
 .prow .pc-name { grid-area: name; display: flex; align-items: center; gap: 10px; font-weight: 700; min-width: 0; }
 .prow .pc-name .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .prow .pc-status { grid-area: status; }
@@ -341,9 +356,11 @@ a { color: var(--accent); }
   .board { grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: visible; margin: 0; padding: 4px 0 12px; }
   .kcol { min-height: 60vh; }
   .ptable { display: block; }
-  .ptable .phead, .ptable .prow { display: grid; grid-template-columns: minmax(170px, 1.4fr) minmax(150px, 1.2fr) 150px minmax(110px, 1.1fr) minmax(115px, .9fr) 100px 140px; grid-template-areas: none; gap: 0 14px; padding: 10px 14px; }
+  .ptable .phead, .ptable .prow { display: grid; grid-template-columns: 32px minmax(170px, 1.4fr) minmax(150px, 1.2fr) 150px minmax(110px, 1.1fr) minmax(115px, .9fr) 100px 140px; grid-template-areas: none; gap: 0 14px; padding: 10px 14px; }
   .ptable .prow > .pc { grid-area: auto; padding-left: 0; display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
   .ptable .prow .pc-name { display: flex; }
+  .ptable .prow .pick, .ptable .phead .pick { grid-area: auto; margin: 0; }
+  .selbar { bottom: 24px; }
   .ptable .prow .pc-lastActivity::before { content: none; }
   .ptable .prow .pc-email, .ptable .prow .pc-programs, .ptable .prow .pc-tracks, .ptable .prow .pc-created { color: var(--muted); }
   .ptable .phead { position: sticky; top: 0; z-index: 2; background: var(--surface); border-bottom: 2px solid var(--ink); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }

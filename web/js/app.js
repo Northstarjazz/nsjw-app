@@ -204,14 +204,14 @@
     var pg = list.slice((peopleState.page - 1) * per, peopleState.page * per);
     $('#pcount').textContent = list.length + (list.length === 1 ? ' person' : ' people');
     var sp = peopleState.sort.split(':');
-    var head = '<div class="prow phead">' + PCOLS.map(function (c) {
+    var head = '<div class="prow phead"><span class="pick" data-pickpage role="checkbox" aria-label="Select everyone on this page"></span>' + PCOLS.map(function (c) {
       var on = sp[0] === c[0], sortable = c[0] !== 'programs' && c[0] !== 'tracks';
       return '<span class="pc pc-' + c[0] + (sortable ? ' sortable' : '') + (on ? ' on' : '') + '"' + (sortable ? ' data-sort="' + c[0] + '"' : '') + '>' + c[1] +
         (on ? (sp[1] === 'desc' ? ' &darr;' : ' &uarr;') : '') + '</span>';
     }).join('') + '</div>';
     $('#people-list').innerHTML = pg.length ? head + pg.map(function (r) {
       var tr = r.tracks.map(function (t) { return t === 'Classes' ? 'Class' : t; }).join(', ');
-      return '<a class="card prow" href="#p/' + encodeURIComponent(r.id) + '">' +
+      return '<a class="card prow" href="#p/' + encodeURIComponent(r.id) + '">' + pickBox(r.id, r.name) +
         '<span class="pc pc-name"><span class="avatar sm">' + esc(initials(r.name)) + '</span><span class="nm">' + esc(r.name) + '</span></span>' +
         '<span class="pc pc-email">' + esc(r.email) + '</span>' +
         '<span class="pc pc-status">' + statusPill(r.status === 'Active' || r.status === 'Inactive' ? r.status : (r.stage || r.status)) + '</span>' +
@@ -780,7 +780,7 @@
       var nx = l.next ? '<div class="nx ' + u + '">' + esc(l.next.text) + (l.next.due ? ' · ' + (u === 'overdue' ? 'was due ' : 'due ') + esc(dayOnly(l.next.due)) : '') + (l.next.owner ? ' · ' + esc(l.next.owner) : '') + '</div>'
         : '<div class="nx none">No next step</div>';
       var meta = [l.started ? 'Signed up ' + when(l.started) : '', l.lastContact ? 'last note ' + when(l.lastContact) : 'never contacted', l.form.source ? 'via ' + l.form.source : ''].filter(Boolean).join(' · ');
-      return '<a class="card lead-row" href="#p/' + encodeURIComponent(l.id) + '">' +
+      return '<a class="card lead-row" href="#p/' + encodeURIComponent(l.id) + '">' + pickBox(l.id, l.name) +
         '<span class="lz ' + u + '" aria-label="' + u + '"></span>' +
         '<div class="who"><div class="line1"><span class="name">' + esc(l.name) + '</span>' + statusPill(l.stage) + '</div>' +
         (bits ? '<div class="sub">' + esc(bits) + '</div>' : '') + nx + '<div class="meta">' + esc(meta) + '</div></div></a>';
@@ -845,7 +845,8 @@
         return '<a class="kcard card done" href="#p/' + encodeURIComponent(e.id) + '"><div class="line1"><span class="name">' + esc(e.name) + '</span></div>' +
           '<div class="sub">' + esc(e.programs.join(', ') || e.instruments.join(', ')) + '</div><div class="meta">' + esc(when(e.at)) + '</div></a>';
       }).join('') : list.map(card).join('');
-      return '<section class="kcol" data-col="' + esc(c) + '"><header class="kh"><span class="kt">' + esc(c) + '</span><span class="kn">' + n +
+      return '<section class="kcol" data-col="' + esc(c) + '"><header class="kh"><span class="kt">' + esc(c) + '</span>' +
+        (n ? '<button type="button" class="kmail" data-colmail="' + esc(c) + '" title="Email everyone in this column">Email</button>' : '') + '<span class="kn">' + n +
         (red ? ' · <em>' + red + ' stalled</em>' : '') + '</span>' + (c === 'Enrolled' ? '<span class="kx">last 30 days</span>' : c === 'Committed' ? '<span class="kx">deposit, package or registration</span>' : '') + '</header>' +
         '<div class="kbody">' + (body || '<div class="kempty">Nothing here</div>') + '</div></section>';
     }).join('');
@@ -1326,7 +1327,9 @@
             return personRow(p, p.started ? 'since ' + dayOnly(p.started) : '');
           }).join('') + '</div>' : '<div class="empty">No waiting students or recent leads play ' + esc(openText(g.open)) + '.</div>');
       }
-      html += '<div class="section-title">' + (g.when === 'Past' ? 'Took part' : 'Members') + ' · ' + g.memberList.length + '</div>' +
+      groupMailList = g.memberList.map(function (m) { return { id: m.id, name: m.name }; }); groupMailName = g.name;
+      html += '<div class="section-title">' + (g.when === 'Past' ? 'Took part' : 'Members') + ' · ' + g.memberList.length +
+        (g.memberList.length ? ' <button type="button" class="btn small" data-groupmail>Email this group</button>' : '') + '</div>' +
         (g.memberList.length ? '<div class="list">' + g.memberList.map(function (p) { return personRow(p); }).join('') + '</div>' : '<div class="empty">No one active has this tag.</div>');
       if (g.otherList.length) {
         html += '<div class="section-title">Also tagged · ' + g.otherList.length + '</div><div class="list">' +
@@ -1336,6 +1339,88 @@
       main.innerHTML = html;
     }).catch(function (e) { main.innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; });
   }
+
+
+  // ---------- Email a group or a selection (each person gets their own copy) ----------
+  var picked = {}, groupMailList = [], groupMailName = '', composeTo = [];
+  function pickBox(id, name) {
+    return '<span class="pick' + (picked[id] ? ' on' : '') + '" data-pick="' + esc(id) + '" data-name="' + esc(name) + '" role="checkbox" aria-checked="' + (picked[id] ? 'true' : 'false') + '" aria-label="Select ' + esc(name) + '"></span>';
+  }
+  function selBar() {
+    var ids = Object.keys(picked), bar = $('#selbar');
+    bar.hidden = !ids.length;
+    $('#sel-count').textContent = ids.length + ' selected';
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-pick]'); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    var id = b.dataset.pick;
+    if (picked[id]) delete picked[id]; else picked[id] = b.dataset.name;
+    $$('[data-pick="' + id.replace(/"/g, '') + '"]').forEach(function (x) { x.classList.toggle('on', !!picked[id]); x.setAttribute('aria-checked', picked[id] ? 'true' : 'false'); });
+    selBar();
+  }, true);
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-pickpage]'); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    var rows = $$('#people-list [data-pick]'), all = rows.every(function (x) { return picked[x.dataset.pick]; });
+    rows.forEach(function (x) { if (all) delete picked[x.dataset.pick]; else picked[x.dataset.pick] = x.dataset.name; x.classList.toggle('on', !all); });
+    b.classList.toggle('on', !all); selBar();
+  }, true);
+  $('#sel-clear').addEventListener('click', function () { picked = {}; $$('.pick.on').forEach(function (x) { x.classList.remove('on'); }); selBar(); });
+  $('#sel-mail').addEventListener('click', function () {
+    openCompose(Object.keys(picked).map(function (id) { return { id: id, name: picked[id] }; }), '');
+  });
+  function openCompose(list, label) {
+    composeTo = list.filter(function (p) { return p.id; });
+    $('#mail-title').textContent = 'Email ' + (label || (composeTo.length === 1 ? composeTo[0].name : composeTo.length + ' people'));
+    renderTo(); $('#mail-err').textContent = '';
+    $('#mail-sheet').hidden = false;
+  }
+  function renderTo() {
+    $('#mail-to').innerHTML = composeTo.map(function (p, i) {
+      return '<span class="chip on">' + esc(p.name) + ' <button type="button" class="x" data-rmto="' + i + '" aria-label="Remove ' + esc(p.name) + '">&times;</button></span>';
+    }).join('');
+    $('#mail-send').textContent = 'Send to ' + composeTo.length + (composeTo.length === 1 ? ' person' : ' people');
+    $('#mail-send').disabled = !composeTo.length || composeTo.length > 50;
+    $('#mail-cap').hidden = composeTo.length <= 50;
+  }
+  $('#mail-to').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-rmto]'); if (!b) return; composeTo.splice(Number(b.dataset.rmto), 1); renderTo();
+  });
+  function sendMail(test) {
+    var subject = $('#mail-subject').value.trim(), body = $('#mail-body').value.trim();
+    if (!subject || !body) { $('#mail-err').textContent = 'Add a subject and a message first.'; return; }
+    $('#mail-err').textContent = '';
+    var btn = test ? $('#mail-test') : $('#mail-send'), label = btn.textContent;
+    btn.disabled = true; btn.textContent = test ? 'Sending test' : 'Sending';
+    api('groupmail', { sids: composeTo.map(function (p) { return p.id; }), subject: subject, body: body, test: !!test }).then(function (r) {
+      if (test) { toast('Test sent to ' + r.to); return; }
+      $('#mail-sheet').hidden = true; $('#mail-subject').value = ''; $('#mail-body').value = '';
+      picked = {}; $$('.pick.on').forEach(function (x) { x.classList.remove('on'); }); selBar();
+      leadsState.rows = null; peopleState.rows = null;
+      toast('Sent to ' + r.sent + (r.sent === 1 ? ' person' : ' people') + (r.failed && r.failed.length ? '. Could not send to ' + r.failed.join(', ') : ''));
+    }).catch(function (err) { $('#mail-err').textContent = err.message; })
+      .then(function () { btn.disabled = false; btn.textContent = label; if (!test) renderTo(); });
+  }
+  $('#mail-test').addEventListener('click', function () { sendMail(true); });
+  $('#mail-send').addEventListener('click', function () {
+    if (!$('#mail-confirm').hidden) { $('#mail-confirm').hidden = true; sendMail(false); return; }
+    $('#mail-confirm').hidden = false;
+    $('#mail-confirm').textContent = 'Tap Send again to email ' + composeTo.length + (composeTo.length === 1 ? ' person' : ' people') + ' from your inbox.';
+  });
+  $('#mail-cancel').addEventListener('click', function () { $('#mail-sheet').hidden = true; $('#mail-confirm').hidden = true; });
+  $('#mail-sheet').addEventListener('click', function (e) { if (e.target === this) { this.hidden = true; $('#mail-confirm').hidden = true; } });
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-groupmail]')) { openCompose(groupMailList, groupMailName); return; }
+    var c = e.target.closest('[data-colmail]');
+    if (c) {
+      e.stopPropagation();
+      var col = c.dataset.colmail, list;
+      if (col === 'Enrolled') list = leadsState.enrolled.map(function (x) { return { id: x.id, name: x.name }; });
+      else list = (leadsState.rows || []).filter(leadMatches).filter(trackOk).filter(onBoard).filter(function (l) { return l.stage === col; }).map(function (l) { return { id: l.id, name: l.name }; });
+      openCompose(list, col + ' (' + list.length + ')');
+    }
+  });
 
   // ---------- routing ----------
   function nav(which) {
