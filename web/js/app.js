@@ -108,8 +108,12 @@
     });
   }
   function initials(name) {
-    var p = String(name || '?').trim().split(/\s+/);
+    var p = String(name || '?').replace(/\([^)]*\)/g, ' ').replace(/[^\p{L}\s'-]/gu, ' ').trim().split(/\s+/);
     return ((p[0] || '')[0] + ((p.length > 1 ? p[p.length - 1] : '')[0] || '')).toUpperCase();
+  }
+  function ownerName(o) {
+    var k = String(o || '').split('@')[0].toLowerCase();
+    return ({ hello: 'Ben', admin: 'Kelley', joe: 'Joe', chris: 'Chris' })[k] || o;
   }
   function statusPill(s) {
     return '<span class="pill ' + esc(String(s || '').toLowerCase().replace(/\s+/g, '-')) + '">' + esc(s || 'Unknown') + '</span>';
@@ -321,8 +325,9 @@
   var current = null;
 
   var pendingPlace = null;
-  function loadPerson(sid) {
+  function loadPerson(sid, fresh) {
     var main = $('#person');
+    if (fresh) { try { localStorage.removeItem(ckey('person', { sid: sid })); } catch (e) {} }
     main.innerHTML = '<div class="loading">Loading</div>';
     $('#mms-link').hidden = true;
     swr('person', { sid: sid }, function (p) {
@@ -376,13 +381,12 @@
       var overdue = ns.Due && parse(ns.Due) < new Date(new Date().toDateString());
       nextHtml = '<div class="card next' + (overdue ? ' overdue' : '') + '"><div><div class="label">Next step' +
         (ns.Due ? ' · due ' + esc(dayOnly(ns.Due)) : '') + '</div><div class="text">' + esc(ns.Text) + '</div></div>' +
-        '<div class="next-side">' + (ns.Owner ? '<span class="pill">' + esc(ns.Owner) + '</span>' : '') +
+        '<div class="next-side">' + (ns.Owner ? '<span class="pill">' + esc(ownerName(ns.Owner)) + '</span>' : '') +
         '<button class="btn" type="button" data-next-done>Done</button></div></div>';
     } else {
       nextHtml = '<button class="card next none" data-open="next_step" type="button" style="width:100%;text-align:left;font:inherit;cursor:pointer"><div><div class="label">No next step</div><div class="text">Add one</div></div></button>';
     }
 
-    var mail = p.email ? 'mailto:' + encodeURIComponent(p.email) : '';
     var sms = p.phone ? 'sms:' + String(p.phone).replace(/[^\d+]/g, '') : '';
 
     main.innerHTML =
@@ -392,7 +396,7 @@
       stageStrip(p) + trackRow(p) +
       nextHtml +
       '<div class="actions">' +
-        '<a class="btn" href="' + esc(mail) + '"' + (mail ? '' : ' aria-disabled="true"') + '>Email</a>' +
+        '<button class="btn" type="button" data-mailone' + (p.email && p.id ? '' : ' disabled') + '>Email</button>' +
         '<a class="btn" href="' + esc(sms) + '"' + (sms ? '' : ' aria-disabled="true"') + '>Text</a>' +
         '<a class="btn" target="_blank" rel="noopener" href="' + esc(p.mmsUrl) + '"' + (p.mmsUrl ? '' : ' aria-disabled="true"') + '>MMS</a>' +
         '<button class="btn" type="button" data-open="note">Note</button>' +
@@ -527,7 +531,7 @@
     api('lesson', { sid: current.id, email: current.email, fields: fields }).then(function () {
       $('#lesson-sheet').hidden = true; toast('Lessons saved');
       lessonsState.rows = null; // refresh the list next time
-      loadPerson(current.id);
+      loadPerson(current.id, true);
     }).catch(function (err) { toast(err.message); })
       .then(function () { btn.disabled = false; btn.textContent = 'Save'; });
   });
@@ -638,7 +642,7 @@
       due: noteKind === 'next_step' ? $('#note-due').value : '', owner: noteKind === 'next_step' ? $('#note-owner').value : ''
     }).then(function () {
       closeSheet(); toast(noteKind === 'next_step' ? 'Next step saved' : 'Note saved');
-      loadPerson(current.id || current.email);
+      loadPerson(current.id || current.email, true);
     }).catch(function (err) { toast(err.message); })
       .then(function () { btn.disabled = false; btn.textContent = 'Save'; });
   });
@@ -1230,7 +1234,7 @@
     if (e.target.closest('[data-next-done]') && current) {
       var d = e.target.closest('[data-next-done]'); d.disabled = true;
       api('nextdone', { sid: current.id, email: current.email }).then(function () {
-        toast('Done'); leadsState.rows = null; loadPerson(current.id || current.email);
+        toast('Done'); leadsState.rows = null; loadPerson(current.id || current.email, true);
       }).catch(function (err) { toast(err.message); d.disabled = false; });
     }
   });
@@ -1275,7 +1279,7 @@
       followUp: $('#call-follow').value })
       .then(function () {
         $('#call-sheet').hidden = true; toast('Call saved'); leadsState.rows = null; todayState.data = null; if (peopleState) peopleState.rows = null;
-        loadPerson(current.id);
+        loadPerson(current.id, true);
       }).catch(function (err) { toast(err.message); })
       .then(function () { btn.disabled = false; btn.textContent = 'Save'; });
   });
@@ -1356,6 +1360,7 @@
     todo.push('In MMS: assign the teacher and set billing to "same amount each month"' + (c.lessons ? ' (lessons at the $80/hr member rate)' : ' at $150/mo'));
     if (c.groups.length) todo.push('In MMS: add them to the calendar event for ' + c.groups.join(' and ') + '. This starts billing.');
     if (c.groups.length + (c.lessons ? 1 : 0) > 1) todo.push('Two programs: create the second recurring charge in MMS by hand');
+    todo.push('In MMS: make sure auto-invoicing and Auto-Email are on for the family (new sign-ups start with it off)');
     todo.push('Send the onboarding email');
     $('#place-steps').innerHTML = steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('');
     $('#place-todo').innerHTML = todo.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('');
@@ -1377,7 +1382,7 @@
       $('#place-sheet').hidden = true;
       toast(current.name + ' is a member. Your to-do list is on their timeline.');
       leadsState.rows = null; groupsState.rows = null; todayState.data = null; lessonsState.rows = null;
-      loadPerson(current.id);
+      loadPerson(current.id, true);
     }).catch(function (err) { toast(err.message); })
       .then(function () { btn.disabled = false; btn.textContent = 'Convert'; });
   });
@@ -1421,7 +1426,7 @@
         $('#leave-sheet').hidden = true;
         toast((end ? 'Membership ended.' : 'Taken out of ' + v + '.') + (m.length ? ' ' + m[0] + '.' : ' Check billing in MMS.'));
         leadsState.rows = null; groupsState.rows = null; todayState.data = null;
-        loadPerson(current.id);
+        loadPerson(current.id, true);
       }).catch(function (err) { toast(err.message); })
       .then(function () { btn.disabled = false; btn.textContent = label; });
   });
@@ -1589,7 +1594,8 @@
       if (test) { toast('Test sent to ' + r.to); return; }
       $('#mail-sheet').hidden = true; $('#mail-subject').value = ''; $('#mail-body').value = '';
       picked = {}; $$('.pick.on').forEach(function (x) { x.classList.remove('on'); }); selBar();
-      leadsState.rows = null; peopleState.rows = null;
+      leadsState.rows = null; peopleState.rows = null; todayState.data = null;
+      if (current && composeTo.length === 1 && composeTo[0].id === current.id && location.hash.indexOf('#p/') === 0) loadPerson(current.id, true);
       toast('Sent to ' + r.sent + (r.sent === 1 ? ' person' : ' people') + (r.failed && r.failed.length ? '. Could not send to ' + r.failed.join(', ') : ''));
     }).catch(function (err) { $('#mail-err').textContent = err.message; })
       .then(function () { btn.disabled = false; btn.textContent = label; if (!test) renderTo(); });
@@ -1604,6 +1610,7 @@
   $('#mail-sheet').addEventListener('click', function (e) { if (e.target === this) { this.hidden = true; $('#mail-confirm').hidden = true; } });
   document.addEventListener('click', function (e) {
     if (e.target.closest('[data-groupmail]')) { openCompose(groupMailList, groupMailName); return; }
+    if (e.target.closest('[data-mailone]') && current && current.id) { openCompose([{ id: current.id, name: current.name }], current.name); return; }
     var c = e.target.closest('[data-colmail]');
     if (c) {
       e.stopPropagation();

@@ -345,6 +345,21 @@ function nextDone_(who, p) {
   return { ok: true };
 }
 
+/** Mark the newest open next step for this student done. Returns its text, or ''. */
+function closeNextStep_(sid) {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOTES_TAB);
+  if (!sh) return '';
+  var v = sh.getDataRange().getValues(), head = v[0];
+  var cs = head.indexOf('MMS ID'), ck = head.indexOf('Kind'), cd = head.indexOf('Done'), ct = head.indexOf('Text');
+  for (var i = v.length - 1; i >= 1; i--) {
+    if (v[i][cs] === sid && v[i][ck] === 'next_step' && !v[i][cd]) {
+      sh.getRange(i + 1, cd + 1).setValue(new Date());
+      return String(v[i][ct]);
+    }
+  }
+  return '';
+}
+
 // ---------- place in a group ----------
 
 /**
@@ -366,6 +381,10 @@ function placeInGroup_(who, p) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) throw new Error('Another change is running. Try again in a moment.');
   var done = [], todo = [];
+  // Read status before rosterProgram_ writes 'Active' into the roster sheet, or the
+  // MMS status change below gets skipped (found in the Nov 2026 walkthrough).
+  var r0 = rosterRows_().filter(function (x) { return x.ID === sid; })[0];
+  var stages0 = split_(r0 ? r0['Other tags'] : '').filter(function (t) { return /^Stage: /.test(t); });
   try {
     groups.forEach(function (g) {
       tagWrite_(sid, g, true); rosterProgram_(sid, g, 'Active'); done.push('Tagged ' + g);
@@ -381,15 +400,19 @@ function placeInGroup_(who, p) {
       done.push('Private lessons with ' + lessons.teacher + ' added to Lessons');
       todo.push('Add the Private Lessons - Active tag in MMS');
     }
-    var r = rosterRows_().filter(function (x) { return x.ID === sid; })[0];
-    split_(r ? r['Other tags'] : '').filter(function (t) { return /^Stage: /.test(t); }).forEach(function (t) {
-      tagWrite_(sid, t, false); rosterTag_(sid, t, false);
-    });
-    if (!r || r.Status !== 'Active') { setStatus_(sid, 'Active'); rosterStatus_(sid, 'Active'); done.push('Status set to Active'); }
+    stages0.forEach(function (t) { tagWrite_(sid, t, false); rosterTag_(sid, t, false); });
+    if (stages0.length) done.push('Cleared ' + stages0.join(', '));
+    var st = mmsStudent_(sid);
+    if (!st || st.Status !== 'Active') { setStatus_(sid, 'Active'); done.push('MMS status set to Active'); }
+    rosterStatus_(sid, 'Active');
+    var ns = closeNextStep_(sid);
+    if (ns) done.push('Closed the next step "' + ns + '"');
     // The rest of the Member Onboarding doc stays manual in MMS.
     todo.push('In MMS: assign the teacher, billing "same amount each month"' + (lessons ? ' (lessons at the member rate)' : ' at $150'));
     if (groups.length) todo.push('In MMS: add them to the calendar event for ' + groups.join(' and ') + ' (this starts billing)');
     if (groups.length + (lessons ? 1 : 0) > 1) todo.push('In MMS: create the second recurring charge (two programs)');
+    var fam = st && st.FamilyID ? mmsFamily_(st.FamilyID) : null;
+    if (!fam || !fam.AutoInvoicingEnabled) todo.push('In MMS: turn on auto-invoicing and Auto-Email for the family (it is off, so no invoice would go out)');
     todo.push('Send the onboarding email');
   } finally {
     lock.releaseLock();
@@ -401,6 +424,15 @@ function placeInGroup_(who, p) {
     }
   }
   return { ok: true, done: done, todo: todo };
+}
+
+function mmsStudent_(sid) {
+  var r = mms_('post', 'search/students', { IDs: [sid], Statuses: ['Active', 'Lead', 'Inactive', 'Trial', 'Waiting'] });
+  return (r || []).filter(function (x) { return x.ID === sid; })[0] || null;
+}
+function mmsFamily_(fid) {
+  var r = mms_('post', 'search/families', { IDs: [fid] });
+  return (r || []).filter(function (x) { return x.ID === fid; })[0] || null;
 }
 
 function setStatus_(sid, status) {
@@ -651,7 +683,7 @@ function sendGroupEmail_(who, p) {
   if (sent.length) {
     var n = tab_(NOTES_TAB, ['Timestamp', 'MMS ID', 'Email', 'Author', 'Kind', 'Text', 'Due', 'Owner', 'Done']);
     n.getRange(n.getLastRow() + 1, 1, sent.length, 9).setValues(sent.map(function (r) {
-      return [now, r.ID, String(r.Email).toLowerCase(), who, 'email', 'Group email: ' + subject, '', '', ''];
+      return [now, r.ID, String(r.Email).toLowerCase(), who, 'email', (people.length === 1 ? 'Email: ' : 'Group email: ') + subject, '', '', ''];
     }));
   }
   return { ok: true, sent: sent.length, failed: failed };
