@@ -674,7 +674,11 @@ function sendGroupEmail_(who, p) {
     GmailApp.sendEmail(who, '[Test] ' + fill(subject, people[0]), fill(body, people[0]), opts);
     return { ok: true, test: true, to: who };
   }
-  if (MailApp.getRemainingDailyQuota() < people.length) throw new Error('Gmail has fewer than ' + people.length + ' sends left today. Try tomorrow.');
+  // MailApp needs its own OAuth scope this script was never granted; GmailApp has no quota call.
+  // So check when we can, and otherwise let GmailApp's own limit error come back per person.
+  var left = null;
+  try { left = MailApp.getRemainingDailyQuota(); } catch (e) {}
+  if (left != null && left < people.length) throw new Error('Gmail has fewer than ' + people.length + ' sends left today. Try tomorrow.');
   var sent = [], failed = [], now = new Date();
   people.forEach(function (r) {
     try { GmailApp.sendEmail(String(r.Email).trim(), fill(subject, r), fill(body, r), opts); sent.push(r); }
