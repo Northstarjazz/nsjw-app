@@ -239,6 +239,17 @@
     if (peopleState.page > pages) peopleState.page = pages;
     var pg = list.slice((peopleState.page - 1) * per, peopleState.page * per);
     $('#pcount').textContent = list.length + (list.length === 1 ? ' person' : ' people');
+    if (useGrid()) {
+      $('#ppager').innerHTML = ''; $('#people-list').classList.remove('list', 'ptable'); $('#people-list').classList.add('g-host');
+      var gsp = peopleState.sort.split(':');
+      NSJWGrid.people($('#people-list'), list.map(function (r) {
+        return { id: r.id, name: r.name, email: r.email, phone: r.phone, status: r.status, stage: r.stage,
+          programsText: r.programs.join(', '), interests: (r.interests || []).slice(), tracks: r.tracks,
+          instruments: r.instruments.slice(), nights: (r.nights || []).slice(), source: r.source, created: r.created, lastActivity: r.lastActivity };
+      }), gridHooks({ per: per, sort: { column: { status: 'stage' }[gsp[0]] || gsp[0], dir: gsp[1] }, colsBtn: $('#pcols'),
+        source: function (id) { return rowById(id); } }));
+      return;
+    }
     var sp = peopleState.sort.split(':');
     var head = '<div class="prow phead"><span class="pick" data-pickpage role="checkbox" aria-label="Select everyone on this page"></span>' + PCOLS.map(function (c) {
       var on = sp[0] === c[0], sortable = c[0] !== 'programs' && c[0] !== 'tracks';
@@ -274,6 +285,37 @@
     peopleState.f[s.dataset.q] = s.value; peopleState.page = 1; renderPeople();
   });
   $('#psort').addEventListener('change', function () { peopleState.sort = this.value; peopleState.page = 1; renderPeople(); });
+  function useGrid() { return !!(window.Tabulator && window.NSJWGrid); }
+  // What the grid needs from the app: the option lists, how to save a tag, and where selections go.
+  function gridHooks(o) {
+    return Object.assign({
+      LEAD: LEAD, picked: picked, actText: actText,
+      onSelect: function (data) {
+        picked = {}; data.forEach(function (d) { picked[d.id] = d.name; }); selBar();
+      },
+      save: function (row, field, value, on) {
+        return api('leadtag', { sid: row.id, email: row.email, field: field, value: value, on: on }).then(function () {
+          var src = o.source ? o.source(row.id) : null;
+          [src, row].forEach(function (r) {
+            if (!r) return;
+            if (field === 'stage') { r.stage = value; return; }
+            var key = { interest: 'interests', instrument: 'instruments', nights: 'nights' }[field];
+            if (r === src && key) {
+              var cur = (r[key] || []).filter(function (x) { return x !== value; });
+              r[key] = on ? cur.concat(value) : cur;
+              if (key === 'interests') r.tracks = tracksFrom(r.interests);
+            }
+          });
+        });
+      },
+      saved: function (row, field, value) {
+        leadsState.rows = o.keepLeads ? leadsState.rows : null; todayState.data = null; groupsState.rows = null; peopleState.rowsDirty = true;
+        try { localStorage.removeItem(ckey('person', { sid: row.id })); } catch (e) {}
+        toast(field === 'stage' ? row.name + ': ' + value : 'Saved to MMS');
+      },
+      failed: function (e) { toast(e.message); }
+    }, o);
+  }
   function rowById(id) { return (peopleState.rows || []).filter(function (r) { return r.id === id; })[0]; }
   function tracksFrom(list) { return ['Ensemble', 'Private lessons', 'Classes'].filter(function (x) { return list.indexOf(x) >= 0; }); }
   function cellSave(r, field, value, on) {
@@ -1056,6 +1098,17 @@
     $('#lead-filter-btn').textContent = active.length ? 'Filter · ' + active.length : 'Filter';
     $('#leads-sum').textContent = rows.length + (rows.length === 1 ? ' lead' : ' leads') +
       (leadsState.stage ? ' in ' + leadsState.stage : '') + ' · ' + all.length + ' open in total';
+    if (useGrid()) {
+      $('#lead-more').hidden = true; $('#lead-list').classList.remove('list'); $('#lead-list').classList.add('g-host');
+      NSJWGrid.leads($('#lead-list'), rows.map(function (l) {
+        return { id: l.id, name: l.name, email: l.email, phone: l.phone, status: l.status, stage: l.stage, urgency: urgency(l),
+          nextText: l.next ? l.next.text : '', nextDue: l.next ? l.next.due : '', interests: l.interests.slice(), formInterests: l.formInterests,
+          instruments: l.instruments.slice(), formInstruments: l.formInstruments, nights: l.nights.slice(), started: l.started,
+          lastContact: l.lastContact, source: l.form.source || '' };
+      }), gridHooks({ colsBtn: $('#lcols'), keepLeads: true,
+        source: function (id) { return (leadsState.rows || []).filter(function (x) { return x.id === id; })[0]; } }));
+      return;
+    }
     if (!rows.length) { $('#lead-list').innerHTML = '<div class="empty">No one here. Try another view or clear a filter.</div>'; $('#lead-more').hidden = true; return; }
     $('#lead-list').innerHTML = rows.slice(0, leadsState.show).map(function (l) {
       var u = urgency(l);

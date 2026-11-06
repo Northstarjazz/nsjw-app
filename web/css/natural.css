@@ -138,3 +138,49 @@ h2 { font-size: 32px; line-height: 1.05; }
 #cellpop .cp-row { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: 14px; cursor: pointer; }
 #cellpop .cp-note { font-size: 12px; color: var(--muted); margin: 6px 0; }
 #cellpop .btn { margin-top: 8px; width: 100%; }
+
+/* Tabulator tables (People, Leads list) in the North Star look */
+.g-host { display: block !important; }
+.g-host.tabulator { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; font: 400 14px var(--font); color: var(--ink); margin-bottom: 24px; }
+.g-host .tabulator-header { background: var(--surface); border-bottom: 2px solid var(--ink); color: var(--muted); font-weight: 700; }
+.g-host .tabulator-header .tabulator-col { background: var(--surface); border-right: 1px solid transparent; }
+.g-host .tabulator-header .tabulator-col:hover { background: var(--ground); }
+.g-host .tabulator-col .tabulator-col-title { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.g-host .tabulator-col.tabulator-sortable .tabulator-col-title { padding-right: 18px; }
+.g-host .tabulator-tableholder .tabulator-table { background: var(--surface); color: var(--ink); }
+.g-host .tabulator-row { background: var(--surface); border-bottom: 1px solid var(--line); min-height: 52px; cursor: pointer; }
+.g-host .tabulator-row.tabulator-row-even { background: var(--surface); }
+.g-host .tabulator-row:hover { background: var(--ground) !important; }
+.g-host .tabulator-row.tabulator-selected, .g-host .tabulator-row.tabulator-selected:hover { background: #EDF3EF !important; }
+.g-host .tabulator-row .tabulator-cell { border-right: 0; padding: 8px 10px; }
+.g-host .tabulator-row .tabulator-frozen { background: inherit; }
+.g-host .tabulator-row .tabulator-frozen.tabulator-frozen-left { border-right: 1px solid var(--line); }
+.g-host .tabulator-cell.tabulator-editable { cursor: text; }
+.g-host .tabulator-cell.tabulator-editable:hover { box-shadow: inset 0 0 0 1px var(--line); border-radius: 4px; }
+.g-host .tabulator-cell.tabulator-editing { border: 1px solid var(--ink); padding: 0; }
+.g-host .tabulator-cell.g-saving { opacity: .5; }
+.g-host .tabulator-cell[tabulator-field="name"] { gap: 10px; font-weight: 700; }
+.g-host .tabulator-cell[tabulator-field="email"], .g-host .tabulator-cell[tabulator-field="nextText"], .g-host .tabulator-cell[tabulator-field="stage"] { flex-direction: column; align-items: flex-start !important; justify-content: center; }
+.g-host .g-name { overflow: hidden; text-overflow: ellipsis; }
+.g-host .g-ln { display: block; overflow: hidden; text-overflow: ellipsis; }
+.g-host .g-sub { font-size: 12px; color: var(--muted); }
+.g-host .g-note { display: block; font-size: 11px; color: var(--muted); }
+.g-host .g-stage { font: 600 11px var(--font); letter-spacing: .08em; text-transform: uppercase; border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; }
+.g-host .tabulator-editable .g-stage::after { content: " \25BE"; color: var(--muted); }
+.g-host .g-list { color: var(--ink-2, var(--ink)); }
+.g-host .g-form { color: var(--muted); font-style: italic; }
+.g-host .g-add { color: var(--muted); opacity: .6; font-style: italic; }
+.g-host .g-next.overdue { color: #A23B2A; font-weight: 600; }
+.g-host .g-next.today { color: var(--accent); font-weight: 600; }
+.g-host .tabulator-footer { background: var(--surface); border-top: 1px solid var(--line); color: var(--muted); font-weight: 500; }
+.g-host .tabulator-footer .tabulator-page { border-radius: 4px; border-color: var(--line); background: var(--surface); }
+.g-host .tabulator-footer .tabulator-page.active { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.g-host .tabulator-placeholder span { color: var(--muted) !important; font-size: 15px !important; font-weight: 500 !important; }
+.tabulator-edit-list { font: 400 14px var(--font); border: 1px solid var(--ink) !important; border-radius: 6px; }
+.tabulator-edit-list .tabulator-edit-list-item.active { background: var(--accent) !important; color: #fff !important; }
+.tabulator-edit-list .tabulator-edit-list-item.focused { outline: 1px solid var(--ink) !important; }
+.g-colpop { position: fixed; z-index: 60; width: 230px; background: var(--surface); border: 1px solid var(--ink); border-radius: 6px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.g-colpop .cp-h { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.g-colpop .cp-row { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: 14px; cursor: pointer; }
+.g-colpop .cp-note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+#lcols { margin: 0; }
