@@ -101,8 +101,8 @@ h2 { font-size: 32px; line-height: 1.05; }
 .nav-toggle { display: none; }
 @media (min-width: 1000px) {
   .nav-toggle { display: flex; align-items: center; gap: 12px; margin-top: auto; min-height: 40px; padding: 0 12px; background: none; border: 0;
-    color: inherit; opacity: .7; font: 500 13px var(--font); cursor: pointer; border-radius: 4px; }
-  .nav-toggle:hover { opacity: 1; background: rgba(255,255,255,.05); }
+    color: var(--lime-muted); font: 500 13px var(--font); cursor: pointer; border-radius: 4px; }
+  .nav-toggle:hover { color: var(--lime); background: rgba(255,255,255,.05); }
   .nav-toggle svg, .tabbar a svg { width: 20px; height: 20px; flex: none; }
   .screen { transition: grid-template-columns .15s ease; }
   html.navmini .screen { grid-template-columns: 72px minmax(0, 1fr); }
