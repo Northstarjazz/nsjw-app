@@ -9,6 +9,25 @@
   };
   window.NSJW_CONFIG = CONFIG; // tests may override api before load
 
+  // GitHub Pages lets browsers keep index.html for 10 minutes, so a new release can hide
+  // behind an old page. Ask for the page fresh; if it names a newer app.js, reload once.
+  (function () {
+    var me = document.currentScript && document.currentScript.getAttribute('src') || '';
+    var mine = Number((me.match(/v=(\d+)/) || [])[1] || 0);
+    function check() {
+      if (!mine || !window.fetch) return;
+      fetch('index.html', { cache: 'reload' }).then(function (r) { return r.text(); }).then(function (html) {
+        var live = Number((html.match(/js\/app\.js\?v=(\d+)/) || [])[1] || 0);
+        if (live > mine && sessionStorage.getItem('nsjw_reloaded') !== String(live)) {
+          sessionStorage.setItem('nsjw_reloaded', String(live));
+          location.reload();
+        }
+      }).catch(function () {});
+    }
+    setTimeout(check, 1500);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+  })();
+
   var $ = function (s, el) { return (el || document).querySelector(s); };
   var $$ = function (s, el) { return Array.prototype.slice.call((el || document).querySelectorAll(s)); };
 
