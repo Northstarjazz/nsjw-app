@@ -504,7 +504,8 @@ function leaveGroup_(who, p) {
     if (tags.indexOf('Ensemble Member') >= 0 && !left.some(function (t) { return /^Group \d+/.test(t); })) {
       manual.push('Remove the "Ensemble Member" tag in MMS');
     }
-    if (end && r.Status !== 'Inactive') {
+    var mi = end ? mmsStudent_(sid) : null;
+    if (end && (!mi || mi.Status !== 'Inactive')) {
       setStatus_(sid, 'Inactive'); done.push('Status set to Inactive');
       rosterStatus_(sid, 'Inactive');
     }
@@ -635,8 +636,9 @@ function logCall_(who, p) {
   var done = [];
   if (stage) { setLeadTag_(who, { sid: sid, email: p.email, field: 'stage', value: stage }); done.push('Stage set to ' + stage); }
   if (path === 'waitlist') {
-    var r = rosterRows_().filter(function (x) { return x.ID === sid; })[0];
-    if (!r || r.Status !== 'Waiting') { setStatus_(sid, 'Waiting'); rosterStatus_(sid, 'Waiting'); done.push('MMS status set to Waiting'); }
+    var mw = mmsStudent_(sid);
+    if (!mw || mw.Status !== 'Waiting') { setStatus_(sid, 'Waiting'); done.push('MMS status set to Waiting'); }
+    rosterStatus_(sid, 'Waiting');
   }
   if (next) {
     var due = p.followUp ? String(p.followUp) : '';

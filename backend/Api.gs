@@ -164,6 +164,7 @@ function mms_(method, path, body) {
  * membership is read per tag with POST search/students {StudentGroupIDs:[id]}.
  */
 function syncRoster() {
+  var started = new Date();
   var rows = mms_('get', 'students');
   var tagsBySid = {};
   mms_('get', 'studentgroups').forEach(function (g) {
@@ -188,6 +189,7 @@ function syncRoster() {
       prog.join('; '), inst.join('; '), other.join('; '), String(s.Note || '').slice(0, 2000), now, s.SkillLevel || '']);
   });
   var sh = tab_(ROSTER_TAB);
+  keepAppEdits_(sh, out, started);
   logStatusChanges_(sh, out);
   sh.clearContents();
   sh.getRange(1, 1, out.length, out[0].length).setValues(out);
@@ -196,6 +198,26 @@ function syncRoster() {
   try { mailIndex_('sync'); } catch (e) { Logger.log('Mail index: ' + e.message); }
   try { warmCache_(); } catch (e) { Logger.log('Warm cache: ' + e.message); }
   return out.length - 1;
+}
+
+/**
+ * The sync reads MMS over a minute or two. Anyone the app changed in that window
+ * (convert, end membership, stage, tags) would be overwritten with the older
+ * snapshot, so keep the roster row the app already updated for those people.
+ */
+function keepAppEdits_(sh, out, started) {
+  var touched = {};
+  sheetObjects_(NOTES_TAB).forEach(function (n) {
+    var ts = n.Timestamp instanceof Date ? n.Timestamp : new Date(n.Timestamp);
+    if (n['MMS ID'] && n.Author !== 'MMS sync' && !isNaN(ts) && ts >= started) touched[n['MMS ID']] = true;
+  });
+  if (!Object.keys(touched).length || sh.getLastRow() < 2) return;
+  var old = {};
+  sh.getRange(2, 1, sh.getLastRow() - 1, out[0].length).getValues().forEach(function (r) { old[r[0]] = r; });
+  for (var i = 1; i < out.length; i++) {
+    var sid = out[i][0];
+    if (touched[sid] && old[sid]) out[i] = old[sid].slice(0, out[0].length);
+  }
 }
 
 /**

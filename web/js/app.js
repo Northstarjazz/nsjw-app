@@ -325,12 +325,14 @@
   var current = null;
 
   var pendingPlace = null;
+  var personSeq = 0; // a load that finishes after a newer load or a local change is ignored
   function loadPerson(sid, fresh) {
-    var main = $('#person');
+    var main = $('#person'), mine = ++personSeq;
     if (fresh) { try { localStorage.removeItem(ckey('person', { sid: sid })); } catch (e) {} }
-    main.innerHTML = '<div class="loading">Loading</div>';
+    if (!fresh || !current || current.id !== sid) main.innerHTML = '<div class="loading">Loading</div>';
     $('#mms-link').hidden = true;
     swr('person', { sid: sid }, function (p) {
+      if (mine !== personSeq) return;
       var same = current && current.id === p.id && $('#person .tab.on');
       current = p;
       renderPerson(p, same ? $('#person .tab.on').dataset.tab : 'timeline');
@@ -1191,13 +1193,10 @@
     }
     var pick = function (pre) { return tags.filter(function (t) { return t.indexOf(pre) === 0; }).map(function (t) { return t.slice(pre.length); }); };
     return '<div class="funnel card"><div class="section-title" style="margin-top:0">Funnel</div>' +
-      '<label class="flabel">Stage<select class="field" id="lt-stage">' +
-      (stage ? '' : '<option value="">Enrolled (from MMS status)</option>') +
-      LEAD.stages.map(function (s) { return '<option' + (s === stage ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select></label>' +
       grp('Interested in · pick any', 'interest', LEAD.interests, pick('Interest: ')) +
       grp('Nights they can do', 'nights', LEAD.nights, pick('Nights: ')) +
       grp('Plays', 'instrument', LEAD.instruments, p.instruments || []) +
-      '<button type="button" class="btn primary" data-place style="width:100%;margin-top:4px">Convert to member</button>' +
+      (p.status === 'Active' ? '<button type="button" class="btn primary" data-place style="width:100%;margin-top:4px">Add to another group or lessons</button>' : '') +
       (p.programs || []).filter(function (g) { return /^Group \d+$/.test(g); }).map(function (g) {
         return '<button type="button" class="btn" data-cal="' + esc(g) + '" style="width:100%;margin-top:8px">Add to ' + esc(g) + ' rehearsals in MMS</button>';
       }).join('') +
@@ -1217,7 +1216,8 @@
       } else {
         current.tags = on ? current.tags.concat(pre + value) : current.tags.filter(function (t) { return t !== pre + value; });
       }
-      leadsState.rows = null; groupsState.rows = null;
+      leadsState.rows = null; groupsState.rows = null; personSeq++;
+      try { localStorage.removeItem(ckey('person', { sid: current.id })); } catch (e) {}
       toast(field === 'stage' ? 'Stage set to ' + value : 'Saved to MMS');
       var on = document.querySelector('#person .tab.on');
       renderPerson(current, on ? on.dataset.tab : 'timeline');
