@@ -100,7 +100,8 @@ function recentEnrolled_() {
 
 function leadRows_() {
   var notes = sheetObjects_(NOTES_TAB);
-  var mail = mailIndex_();
+  var mail = {};
+  try { mail = mailIndex_(); } catch (e) { Logger.log('Mail index: ' + e.message); }
   var bySid = {};
   notes.forEach(function (n) {
     if (autoNote_(n)) return; // the app's own bookkeeping is not contact with the person
@@ -514,18 +515,43 @@ function rosterStatus_(sid, status) {
  * { email: { out: 'yyyy-mm-dd', in: 'yyyy-mm-dd' } }. Kept only in the script cache
  * (never written to the sheet) and refreshed by the roster sync; built on demand if empty.
  */
-function mailIndex_(rebuild) {
-  var cache = CacheService.getScriptCache();
-  if (!rebuild) {
-    var hit = cache.get('mailidx');
-    if (hit) return JSON.parse(hit);
+/**
+ * Last email in and out per address, for the Leads board.
+ * Gmail reads count against a daily Google limit, so this is light on purpose:
+ *  - a full scan (300 most recent threads, 90 days) happens at most once a day,
+ *  - the 15-minute sync only adds threads from the last day, and only once an hour.
+ * Kept in CacheService for 6 hours; if it expires, the next hourly sync rebuilds it.
+ */
+function mailIndex_(mode) {
+  var cache = CacheService.getScriptCache(), props = PropertiesService.getScriptProperties();
+  var hit = cache.get('mailidx');
+  var idx = hit ? JSON.parse(hit) : null;
+  if (mode !== 'sync') {
+    if (idx) return idx;
+    // Cache expired between syncs: serve what we have rather than scanning on a page load.
+    return {};
   }
-  var idx = {}, tz = Session.getScriptTimeZone();
+  var now = Date.now(), lastFull = Number(props.getProperty('MAILIDX_FULL') || 0), lastInc = Number(props.getProperty('MAILIDX_INC') || 0);
+  if (!idx || now - lastFull > 24 * 3600e3) {
+    idx = mailScan_({}, 'newer_than:90d -in:spam -in:trash', 3);
+    props.setProperty('MAILIDX_FULL', String(now)); props.setProperty('MAILIDX_INC', String(now));
+  } else if (now - lastInc > 3600e3) {
+    idx = mailScan_(idx, 'newer_than:1d -in:spam -in:trash', 1);
+    props.setProperty('MAILIDX_INC', String(now));
+  } else {
+    return idx;
+  }
+  var json = JSON.stringify(idx);
+  if (json.length < 95000) cache.put('mailidx', json, 6 * 3600);
+  return idx;
+}
+
+function mailScan_(idx, query, pages) {
+  var tz = Session.getScriptTimeZone();
   // Ours = anything sent from a North Star address (no extra Google permission needed).
   var ours = function (a) { return /@northstarjazzworkshops\.com$/.test(a); };
-  var start = 0;
-  for (var page = 0; page < 6; page++) {
-    var threads = GmailApp.search('newer_than:90d -in:spam -in:trash', start, 100);
+  for (var page = 0, start = 0; page < pages; page++, start += 100) {
+    var threads = GmailApp.search(query, start, 100);
     if (!threads.length) break;
     GmailApp.getMessagesForThreads(threads).forEach(function (msgs) {
       msgs.forEach(function (msg) {
@@ -544,10 +570,7 @@ function mailIndex_(rebuild) {
       });
     });
     if (threads.length < 100) break;
-    start += 100;
   }
-  var json = JSON.stringify(idx);
-  if (json.length < 95000) cache.put('mailidx', json, 6 * 3600);
   return idx;
 }
 

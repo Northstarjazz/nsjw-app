@@ -533,6 +533,9 @@
   });
 
   function timelineHtml(p) {
+    return (p.mailError ? '<p class="muted small mail-note">Emails with this person could not load right now (Gmail limit). Notes and calls are all here.</p>' : '') + timelineBody(p);
+  }
+  function timelineBody(p) {
     // Fold opens and clicks into the email they belong to.
     var stats = {};
     p.timeline.forEach(function (t) {

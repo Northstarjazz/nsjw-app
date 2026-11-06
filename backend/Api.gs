@@ -191,7 +191,7 @@ function syncRoster() {
   sh.getRange(1, 1, out.length, out[0].length).setValues(out);
   if (!sh.isSheetHidden()) sh.hideSheet();
   try { seedInterestTags_(); } catch (e) { Logger.log('Interest seeding: ' + e.message); }
-  try { mailIndex_(true); } catch (e) { Logger.log('Mail index: ' + e.message); }
+  try { mailIndex_('sync'); } catch (e) { Logger.log('Mail index: ' + e.message); }
   try { warmCache_(); } catch (e) { Logger.log('Warm cache: ' + e.message); }
   return out.length - 1;
 }
@@ -312,8 +312,12 @@ function getPerson_(sid, email) {
   var nextStep = notes.filter(function (n) { return n.Kind === 'next_step' && !n.Done; }).pop() || null;
 
   // Gmail threads with this person
-  var threads = email ? GmailApp.search('from:' + email + ' OR to:' + email, 0, 10) : [];
-  var allMsgs = threads.length ? GmailApp.getMessagesForThreads(threads) : [];
+  // If Gmail is over its daily limit, the page still loads; it just shows no emails.
+  var threads = [], allMsgs = [], mailError = '';
+  try {
+    threads = email ? GmailApp.search('from:' + email + ' OR to:' + email, 0, 10) : [];
+    allMsgs = threads.length ? GmailApp.getMessagesForThreads(threads) : [];
+  } catch (e) { threads = []; allMsgs = []; mailError = String(e.message || e); }
   var mail = threads.map(function (t, ti) {
     var last = t.getLastMessageDate();
     var msgs = allMsgs[ti];
@@ -335,7 +339,7 @@ function getPerson_(sid, email) {
     formInstruments: r ? formInstruments_(signup_(r.Note).instrument) : [],
     tags: r ? split_(r['Other tags']) : [],
     mmsUrl: sid ? 'https://app.mymusicstaff.com/Teacher/v2/en/students/details?id=' + sid : '',
-    nextStep: nextStep, sequences: enroll, threads: mail, timeline: timeline.slice(0, 60),
+    nextStep: nextStep, sequences: enroll, threads: mail, mailError: mailError, timeline: timeline.slice(0, 60),
     lesson: sid ? (sheetObjects_(LESSONS_TAB).filter(function (l) { return l['MMS ID'] === sid; })[0] || null) : null
   };
 }
