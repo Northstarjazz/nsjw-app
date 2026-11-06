@@ -124,25 +124,86 @@ function getGroup_(name) {
   var s = summary_(cfg, rows);
   s.memberList = rows.filter(function (r) { return r.Status === 'Active' || r.Status === 'Trial'; }).map(person_);
   s.otherList = rows.filter(function (r) { return !(r.Status === 'Active' || r.Status === 'Trial'); }).map(person_);
+  // Who could fill each open seat, grouped by instrument and ranked:
+  // Waiting, then Committed and Qualified leads, Trial, then leads who want an ensemble.
   var need = {};
-  s.open.forEach(function (x) { need[x] = true; });
+  s.open.forEach(function (x) { need[x] = (need[x] || 0) + 1; });
   var inGroup = {};
   rows.forEach(function (r) { inGroup[r.ID] = true; });
-  var soon = new Date(Date.now() - 180 * 864e5);
-  s.matches = roster.filter(function (r) {
-    if (inGroup[r.ID]) return false;
-    var inst = split_(r.Instruments);
-    if (!inst.length) inst = formInstruments_(signup_(r.Note).instrument);
-    if (!inst.some(function (i) { return need[seat_(i)]; })) return false;
-    if (r.Status === 'Waiting' || r.Status === 'Trial') return true;
-    return r.Status === 'Lead' && r.Started && new Date(r.Started) > soon;
-  }).map(function (r) {
-    var p = person_(r);
-    if (!p.instruments) p.instruments = formInstruments_(signup_(r.Note).instrument).join(', ') + ' (from form)';
-    return p;
-  }).sort(function (a, b) {
-    var rank = { Waiting: 0, Trial: 1, Lead: 2 };
-    return (rank[a.status] - rank[b.status]) || String(b.started).localeCompare(String(a.started));
-  }).slice(0, 25);
+  var day = String(cfg.Schedule || '').slice(0, 3);
+  var soon = new Date(Date.now() - 365 * 864e5), seen = {};
+  var cands = [];
+  roster.forEach(function (r) {
+    if (inGroup[r.ID] || r.Status === 'Active' || r.Status === 'Inactive') return;
+    var tags = split_(r['Other tags']);
+    var stage = (tags.filter(function (t) { return /^Stage: /.test(t); })[0] || '').slice(7);
+    if (stage === 'Closed' || stage === 'Nurture') return;
+    var wantsEns = tags.indexOf('Interest: Ensemble') >= 0;
+    var hot = r.Status === 'Waiting' || r.Status === 'Trial' || stage === 'Committed' || stage === 'Qualified';
+    if (!hot && !(wantsEns && r.Started && new Date(r.Started) > soon)) return;
+    var inst = split_(r.Instruments), fromForm = false;
+    if (!inst.length) { inst = formInstruments_(signup_(r.Note).instrument); fromForm = true; }
+    var key = String(r.Name).toLowerCase().replace(/[^a-z]/g, '') + '|' + String(r.Email).toLowerCase();
+    if (seen[key]) return; seen[key] = true;
+    var nights = tags.filter(function (t) { return /^Nights: /.test(t); }).map(function (t) { return t.slice(8); });
+    var why = [r.Status === 'Waiting' ? 'Waitlist' : r.Status === 'Trial' ? 'Trial' : stage || 'New lead'];
+    if (wantsEns) why.push('wants an ensemble');
+    if (day && nights.length) why.push(nights.indexOf(day) >= 0 ? 'free ' + day : 'not free ' + day);
+    var rank = (r.Status === 'Waiting' ? 0 : stage === 'Committed' ? 1 : stage === 'Qualified' ? 2 : r.Status === 'Trial' ? 3 : 5) +
+      (day && nights.length && nights.indexOf(day) < 0 ? 4 : 0);
+    var seats = {};
+    inst.forEach(function (i) { var st = seat_(i); if (need[st]) seats[st] = true; });
+    Object.keys(seats).forEach(function (st) {
+      var p = person_(r);
+      p.instruments = inst.join(', ') + (fromForm ? ' (from form)' : '');
+      p.why = why.join(' · '); p.rank = rank; p.seatFor = st;
+      cands.push(p);
+    });
+  });
+  cands.sort(function (a, b) { return (a.rank - b.rank) || String(b.started).localeCompare(String(a.started)); });
+  s.fill = Object.keys(need).map(function (st) {
+    var list = cands.filter(function (c) { return c.seatFor === st; });
+    return { seat: st, open: need[st], total: list.length, people: list.slice(0, 8) };
+  });
+  s.matches = cands; // kept for older front ends
+  try { s.calendar = groupCalendarCheck_(name, rows); } catch (e) { s.calendar = { error: e.message }; }
   return s;
+}
+
+/**
+ * Does the tag match the rehearsals? Billing and reminders follow the MMS calendar
+ * event, the app follows the tag, so the two should list the same people.
+ */
+function groupCalendarCheck_(name, rows) {
+  if (!/^Group \d+$/.test(name)) return null;
+  var evs = groupEvents_(name, 35);
+  if (!evs.length) return { events: 0 };
+  var next = evs[0];
+  var onEvent = {};
+  (next.Attendances || []).forEach(function (a) { onEvent[a.StudentID] = a.StudentFullName; });
+  var tagged = {};
+  rows.filter(function (r) { return r.Status === 'Active' || r.Status === 'Trial'; }).forEach(function (r) { tagged[r.ID] = r.Name; });
+  return {
+    events: evs.length, title: next.Description, date: next.StartDate,
+    teacher: (next.Teacher && next.Teacher.Name) || '',
+    notTagged: Object.keys(onEvent).filter(function (id) { return !tagged[id]; }).map(function (id) { return { id: id, name: onEvent[id] }; }),
+    notOnCalendar: Object.keys(tagged).filter(function (id) { return !onEvent[id]; }).map(function (id) { return { id: id, name: tagged[id] }; })
+  };
+}
+
+/** Run from the editor: every numbered group, tag vs. next rehearsal. */
+function logGroupAudit() {
+  var roster = rosterRows_(), byTag = {};
+  roster.forEach(function (r) { split_(r.Programs).forEach(function (t) { (byTag[t] = byTag[t] || []).push(r); }); });
+  Object.keys(byTag).filter(function (t) { return /^Group \d+$/.test(t); })
+    .sort(function (a, b) { return a.localeCompare(b, 'en', { numeric: true }); }).forEach(function (t) {
+      try {
+        var c = groupCalendarCheck_(t, byTag[t]);
+        Utilities.sleep(400);
+        if (!c || !c.events) { Logger.log(t + ': no rehearsals found in MMS'); return; }
+        Logger.log(t + ' | ' + c.title + ' ' + String(c.date).slice(0, 10) + ' ' + c.teacher +
+          ' | on rehearsal, no tag: ' + (c.notTagged.map(function (x) { return x.name; }).join(', ') || '-') +
+          ' | tagged, not on rehearsal: ' + (c.notOnCalendar.map(function (x) { return x.name; }).join(', ') || '-'));
+      } catch (e) { Logger.log(t + ': ' + e.message); }
+    });
 }

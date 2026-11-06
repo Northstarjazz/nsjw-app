@@ -704,15 +704,22 @@ function sendGroupEmail_(who, p) {
 // MMS first and ticks that he did. This only adds the attendee, after a preview.
 
 /** "Group 6" -> events whose description is "Ensemble 6 ..." from today out ~6 months. */
-function groupEvents_(group) {
-  var m = /^Group (\d+)$/.exec(String(group));
-  if (!m) throw new Error('Adding to the calendar works for numbered ensembles (Group N) for now. Add ' + group + ' in MMS.');
-  var re = new RegExp('^Ensemble ' + m[1] + '(\\D|$)', 'i');
+var EVENTS_MEMO_ = {};
+function ensembleEvents_(days) {
+  if (EVENTS_MEMO_[days]) return EVENTS_MEMO_[days];
   var tz = Session.getScriptTimeZone(), now = new Date();
   var from = Utilities.formatDate(now, tz, "yyyy-MM-dd'T'00:00:00");
-  var to = Utilities.formatDate(new Date(now.getTime() + 183 * 864e5), tz, "yyyy-MM-dd'T'23:59:59");
-  var rows = mms_('post', 'search/calendar/events', { StartDate: from, EndDate: to }) || [];
-  return rows.filter(function (e) { return re.test(String(e.Description || '')); })
+  var to = Utilities.formatDate(new Date(now.getTime() + days * 864e5), tz, "yyyy-MM-dd'T'23:59:59");
+  var rows = mms_('post', 'search/calendar/events', { StartDate: from, EndDate: to, EventCategoryIDs: ['ect_q531JP', 'ect_TFGxJD'] }) || [];
+  return (EVENTS_MEMO_[days] = rows);
+}
+/** "Group 6" -> its MMS rehearsals from today out `days` (default ~6 months), soonest first. */
+function groupEvents_(group, days) {
+  var m = /^Group (\d+)$/.exec(String(group));
+  if (!m) throw new Error('Adding to the calendar works for numbered ensembles (Group N) for now. Add ' + group + ' in MMS.');
+  // MMS names vary: "Ensemble 6 Rehearsal", "Group 1 Rehearsal", "Group 21 - 1st & 3rd Tuesdays..."
+  var re = new RegExp('^(Ensemble|Group) ' + m[1] + '(\\D|$)', 'i');
+  return ensembleEvents_(days || 183).filter(function (e) { return re.test(String(e.Description || '')); })
     .sort(function (a, b) { return String(a.StartDate).localeCompare(String(b.StartDate)); });
 }
 

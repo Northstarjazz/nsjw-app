@@ -876,7 +876,8 @@
       return '<a class="card group-row" href="#g/' + encodeURIComponent(g.name) + '"><div class="line1"><span class="name">' + esc(g.name) + '</span>' +
         '<span class="count">' + g.matches + (g.matches === 1 ? ' match' : ' matches') + '</span></div>' +
         '<div class="sub">' + esc([g.schedule, g.teacher].filter(Boolean).join(' · ')) + '</div>' +
-        '<div class="pills"><span class="pill open">Open: ' + esc(openText(g.open)) + '</span></div></a>';
+        '<div class="pills"><span class="pill open">Open: ' + esc(openText(g.open)) + '</span></div>' +
+        (g.bySeat ? '<div class="meta">' + esc('Could fill it: ' + Object.keys(g.bySeat).map(function (k) { return k + ' ' + g.bySeat[k]; }).join(' · ')) + '</div>' : '') + '</a>';
     }).join('') + '</div>' : '<div class="empty small-empty">Every group is full.</div>');
     $('#today').innerHTML = '<div id="teaching"></div>' + html;
     renderTeaching();
@@ -1579,7 +1580,24 @@
         });
         html += '<div class="section-title">Seats · ' + (g.open.length ? g.open.length + ' open' : 'full') + '</div><div class="seats">' + tiles.join('') + '</div>';
       }
-      if (g.open.length) {
+      var cal = g.calendar;
+      if (cal && cal.events && ((cal.notTagged || []).length || (cal.notOnCalendar || []).length)) {
+        var nm = function (list) { return list.map(function (x) { return '<a href="#p/' + encodeURIComponent(x.id) + '">' + esc(x.name) + '</a>'; }).join(', '); };
+        html += '<div class="card mail-note" style="margin:0 0 14px"><b>Doesn\'t match MMS.</b> The next rehearsal (' + esc(dayOnly(String(cal.date).slice(0, 10))) + ', ' + esc(cal.teacher) + ') ' +
+          ((cal.notTagged || []).length ? 'has ' + nm(cal.notTagged) + ' on it without the ' + esc(g.name) + ' tag. ' : '') +
+          ((cal.notOnCalendar || []).length ? nm(cal.notOnCalendar) + (cal.notOnCalendar.length === 1 ? ' is' : ' are') + ' tagged but not on the rehearsal, so not billed or reminded through it.' : '') +
+          '</div>';
+      } else if (cal && cal.events) {
+        html += '<p class="muted small" style="margin:0 0 12px">Matches the ' + esc(cal.title || 'MMS rehearsal') + ' roster in MMS.</p>';
+      }
+      if (g.open.length && g.fill) {
+        html += '<div class="section-title">Could fill it</div>';
+        html += g.fill.map(function (f) {
+          return '<div class="sub-h" style="margin:12px 0 6px"><b>' + esc(f.seat) + '</b> · ' + f.open + ' open · ' +
+            (f.total ? f.total + (f.total === 1 ? ' person' : ' people') + (f.total > f.people.length ? ', best ' + f.people.length + ' shown' : '') : 'no one yet') + '</div>' +
+            (f.people.length ? '<div class="list">' + f.people.map(function (p) { return personRow(p, p.why); }).join('') + '</div>' : '');
+        }).join('');
+      } else if (g.open.length) {
         html += '<div class="section-title">Could fill it</div>' +
           (g.matches.length ? '<div class="list">' + g.matches.map(function (p) {
             return personRow(p, p.started ? 'since ' + dayOnly(p.started) : '');

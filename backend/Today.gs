@@ -21,19 +21,25 @@ function today_() {
     .sort(function (a, b) { return String(b.started).localeCompare(String(a.started)); });
   var deposits = open.filter(function (l) { return l.stage === 'Committed'; });
 
-  // Who could fill each open ensemble seat: waiting, trial, or a lead from the last six months.
-  var soon = new Date(t0.getTime() - 180 * 864e5);
+  // Who could fill each open ensemble seat, same rules as the group page:
+  // waitlist, trial, Committed or Qualified, or a lead from the last year who wants an ensemble.
+  var soon = new Date(t0.getTime() - 365 * 864e5), seen = {};
   var pool = open.filter(function (l) {
+    if (l.stage === 'Nurture' || l.status === 'Active' || l.status === 'Inactive') return false;
+    var key = String(l.name).toLowerCase().replace(/[^a-z]/g, '') + '|' + String(l.email).toLowerCase();
+    if (seen[key]) return false; seen[key] = true;
     if (l.status === 'Waiting' || l.status === 'Trial' || l.stage === 'Committed' || l.stage === 'Qualified') return true;
-    var s = d(l.started); return s && s >= soon;
+    var s = d(l.started); return s && s >= soon && (l.interests || []).indexOf('Ensemble') >= 0;
   });
   var seats = groups.filter(function (g) { return g.when === 'Current' && g.open.length; }).map(function (g) {
     var need = {}; g.open.forEach(function (s) { need[s] = true; });
-    var n = pool.filter(function (l) {
-      var inst = l.instruments.length ? l.instruments : l.formInstruments;
-      return inst.some(function (i) { return need[seat_(i)]; });
-    }).length;
-    return { name: g.name, schedule: g.schedule, teacher: g.teacher, open: g.open, matches: n };
+    var bySeat = {}, n = 0;
+    pool.forEach(function (l) {
+      var inst = l.instruments.length ? l.instruments : l.formInstruments, hit = false;
+      inst.forEach(function (i) { var st = seat_(i); if (need[st]) { bySeat[st] = (bySeat[st] || 0) + 1; hit = true; } });
+      if (hit) n++;
+    });
+    return { name: g.name, schedule: g.schedule, teacher: g.teacher, open: g.open, matches: n, bySeat: bySeat };
   }).sort(function (a, b) { return b.matches - a.matches; });
 
   function slim(l) { return { id: l.id, name: l.name, stage: l.stage, next: l.next, started: l.started,
