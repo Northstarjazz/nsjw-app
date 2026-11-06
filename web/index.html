@@ -25,10 +25,10 @@
 <meta name="apple-mobile-web-app-title" content="North Star HQ">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/nsjw.css?v=43">
-<link rel="stylesheet" href="css/app.css?v=43">
-<link rel="stylesheet" href="css/sgraffito.css?v=43">
-<link rel="stylesheet" href="css/natural.css?v=43">
+<link rel="stylesheet" href="css/nsjw.css?v=44">
+<link rel="stylesheet" href="css/app.css?v=44">
+<link rel="stylesheet" href="css/sgraffito.css?v=44">
+<link rel="stylesheet" href="css/natural.css?v=44">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -293,6 +293,23 @@
   </div>
 </div>
 
+<div id="cal-sheet" class="sheet" hidden>
+  <div class="sheet-body scroll">
+    <div class="sheet-title" id="cal-title">Add to rehearsals</div>
+    <p class="muted small" style="margin:0 0 8px">Being on the rehearsals in MMS is what bills them. Do the teacher and price in MMS first.</p>
+    <ul class="steps" id="cal-info"></ul>
+    <div class="flabel">Rehearsals in MMS</div>
+    <div id="cal-list"></div>
+    <label class="checkline" style="margin-top:10px"><input type="checkbox" id="cal-billing"> In MMS I assigned them to <span id="cal-teacher">the teacher</span>, billing "same amount each month" at $150. <a id="cal-mms" target="_blank" rel="noopener" href="#">Open in MMS</a></label>
+    <p class="small" id="cal-confirm" hidden></p>
+    <p class="small err" id="cal-err"></p>
+    <div class="row end">
+      <button type="button" class="btn" id="cal-cancel">Cancel</button>
+      <button type="button" class="btn primary" id="cal-go" disabled>Add to rehearsals</button>
+    </div>
+  </div>
+</div>
+
 <div id="leave-sheet" class="sheet" hidden>
   <div class="sheet-body scroll">
     <div class="sheet-title" id="leave-title">Take out of a group</div>
@@ -430,6 +447,6 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="js/app.js?v=43"></script>
+<script src="js/app.js?v=44"></script>
 </body>
 </html>

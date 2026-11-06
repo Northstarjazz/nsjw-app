@@ -52,6 +52,8 @@ function api_(e) {
       case 'leave':  out = leaveGroup_(who, p); break;
       case 'logcall': out = logCall_(who, p); break;
       case 'groupmail': out = sendGroupEmail_(who, p); break;
+      case 'calpreview': out = calPreview_(who, p); break;
+      case 'caladd': out = calAdd_(who, p); break;
       case 'myteaching': out = myTeaching_(who, p); break;
       case 'subrequest': out = requestSub_(who, p); break;
       case 'subtake': out = takeSubApi_(who, p); break;
@@ -70,7 +72,7 @@ function api_(e) {
 // Reads are cached in CacheService under a version stamp. Any write, and every roster
 // sync, bumps the stamp, so a cached answer is never older than the last change.
 // Values over 90 KB are split across keys (CacheService caps one value at 100 KB).
-var READS_ = { whoami: 1, person: 1, people: 1, contacts: 1, lessons: 1, groups: 1, group: 1, leads: 1, today: 1, myteaching: 1, templates: 1 };
+var READS_ = { whoami: 1, person: 1, people: 1, contacts: 1, lessons: 1, groups: 1, group: 1, leads: 1, today: 1, myteaching: 1, templates: 1, calpreview: 1 };
 
 function cacheVer_() {
   var c = CacheService.getScriptCache(), v = c.get('ver');

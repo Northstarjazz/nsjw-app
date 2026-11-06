@@ -1198,6 +1198,9 @@
       grp('Nights they can do', 'nights', LEAD.nights, pick('Nights: ')) +
       grp('Plays', 'instrument', LEAD.instruments, p.instruments || []) +
       '<button type="button" class="btn primary" data-place style="width:100%;margin-top:4px">Convert to member</button>' +
+      (p.programs || []).filter(function (g) { return /^Group \d+$/.test(g); }).map(function (g) {
+        return '<button type="button" class="btn" data-cal="' + esc(g) + '" style="width:100%;margin-top:8px">Add to ' + esc(g) + ' rehearsals in MMS</button>';
+      }).join('') +
       ((p.programs || []).length || p.status === 'Active' ? '<button type="button" class="btn" data-leave style="width:100%;margin-top:8px">Take out of a group or end membership</button>' : '') +
       '<p class="muted small" style="margin:10px 0 0">Each choice saves to MyMusicStaff as a tag.</p></div>';
   }
@@ -1383,10 +1386,68 @@
       toast(current.name + ' is a member. Your to-do list is on their timeline.');
       leadsState.rows = null; groupsState.rows = null; todayState.data = null; lessonsState.rows = null;
       loadPerson(current.id, true);
+      var ens = c.groups.filter(function (g) { return /^Group \d+$/.test(g); })[0];
+      if (ens) openCal(ens);
     }).catch(function (err) { toast(err.message); })
       .then(function () { btn.disabled = false; btn.textContent = 'Convert'; });
   });
   $('#person').addEventListener('click', function (e) { if (e.target.closest('[data-place]')) openPlace(); });
+
+  // ---------- Add to the ensemble's MMS calendar (this is what starts billing) ----------
+  var calState = { group: '', events: [] };
+  function openCal(group) {
+    if (!current || !current.id) return;
+    calState = { group: group, events: [] };
+    $('#cal-title').textContent = 'Add ' + current.name + ' to ' + group;
+    $('#cal-list').innerHTML = '<div class="loading">Reading the ' + esc(group) + ' calendar in MMS</div>';
+    $('#cal-info').innerHTML = ''; $('#cal-err').textContent = ''; $('#cal-billing').checked = false;
+    $('#cal-confirm').hidden = true; $('#cal-go').disabled = true; $('#cal-go').textContent = 'Add to rehearsals';
+    $('#cal-mms').href = current.mmsUrl || '#';
+    $('#cal-sheet').hidden = false;
+    api('calpreview', { sid: current.id, group: group }).then(function (r) {
+      calState.events = r.events;
+      var t = r.teachers.join(' and ') || 'the group teacher';
+      $('#cal-teacher').textContent = t;
+      $('#cal-info').innerHTML =
+        '<li>Teacher on these events: <b>' + esc(t) + '</b></li>' +
+        '<li>MMS status: ' + esc(r.status || 'unknown') + '</li>' +
+        '<li>Auto-invoicing for the family: ' + (r.autoInvoicing ? 'on' : '<b>off</b>. No invoice would go out until you turn it on (and Auto-Email) in MMS.') + '</li>';
+      if (!r.events.length) { $('#cal-list').innerHTML = '<div class="empty">No ' + esc(group) + ' rehearsals found in MMS in the next 6 months.</div>'; return; }
+      $('#cal-list').innerHTML = r.events.map(function (e) {
+        var d = parse(e.start);
+        return '<label class="checkline"><input type="checkbox" data-calid="' + esc(e.id) + '"' + (e.already ? ' disabled' : ' checked') + '> ' +
+          esc(d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })) + ' · ' +
+          esc(d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })) + ' · ' + esc(e.title || group) +
+          ' · ' + e.people + ' playing' + (e.already ? ' · already on it' : '') + '</label>';
+      }).join('');
+      calCheck();
+    }).catch(function (e) { $('#cal-list').innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
+  }
+  function calIds() { return $$('#cal-list [data-calid]').filter(function (x) { return x.checked && !x.disabled; }).map(function (x) { return x.dataset.calid; }); }
+  function calCheck() {
+    var n = calIds().length;
+    $('#cal-go').disabled = !n || !$('#cal-billing').checked;
+    $('#cal-go').textContent = 'Add to ' + n + ' rehearsal' + (n === 1 ? '' : 's');
+    $('#cal-confirm').hidden = true;
+  }
+  $('#cal-list').addEventListener('change', calCheck);
+  $('#cal-billing').addEventListener('change', calCheck);
+  $('#cal-cancel').addEventListener('click', function () { $('#cal-sheet').hidden = true; });
+  $('#cal-go').addEventListener('click', function () {
+    var ids = calIds(); if (!ids.length) return;
+    if ($('#cal-confirm').hidden) {
+      $('#cal-confirm').hidden = false;
+      $('#cal-confirm').textContent = 'Tap again to add ' + current.name + ' to ' + ids.length + ' ' + calState.group + ' rehearsal' + (ids.length === 1 ? '' : 's') + ' in MMS. This starts their billing.';
+      return;
+    }
+    var btn = this; btn.disabled = true; btn.textContent = 'Adding';
+    api('caladd', { sid: current.id, email: current.email, group: calState.group, ids: ids, billingDone: true }).then(function (r) {
+      $('#cal-sheet').hidden = true;
+      toast('Added to ' + r.added + ' rehearsal' + (r.added === 1 ? '' : 's') + '. Check their ledger in MMS for the monthly charge.');
+      loadPerson(current.id, true);
+    }).catch(function (e) { $('#cal-err').textContent = e.message; btn.disabled = false; calCheck(); });
+  });
+  $('#person').addEventListener('click', function (e) { var b = e.target.closest('[data-cal]'); if (b) openCal(b.dataset.cal); });
 
   // ---------- Take out of a group / end membership ----------
   var END = '__end__';

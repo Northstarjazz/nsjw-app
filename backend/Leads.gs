@@ -692,3 +692,95 @@ function sendGroupEmail_(who, p) {
   }
   return { ok: true, sent: sent.length, failed: failed };
 }
+
+// ---------- add a member to their ensemble's MMS calendar events ----------
+//
+// Billing comes from the calendar: an attendee on a group's events is charged
+// through their billing profile with that event's teacher. The API cannot read or
+// safely create billing profiles (an assignment to a teacher whose events generate
+// charges once back-billed a whole roster), so Ben sets the teacher and price in
+// MMS first and ticks that he did. This only adds the attendee, after a preview.
+
+/** "Group 6" -> events whose description is "Ensemble 6 ..." from today out ~6 months. */
+function groupEvents_(group) {
+  var m = /^Group (\d+)$/.exec(String(group));
+  if (!m) throw new Error('Adding to the calendar works for numbered ensembles (Group N) for now. Add ' + group + ' in MMS.');
+  var re = new RegExp('^Ensemble ' + m[1] + '(\\D|$)', 'i');
+  var tz = Session.getScriptTimeZone(), now = new Date();
+  var from = Utilities.formatDate(now, tz, "yyyy-MM-dd'T'00:00:00");
+  var to = Utilities.formatDate(new Date(now.getTime() + 183 * 864e5), tz, "yyyy-MM-dd'T'23:59:59");
+  var rows = mms_('post', 'search/calendar/events', { StartDate: from, EndDate: to }) || [];
+  return rows.filter(function (e) { return re.test(String(e.Description || '')); })
+    .sort(function (a, b) { return String(a.StartDate).localeCompare(String(b.StartDate)); });
+}
+
+function calPreview_(who, p) {
+  var sid = String(p.sid || ''), group = String(p.group || '');
+  if (!/^sdt_/.test(sid)) throw new Error('This person is not in MMS yet.');
+  var evs = groupEvents_(group);
+  var st = mmsStudent_(sid);
+  var fam = st && st.FamilyID ? mmsFamily_(st.FamilyID) : null;
+  var teachers = {};
+  var out = evs.map(function (e) {
+    var t = (e.Teacher && e.Teacher.Name) || '';
+    teachers[t] = true;
+    var ids = (e.Attendances || []).map(function (a) { return a.StudentID; });
+    return { id: e.ID, start: e.StartDate, mins: e.Duration, title: e.Description, teacher: t,
+      people: ids.length, already: ids.indexOf(sid) >= 0 };
+  });
+  return { group: group, events: out, teachers: Object.keys(teachers).filter(Boolean),
+    status: st ? st.Status : '', autoInvoicing: fam ? !!fam.AutoInvoicingEnabled : null };
+}
+
+function calAdd_(who, p) {
+  var sid = String(p.sid || ''), group = String(p.group || '');
+  if (!/^sdt_/.test(sid)) throw new Error('This person is not in MMS yet.');
+  if (p.billingDone !== true) throw new Error('Set up their teacher and billing in MMS first, then tick the box.');
+  var want = {}; (p.ids || []).forEach(function (x) { want[String(x)] = true; });
+  if (!Object.keys(want).length) throw new Error('Pick at least one rehearsal.');
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) throw new Error('Another change is running. Try again in a moment.');
+  var added = [], skipped = [], failed = '';
+  try {
+    var evs = groupEvents_(group).filter(function (e) { return want[e.ID]; });
+    for (var i = 0; i < evs.length; i++) {
+      var e = evs[i];
+      var before = (e.Attendances || []).map(function (a) { return a.StudentID; });
+      if (before.indexOf(sid) >= 0) { skipped.push(e.StartDate); continue; }
+      var body = {
+        ID: e.ID, EventCategoryID: e.EventCategory && e.EventCategory.ID,
+        EventLocationID: e.EventLocation ? e.EventLocation.ID : null,
+        TeacherID: e.TeacherID, OriginalTeacherID: e.OriginalTeacherID,
+        StartDate: e.StartDate, EndDate: e.EndDate, Duration: e.Duration,
+        Description: e.Description, DisplayDescriptionOnCalendar: e.DisplayDescriptionOnCalendar,
+        IsPublic: e.IsPublic, AllDay: e.AllDay, Recurring: e.Recurring, RepeatDetails: e.RepeatDetails,
+        PricePerParticipantType: e.PricePerParticipantType, PricePerParticipant: e.PricePerParticipant,
+        StudentIDs: before.concat([sid])
+      };
+      Utilities.sleep(600);
+      mms_('put', 'calendar/events/' + e.ID, body);
+      Utilities.sleep(900);
+      var day = String(e.StartDate).slice(0, 10);
+      var back = (mms_('post', 'search/calendar/events', { StartDate: day + 'T00:00:00', EndDate: day + 'T23:59:59',
+        TeacherIDs: [e.TeacherID] }) || []).filter(function (x) { return x.ID === e.ID; })[0];
+      var after = back ? (back.Attendances || []).map(function (a) { return a.StudentID; }) : [];
+      var lost = before.filter(function (x) { return after.indexOf(x) < 0; });
+      if (!back || after.indexOf(sid) < 0 || lost.length || back.TeacherID !== e.TeacherID) {
+        failed = 'Stopped at ' + day + ': MMS did not confirm the change' + (lost.length ? ' and ' + lost.length + ' attendee(s) went missing' : '') +
+          '. Check that event in MMS.';
+        break;
+      }
+      added.push(e.StartDate);
+    }
+  } finally {
+    lock.releaseLock();
+    if (added.length || failed) {
+      tab_(NOTES_TAB, ['Timestamp', 'MMS ID', 'Email', 'Author', 'Kind', 'Text', 'Due', 'Owner', 'Done'])
+        .appendRow([new Date(), sid, String(p.email || '').toLowerCase(), who, 'change',
+          'Added to ' + added.length + ' ' + group + ' rehearsal' + (added.length === 1 ? '' : 's') + ' in MMS' +
+          (failed ? '. ' + failed : '') + '. Check the family ledger in MMS for the $150 monthly charge.', '', '', '']);
+    }
+  }
+  if (failed) throw new Error((added.length ? 'Added ' + added.length + '. ' : '') + failed);
+  return { ok: true, added: added.length, skipped: skipped.length };
+}
