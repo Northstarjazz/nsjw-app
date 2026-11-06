@@ -203,7 +203,20 @@
     if (diff === 1) return 'Yesterday';
     return dayOnly(day);
   }
-  var PCOLS = [['name', 'Name'], ['email', 'Email'], ['status', 'Status'], ['programs', 'Programs'], ['tracks', 'Interested in'], ['created', 'Created'], ['lastActivity', 'Last activity']];
+  var PCOLS = [['name', 'Name'], ['email', 'Contact'], ['status', 'Status'], ['programs', 'Programs'], ['tracks', 'Interested in'], ['instruments', 'Plays'], ['created', 'Created'], ['lastActivity', 'Last activity']];
+  // Inline edits on the People table. Each one writes the same MMS tag the person page does.
+  function stageCell(r) {
+    if (r.status === 'Active' || r.status === 'Inactive') return statusPill(r.status);
+    var st = r.stage && LEAD.stages.indexOf(r.stage) >= 0 ? r.stage : 'First Contact';
+    return '<select class="cellsel" data-edit="stage" data-id="' + esc(r.id) + '" aria-label="Stage for ' + esc(r.name) + '">' +
+      LEAD.stages.map(function (x) { return '<option' + (x === st ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</select>' +
+      (r.status === 'Waiting' || r.status === 'Trial' ? '<span class="cellnote">' + esc(r.status) + '</span>' : '');
+  }
+  function listCell(r, field) {
+    var have = field === 'interest' ? (r.interests && r.interests.length ? r.interests : r.tracks) : r.instruments;
+    var txt = have.map(function (t) { return t === 'Classes' ? 'Class' : t; }).join(', ');
+    return '<button type="button" class="cellbtn' + (txt ? '' : ' empty') + '" data-edit="' + field + '" data-id="' + esc(r.id) + '">' + esc(txt || 'Add') + '</button>';
+  }
   function renderPeople() {
     var rows = peopleState.rows; if (!rows) return;
     // tabs
@@ -233,15 +246,15 @@
         (on ? (sp[1] === 'desc' ? ' &darr;' : ' &uarr;') : '') + '</span>';
     }).join('') + '</div>';
     $('#people-list').innerHTML = pg.length ? head + pg.map(function (r) {
-      var tr = r.tracks.map(function (t) { return t === 'Classes' ? 'Class' : t; }).join(', ');
-      return '<a class="card prow" href="#p/' + encodeURIComponent(r.id) + '">' + pickBox(r.id, r.name) +
-        '<span class="pc pc-name"><span class="avatar sm">' + esc(initials(r.name)) + '</span><span class="nm">' + esc(r.name) + '</span></span>' +
-        '<span class="pc pc-email">' + esc(r.email) + '</span>' +
-        '<span class="pc pc-status">' + statusPill(r.status === 'Active' || r.status === 'Inactive' ? r.status : (r.stage || r.status)) + '</span>' +
-        '<span class="pc pc-programs">' + esc(r.programs.join(', ') || r.instruments.join(', ')) + '</span>' +
-        '<span class="pc pc-tracks">' + esc(tr) + '</span>' +
+      return '<div class="card prow" data-href="#p/' + encodeURIComponent(r.id) + '" tabindex="0">' + pickBox(r.id, r.name) +
+        '<a class="pc pc-name" href="#p/' + encodeURIComponent(r.id) + '"><span class="avatar sm">' + esc(initials(r.name)) + '</span><span class="nm">' + esc(r.name) + '</span></a>' +
+        '<span class="pc pc-email"><span class="ln">' + esc(r.email) + '</span>' + (r.phone ? '<span class="ln sub">' + esc(r.phone) + '</span>' : '') + '</span>' +
+        '<span class="pc pc-status">' + stageCell(r) + '</span>' +
+        '<span class="pc pc-programs">' + esc(r.programs.join(', ')) + '</span>' +
+        '<span class="pc pc-tracks">' + listCell(r, 'interest') + '</span>' +
+        '<span class="pc pc-instruments">' + listCell(r, 'instrument') + '</span>' +
         '<span class="pc pc-created">' + esc(r.created ? dayOnly(r.created) : '') + '</span>' +
-        '<span class="pc pc-lastActivity">' + esc(actText(r.lastActivity) || 'None yet') + '</span></a>';
+        '<span class="pc pc-lastActivity">' + esc(actText(r.lastActivity) || 'None yet') + '</span></div>';
     }).join('') : '<div class="empty">No one matches. Try another view or clear a filter.</div>';
     // pager
     var nums = [], p = peopleState.page;
@@ -261,7 +274,71 @@
     peopleState.f[s.dataset.q] = s.value; peopleState.page = 1; renderPeople();
   });
   $('#psort').addEventListener('change', function () { peopleState.sort = this.value; peopleState.page = 1; renderPeople(); });
+  function rowById(id) { return (peopleState.rows || []).filter(function (r) { return r.id === id; })[0]; }
+  function tracksFrom(list) { return ['Ensemble', 'Private lessons', 'Classes'].filter(function (x) { return list.indexOf(x) >= 0; }); }
+  function cellSave(r, field, value, on) {
+    var before = JSON.stringify({ stage: r.stage, interests: r.interests, tracks: r.tracks, instruments: r.instruments });
+    if (field === 'stage') r.stage = value;
+    if (field === 'interest') {
+      var cur = r.interests && r.interests.length ? r.interests.slice() : [];
+      r.interests = on ? cur.concat(value) : cur.filter(function (x) { return x !== value; });
+      r.tracks = tracksFrom(r.interests);
+    }
+    if (field === 'instrument') r.instruments = on ? r.instruments.concat(value) : r.instruments.filter(function (x) { return x !== value; });
+    return api('leadtag', { sid: r.id, email: r.email, field: field, value: value, on: on }).then(function () {
+      leadsState.rows = null; todayState.data = null; groupsState.rows = null;
+      try { localStorage.removeItem(ckey('person', { sid: r.id })); } catch (e) {}
+      toast(field === 'stage' ? r.name + ': ' + value : 'Saved to MMS');
+    }).catch(function (err) {
+      var b = JSON.parse(before); r.stage = b.stage; r.interests = b.interests; r.tracks = b.tracks; r.instruments = b.instruments;
+      toast(err.message); renderPeople();
+    });
+  }
+  // Pop-over checklist for Interested in and Plays
+  var cellPop = document.createElement('div'); cellPop.id = 'cellpop'; cellPop.hidden = true; document.body.appendChild(cellPop);
+  function openCellPop(btn) {
+    var r = rowById(btn.dataset.id); if (!r) return;
+    var field = btn.dataset.edit, opts = field === 'interest' ? LEAD.interests : LEAD.instruments;
+    var have = field === 'interest' ? (r.interests || []) : r.instruments;
+    cellPop.dataset.id = r.id; cellPop.dataset.field = field;
+    cellPop.innerHTML = '<div class="cp-h">' + (field === 'interest' ? 'Interested in' : 'Plays') + ' · ' + esc(r.name) + '</div>' +
+      opts.map(function (o) {
+        return '<label class="cp-row"><input type="checkbox" value="' + esc(o) + '"' + (have.indexOf(o) >= 0 ? ' checked' : '') + '> ' + esc(o) + '</label>';
+      }).join('') +
+      (field === 'interest' && !(r.interests || []).length && r.tracks.length ? '<p class="cp-note">From their sign-up form: ' + esc(r.tracks.join(', ')) + '. Tick to save it as a tag.</p>' : '') +
+      '<button type="button" class="btn small" data-cpdone>Done</button>';
+    var b = btn.getBoundingClientRect();
+    cellPop.hidden = false;
+    var w = cellPop.offsetWidth, h = cellPop.offsetHeight;
+    cellPop.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, b.left)) + 'px';
+    cellPop.style.top = (b.bottom + h + 8 > window.innerHeight ? Math.max(8, b.top - h - 4) : b.bottom + 4) + 'px';
+    cellPop._btn = btn;
+  }
+  function closeCellPop() { if (cellPop.hidden) return; cellPop.hidden = true; renderPeople(); }
+  cellPop.addEventListener('change', function (e) {
+    var cb = e.target.closest('input[type=checkbox]'); if (!cb) return;
+    var r = rowById(cellPop.dataset.id); if (!r) return;
+    cellSave(r, cellPop.dataset.field, cb.value, cb.checked);
+  });
+  cellPop.addEventListener('click', function (e) { if (e.target.closest('[data-cpdone]')) closeCellPop(); });
+  document.addEventListener('mousedown', function (e) {
+    if (!cellPop.hidden && !e.target.closest('#cellpop') && !e.target.closest('[data-edit]')) closeCellPop();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeCellPop(); });
+  window.addEventListener('hashchange', function () { cellPop.hidden = true; });
+  $('#people-list').addEventListener('change', function (e) {
+    var s = e.target.closest('select[data-edit="stage"]'); if (!s) return;
+    var r = rowById(s.dataset.id); if (r) cellSave(r, 'stage', s.value, true);
+  });
+  $('#people-list').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.matches('.prow[data-href]')) location.hash = e.target.dataset.href;
+  });
   $('#people-list').addEventListener('click', function (e) {
+    var ed = e.target.closest('[data-edit]');
+    if (ed) { if (ed.tagName === 'BUTTON') { if (!cellPop.hidden && cellPop._btn === ed) closeCellPop(); else openCellPop(ed); } return; }
+    if (e.target.closest('.pick, select, a, #cellpop')) return;
+    var row = e.target.closest('.prow[data-href]');
+    if (row) { location.hash = row.dataset.href; return; }
     var h = e.target.closest('[data-sort]'); if (!h) return;
     var k = h.dataset.sort, cur = peopleState.sort.split(':');
     peopleState.sort = k + ':' + (cur[0] === k && cur[1] === 'asc' ? 'desc' : cur[0] === k ? 'asc' : (k === 'name' || k === 'email' || k === 'status' ? 'asc' : 'desc'));
@@ -274,6 +351,13 @@
   $('#ppager').addEventListener('change', function (e) {
     if (e.target.id !== 'pper') return; peopleState.per = Number(e.target.value); store('nsjw_pper', peopleState.per); peopleState.page = 1; renderPeople();
   });
+  // Sidebar: collapse to icons on desktop, remembered per browser
+  function setNavMini(on) {
+    document.documentElement.classList.toggle('navmini', on); store('nsjw_navmini', on ? '1' : '');
+    var t = $('#navtoggle'); if (t) { t.setAttribute('aria-label', on ? 'Expand menu' : 'Collapse menu'); t.title = on ? 'Expand menu' : 'Collapse menu'; }
+  }
+  setNavMini(store('nsjw_navmini') === '1');
+  $('#navtoggle').addEventListener('click', function () { setNavMini(!document.documentElement.classList.contains('navmini')); });
   $('#pclear').addEventListener('click', function () { peopleState.f = {}; peopleState.adv = {}; peopleState.page = 1; renderPeople(); });
   $('#psave').addEventListener('click', function () {
     var bits = [];

@@ -96,3 +96,45 @@ h2 { font-size: 32px; line-height: 1.05; }
   .ev-n { font-size: 13px; line-height: 1.25; }
   .ev-m { font-size: 11px; }
 }
+
+/* Collapsible sidebar (desktop) */
+.nav-toggle { display: none; }
+@media (min-width: 1000px) {
+  .nav-toggle { display: flex; align-items: center; gap: 12px; margin-top: auto; min-height: 40px; padding: 0 12px; background: none; border: 0;
+    color: inherit; opacity: .7; font: 500 13px var(--font); cursor: pointer; border-radius: 4px; }
+  .nav-toggle:hover { opacity: 1; background: rgba(255,255,255,.05); }
+  .nav-toggle svg, .tabbar a svg { width: 20px; height: 20px; flex: none; }
+  .screen { transition: grid-template-columns .15s ease; }
+  html.navmini .screen { grid-template-columns: 72px minmax(0, 1fr); }
+  html.navmini .tabbar { padding: 0 10px 18px; }
+  html.navmini .tabbar::before { content: "NS"; text-align: center; padding: 28px 0 22px; font-size: 24px; }
+  html.navmini .tabbar a, html.navmini .nav-toggle { justify-content: center; padding: 0; gap: 0; }
+  html.navmini .tabbar a span, html.navmini .nav-toggle span { display: none; }
+  html.navmini .nav-toggle svg { transform: rotate(180deg); }
+  /* People is a working table: use the whole width */
+  #v-people > main { max-width: none; }
+  .ptable .phead, .ptable .prow { grid-template-columns: 32px minmax(160px, 1.3fr) minmax(170px, 1.3fr) 150px minmax(90px, .9fr) minmax(120px, 1fr) minmax(100px, .9fr) 100px 130px !important; }
+  .ptable .prow .pc-email { white-space: normal; }
+  .ptable .prow .pc-email .ln { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ptable .prow .pc-email .ln.sub { font-size: 12px; }
+}
+
+/* Inline-editable cells */
+.prow[data-href] { cursor: pointer; }
+.prow .pc-name { color: var(--ink); text-decoration: none; }
+.prow .pc-instruments { display: none; }
+@media (min-width: 1000px) { .ptable .prow .pc-instruments { display: block; } .ptable .phead .pc-instruments { display: block; } }
+.cellsel { font: 600 11px var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); background-color: transparent;
+  border: 1px solid var(--line); border-radius: 4px; padding: 5px 26px 5px 8px; min-height: 30px; max-width: 100%; cursor: pointer; }
+.cellsel:hover, .cellsel:focus { border-color: var(--ink); }
+.cellnote { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+.cellbtn { display: block; width: 100%; text-align: left; background: none; border: 1px solid transparent; border-radius: 4px; padding: 4px 6px; margin-left: -6px;
+  font: inherit; font-size: 14px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.cellbtn:hover, .cellbtn:focus { border-color: var(--line); background: var(--surface); color: var(--ink); }
+.cellbtn.empty { color: var(--muted); opacity: .6; font-style: italic; }
+#cellpop { position: fixed; z-index: 60; min-width: 200px; max-width: 260px; background: var(--surface); border: 1px solid var(--ink); border-radius: 6px;
+  padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+#cellpop .cp-h { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+#cellpop .cp-row { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: 14px; cursor: pointer; }
+#cellpop .cp-note { font-size: 12px; color: var(--muted); margin: 6px 0; }
+#cellpop .btn { margin-top: 8px; width: 100%; }

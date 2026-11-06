@@ -287,6 +287,8 @@ function listContacts_() {
     return { id: r.ID, name: r.Name, email: r.Email, phone: r.Phone, status: r.Status,
       stage: stageOf_(r, tags), programs: split_(r.Programs), instruments: split_(r.Instruments),
       tracks: tracksOf_(tags, s), source: s.source || '', created: gday_(r.Started),
+      interests: tags.filter(function (t) { return /^Interest: /.test(t); }).map(function (t) { return t.slice(10); }),
+      nights: tags.filter(function (t) { return /^Nights: /.test(t); }).map(function (t) { return t.slice(8); }),
       lastActivity: la ? Utilities.formatDate(la, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm") : '' };
   });
 }

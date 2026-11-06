@@ -25,10 +25,10 @@
 <meta name="apple-mobile-web-app-title" content="North Star HQ">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/nsjw.css?v=46">
-<link rel="stylesheet" href="css/app.css?v=46">
-<link rel="stylesheet" href="css/sgraffito.css?v=46">
-<link rel="stylesheet" href="css/natural.css?v=46">
+<link rel="stylesheet" href="css/nsjw.css?v=47">
+<link rel="stylesheet" href="css/app.css?v=47">
+<link rel="stylesheet" href="css/sgraffito.css?v=47">
+<link rel="stylesheet" href="css/natural.css?v=47">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -199,11 +199,12 @@
   </section>
 
   <nav class="tabbar" id="tabbar" hidden>
-    <a href="#today" data-nav="today"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 10l7-6 7 6v7H3z"/></svg>Today</a>
-    <a href="#people" data-nav="people"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></svg>People</a>
-    <a href="#leads" data-nav="leads"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 4h14l-5 6v5l-4 2v-7z"/></svg>Leads</a>
-    <a href="#groups" data-nav="groups"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="7" cy="7" r="3"/><circle cx="14" cy="8" r="2.5"/><path d="M2 17c0-3 2.5-5 5-5s5 2 5 5M12 17c0-2 1.5-4 4-4"/></svg>Groups</a>
-    <a href="#lessons" data-nav="lessons"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 15V4l9-2v11"/><circle cx="5.5" cy="15" r="2.5"/><circle cx="14.5" cy="13" r="2.5"/></svg>Lessons</a>
+    <a href="#today" data-nav="today" title="Today"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 10l7-6 7 6v7H3z"/></svg><span>Today</span></a>
+    <a href="#people" data-nav="people" title="People"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></svg><span>People</span></a>
+    <a href="#leads" data-nav="leads" title="Leads"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 4h14l-5 6v5l-4 2v-7z"/></svg><span>Leads</span></a>
+    <a href="#groups" data-nav="groups" title="Groups"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="7" cy="7" r="3"/><circle cx="14" cy="8" r="2.5"/><path d="M2 17c0-3 2.5-5 5-5s5 2 5 5M12 17c0-2 1.5-4 4-4"/></svg><span>Groups</span></a>
+    <a href="#lessons" data-nav="lessons" title="Lessons"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 15V4l9-2v11"/><circle cx="5.5" cy="15" r="2.5"/><circle cx="14.5" cy="13" r="2.5"/></svg><span>Lessons</span></a>
+    <button type="button" class="nav-toggle" id="navtoggle" aria-label="Collapse menu" title="Collapse menu"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 5l-5 5 5 5"/></svg><span>Collapse</span></button>
   </nav>
 
 </div>
@@ -447,6 +448,6 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script src="js/app.js?v=46"></script>
+<script src="js/app.js?v=47"></script>
 </body>
 </html>
