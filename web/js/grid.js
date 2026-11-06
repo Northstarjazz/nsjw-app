@@ -50,6 +50,7 @@
       return '<span class="g-add">Add</span>';
     };
   }
+  var tagsKnown = function (cell) { return cell.getRow().getData().tagsKnown !== false; };
   function multi(values) {
     return { values: values, multiselect: true, clearable: false };
   }
@@ -108,7 +109,7 @@
       paginationCounter: cfg.paginate ? 'rows' : false,
       selectableRows: 'highlight', selectableRowsPersistence: false,
       placeholder: cfg.empty || 'No one matches.',
-      columnDefaults: { headerSortTristate: false, vertAlign: 'middle', tooltip: false },
+      columnDefaults: { headerSortTristate: false, vertAlign: 'middle', tooltip: false, variableHeight: true },
       initialSort: cfg.sort ? [cfg.sort] : [],
       columns: cfg.columns
     });
@@ -117,7 +118,11 @@
       if (e.target.closest('.tabulator-cell[tabulator-field="_sel"], .tabulator-editable, input, select')) return;
       location.hash = '#p/' + encodeURIComponent(row.getData().id);
     });
-    t.on('cellEditing', function () { el.classList.add('g-editing'); });
+    t.on('cellEditing', function (cell) {
+      el.classList.add('g-editing');
+      var single = cell.getField() === 'stage';
+      setTimeout(function () { var l = document.querySelector('.tabulator-edit-list'); if (l) l.classList.toggle('g-single', single); }, 0);
+    });
     t.on('cellEditCancelled', function () { el.classList.remove('g-editing'); });
     t.on('cellEdited', function () { el.classList.remove('g-editing'); });
     el._grid = t;
@@ -174,17 +179,17 @@
           nameCol(),
           { title: 'Contact', field: 'email', minWidth: 160, widthGrow: 2, formatter: function (cell) {
             var d = cell.getRow().getData();
-            return '<span class="g-ln">' + esc(d.email) + '</span>' + (d.phone ? '<span class="g-ln g-sub">' + esc(d.phone) + '</span>' : '');
+            return '<span class="g-ln" title="' + esc(d.email) + '">' + esc(d.email) + '</span>' + (d.phone ? '<span class="g-ln g-sub">' + esc(d.phone) + '</span>' : '');
           } },
           { title: 'Status', field: 'stage', minWidth: 150, widthGrow: 1, editor: 'list', editable: editingStage,
-            editorParams: { values: L.stages }, formatter: stageFormatter, cellEdited: stageEdited(h),
+            editorParams: { values: L.stages, listOnEmpty: true }, formatter: stageFormatter, cellEdited: stageEdited(h),
             sorter: function (a, b, ra, rb) { var x = ra.getData(), y = rb.getData(); return String(x.status === 'Lead' ? x.stage : x.status).localeCompare(String(y.status === 'Lead' ? y.stage : y.status)); } },
-          { title: 'Programs', field: 'programsText', minWidth: 110, widthGrow: 1 },
-          { title: 'Interested in', field: 'interests', minWidth: 120, widthGrow: 1, editor: 'list', editorParams: multi(L.interests),
+          { title: 'Programs', field: 'programsText', minWidth: 110, widthGrow: 1, formatter: function (c) { return '<span class="g-list">' + esc(c.getValue()) + '</span>'; } },
+          { title: 'Interested in', field: 'interests', minWidth: 130, widthGrow: 1, editor: 'list', editorParams: multi(L.interests), editable: tagsKnown,
             formatter: listFormatter('tracks'), cellEdited: tagEdits(h, 'interest'), sorter: function (a, b) { return joinList(a).localeCompare(joinList(b)); } },
           { title: 'Plays', field: 'instruments', minWidth: 110, widthGrow: 1, editor: 'list', editorParams: multi(L.instruments),
-            formatter: listFormatter(), cellEdited: tagEdits(h, 'instrument'), sorter: function (a, b) { return joinList(a).localeCompare(joinList(b)); } },
-          { title: 'Nights', field: 'nights', minWidth: 110, widthGrow: 1, visible: false, editor: 'list', editorParams: multi(L.nights),
+            formatter: listFormatter('formInstruments'), cellEdited: tagEdits(h, 'instrument'), sorter: function (a, b) { return joinList(a).localeCompare(joinList(b)); } },
+          { title: 'Nights', field: 'nights', minWidth: 110, widthGrow: 1, visible: false, editor: 'list', editorParams: multi(L.nights), editable: tagsKnown,
             formatter: listFormatter(), cellEdited: tagEdits(h, 'nights') },
           { title: 'Source', field: 'source', minWidth: 140, widthGrow: 1, visible: false },
           { title: 'Created', field: 'created', minWidth: 105, widthGrow: 1, formatter: function (c) { return esc(day(c.getValue())); } },

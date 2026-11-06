@@ -263,8 +263,8 @@
       var gsp = peopleState.sort.split(':');
       NSJWGrid.people($('#people-list'), list.map(function (r) {
         return { id: r.id, name: r.name, email: r.email, phone: r.phone, status: r.status, stage: r.stage,
-          programsText: r.programs.join(', '), interests: (r.interests || []).slice(), tracks: r.tracks,
-          instruments: r.instruments.slice(), nights: (r.nights || []).slice(), source: r.source, created: r.created, lastActivity: r.lastActivity };
+          programsText: r.programs.join(', '), interests: (r.interests || []).slice(), tracks: r.tracks, tagsKnown: Array.isArray(r.interests),
+          instruments: r.instruments.slice(), formInstruments: r.formInstruments || [], nights: (r.nights || []).slice(), source: r.source, created: r.created, lastActivity: r.lastActivity };
       }), gridHooks({ per: per, sort: { column: { status: 'stage' }[gsp[0]] || gsp[0], dir: gsp[1] }, colsBtn: $('#pcols'),
         source: function (id) { return rowById(id); } }));
       return;

@@ -289,6 +289,7 @@ function listContacts_() {
       tracks: tracksOf_(tags, s), source: s.source || '', created: gday_(r.Started),
       interests: tags.filter(function (t) { return /^Interest: /.test(t); }).map(function (t) { return t.slice(10); }),
       nights: tags.filter(function (t) { return /^Nights: /.test(t); }).map(function (t) { return t.slice(8); }),
+      formInstruments: split_(r.Instruments).length ? [] : formInstruments_(s.instrument),
       lastActivity: la ? Utilities.formatDate(la, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm") : '' };
   });
 }
