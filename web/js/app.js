@@ -758,7 +758,7 @@
     if (b.error) return '<div class="rcard" id="bill-card"><div class="rcard-h">Billing in MMS</div><p class="muted small">' + esc(b.error) + '</p></div>';
     function rate(x) {
       if (x.mode === 'None' || !(x.rate > 0)) return 'No charge';
-      return money(x.rate) + (x.mode === 'PerLesson' ? '/lesson' : x.mode === 'FixedMonthly' ? '/month' : '');
+      return money(x.rate) + (x.mode === 'PerLesson' ? '/lesson' : x.mode === 'FixedMonthly' ? '/month' : x.mode === 'Hourly' ? '/hour' : '');
     }
     var used = b.profiles.filter(function (x) { return x.eventsThisMonth || (x.mode !== 'None' && x.rate > 0); });
     var idle = b.profiles.length - used.length;
@@ -837,7 +837,7 @@
       var href = r['MMS ID'] ? '#p/' + encodeURIComponent(r['MMS ID']) : '';
       var m = r.mms || null;
       var when = [r['Day and time'], r.Frequency, m && m.location].filter(Boolean).join(' · ');
-      var cost = m && m.mode === 'PerLesson' && m.rate ? money(m.rate) + '/lesson' : money(r['Monthly cost']);
+      var cost = m && m.rate && m.mode === 'PerLesson' ? money(m.rate) + '/lesson' : m && m.rate && m.mode === 'Hourly' ? money(m.rate) + '/hour' : money(r['Monthly cost']);
       return '<' + (href ? 'a href="' + href + '"' : 'div') + ' class="card lesson-row">' +
         '<div class="line1"><span class="name">' + esc(r.Name) + '</span><span class="cost">' + esc(cost) + '</span></div>' +
         '<div class="sub">' + esc([r.Teacher || 'No teacher yet', r.Instrument].filter(Boolean).join(' · ')) + '</div>' +

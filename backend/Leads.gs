@@ -714,7 +714,8 @@ function groupEvents_(group, days) {
   var m = /^Group (\d+)$/.exec(String(group));
   if (!m) throw new Error('Adding to the calendar works for numbered ensembles (Group N) for now. Add ' + group + ' in MMS.');
   // MMS names vary: "Ensemble 6 Rehearsal", "Group 1 Rehearsal", "Group 21 - 1st & 3rd Tuesdays..."
-  var re = new RegExp('^(Ensemble|Group) ' + m[1] + '(\\D|$)', 'i');
+  // Some are prefixed: "North Star Jazz Workshops Ensemble 14 Rehearsal".
+  var re = new RegExp('^(North Star Jazz Workshops )?(Ensemble|Group) ' + m[1] + '(\\D|$)', 'i');
   return ensembleEvents_(days || 183).filter(function (e) { return re.test(String(e.Description || '')); })
     .sort(function (a, b) { return String(a.StartDate).localeCompare(String(b.StartDate)); });
 }

@@ -369,7 +369,8 @@ function lessonsLive_() {
     x.location = (e.EventLocation && e.EventLocation.Name) || '';
     x.rate = b ? b.BillingRate : 0; x.mode = b ? b.DefaultBillingMode : 'None';
     x.monthly = !b || !(b.BillingRate > 0) ? 0 : b.DefaultBillingMode === 'FixedMonthly' ? b.BillingRate :
-      b.DefaultBillingMode === 'PerLesson' ? b.BillingRate * x.thisMonth : 0;
+      b.DefaultBillingMode === 'PerLesson' ? b.BillingRate * x.thisMonth :
+      b.DefaultBillingMode === 'Hourly' ? Math.round(b.BillingRate * (Number(e.Duration) || 60) / 60 * x.thisMonth * 100) / 100 : 0;
     delete x._n; delete x._l;
   });
   return out;
@@ -384,7 +385,7 @@ function lessonsLive_() {
 function groupsLive_() {
   var names = teacherNames_(), out = {}, now = new Date();
   ensembleEvents_(35).forEach(function (e) {
-    var m = /^(?:Ensemble|Group) (\d+)(?:\D|$)/i.exec(String(e.Description || ''));
+    var m = /^(?:North Star Jazz Workshops )?(?:Ensemble|Group) (\d+)(?:\D|$)/i.exec(String(e.Description || ''));
     if (!m || new Date(e.StartDate) < now) return;
     var g = 'Group ' + m[1];
     if (out[g] && out[g].next <= String(e.StartDate)) return;
