@@ -53,7 +53,8 @@ function today_() {
     follow: follow.slice(0, 15).map(slim), followCount: follow.length,
     fresh: fresh.slice(0, 10).map(slim), freshCount: fresh.length,
     deposits: deposits.map(slim),
-    seats: seats.slice(0, 8)
+    seats: seats.slice(0, 8),
+    billing: billingIssues_()
   };
 }
 

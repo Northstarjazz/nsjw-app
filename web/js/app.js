@@ -473,8 +473,8 @@
   var personSeq = 0; // a load that finishes after a newer load or a local change is ignored
   function loadPerson(sid, fresh) {
     var main = $('#person'), mine = ++personSeq;
-    if (!current || current.id !== sid) { propOpen = ''; actF = { kind: 'all', q: '' }; }
-    if (fresh) { try { localStorage.removeItem(ckey('person', { sid: sid })); } catch (e) {} }
+    if (!current || current.id !== sid) { propOpen = ''; aboutKeep = false; actF = { kind: 'all', q: '' }; }
+    if (fresh) { delete billCache[sid]; try { localStorage.removeItem(ckey('person', { sid: sid })); } catch (e) {} }
     if (!fresh || !current || current.id !== sid) main.innerHTML = '<div class="loading">Loading</div>';
     $('#mms-link').hidden = true;
     swr('person', { sid: sid }, function (p) {
@@ -517,6 +517,7 @@
   // Overview and Activity in the middle, groups, lessons and email threads on the right.
   // On a phone the three panes stack in that order.
   var propOpen = '';            // which property row is being edited
+  var aboutKeep = false;        // on a phone, About stays open once you have edited in it
   var actF = { kind: 'all', q: '' };
   var ICON = {
     email: '<path d="M3 5h14v10H3z"/><path d="M3 5l7 6 7-6"/>',
@@ -540,6 +541,18 @@
       '<aside class="rec-side">' + sideHtml(p) + '</aside></div>';
     var link = $('#mms-link');
     if (p.mmsUrl) { link.href = p.mmsUrl; link.hidden = false; } else link.hidden = true;
+  }
+
+  function fmtPhone(v) {
+    var d = String(v || '').replace(/\D/g, '');
+    if (d.length === 11 && d[0] === '1') d = d.slice(1);
+    return d.length === 10 ? d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6) : String(v || '');
+  }
+  // One field, edited in place, saved straight to MMS (Mms.gs studentPut_ checks it took).
+  function fieldEd(field, value, type, hint) {
+    return '<form class="sedit" data-sedit="' + field + '"><input name="v" type="' + type + '" value="' + esc(type === 'tel' ? fmtPhone(value) : value || '') + '" placeholder="' + esc(hint) + '"' +
+      (type === 'tel' ? ' inputmode="tel" autocomplete="off"' : '') + '><button class="btn primary" type="submit">Save</button></form>' +
+      '<p class="muted small">Saves to MMS.</p>';
   }
 
   function pickTags(p, pre) { return (p.tags || []).filter(function (t) { return t.indexOf(pre) === 0; }).map(function (t) { return t.slice(pre.length); }); }
@@ -585,14 +598,16 @@
       '<div class="sub">' + statusPill(p.status) + (lead ? ' <span class="pill accent">' + esc(stage) + '</span>' : '') + '</div></div></div>' +
       acts +
       (lead ? '<button type="button" class="btn rconv' + (stage === 'Committed' ? ' primary' : '') + '" data-place>Convert to member</button>' : '') +
-      '<details class="rabout"' + (propOpen || window.innerWidth >= 1000 ? ' open' : '') + '><summary class="rsec">About this person</summary>' +
+      '<details class="rabout"' + (propOpen || aboutKeep || window.innerWidth >= 1000 ? ' open' : '') + '><summary class="rsec">About this person</summary>' +
       (lead ? prop('stage', 'Stage', esc(stage), stageEd) : '') +
-      prop('email', 'Email', p.email ? '<span class="sel">' + esc(p.email) + '</span>' : '') +
-      prop('phone', 'Phone', p.phone ? '<a href="tel:' + esc(String(p.phone).replace(/[^\d+]/g, '')) + '">' + esc(p.phone) + '</a>' : '') +
+      prop('email', 'Email', (p.email ? '<span class="sel">' + esc(p.email) + '</span>' : '') +
+        (p.mmsUrl ? ' <a class="faint small" target="_blank" rel="noopener" href="' + esc(p.mmsUrl) + '">Change in MMS</a>' : '')) +
+      prop('phone', 'Phone', p.phone ? '<a href="tel:' + esc(String(p.phone).replace(/[^\d+]/g, '')) + '">' + esc(fmtPhone(p.phone)) + '</a>' : '',
+        p.id ? fieldEd('phone', p.phone, 'tel', '612 555 0123') : '') +
       (p.id ? prop('interest', 'Interested in', esc(interests.join(', ')), chips('interest', LEAD.interests, interests)) : '') +
       (p.id ? prop('instrument', 'Plays', esc(plays.join(', ')) + (p.instruments.length || !plays.length ? '' : ' <span class="faint">(form)</span>'), chips('instrument', LEAD.instruments, p.instruments || [])) : '') +
       (p.id ? prop('nights', 'Nights they can do', esc(nights.join(', ')), chips('nights', LEAD.nights, nights)) : '') +
-      prop('skill', 'Skill', esc(p.skill)) +
+      prop('skill', 'Skill', esc(p.skill), p.id ? fieldEd('skill', p.skill, 'text', 'Beginner, Intermediate, Advanced') : '') +
       prop('started', 'Signed up', esc(dayOnly(p.started))) +
       prop('programs', 'Groups and programs', esc((p.programs || []).join(', '))) +
       (p.lastEvent || p.nextEvent ? prop('last', 'Last lesson', esc(dayOnly(p.lastEvent))) + prop('next', 'Next lesson', esc(dayOnly(p.nextEvent))) : '') +
@@ -729,7 +744,45 @@
           (t.theyWroteLast ? ' · <span class="pill accent">Waiting on us</span>' : '') + '</div></div>';
       }).join('') : '<p class="muted small">No email with them yet.</p>') + '</div>';
 
-    return groups + lesson + seq + th;
+    return groups + billCard(p) + lesson + seq + th;
+  }
+
+  // Billing, read live from MMS: who bills them, at what rate, recent charges, and anything that looks off.
+  var billCache = {};
+  function billCard(p) {
+    if (!p.id) return '';
+    var b = billCache[p.id];
+    if (!b) { loadBilling(p.id); return '<div class="rcard" id="bill-card"><div class="rcard-h">Billing in MMS</div><div class="loading">Loading</div></div>'; }
+    if (b.error) return '<div class="rcard" id="bill-card"><div class="rcard-h">Billing in MMS</div><p class="muted small">' + esc(b.error) + '</p></div>';
+    function rate(x) {
+      if (x.mode === 'None' || !(x.rate > 0)) return 'No charge';
+      return money(x.rate) + (x.mode === 'PerLesson' ? '/lesson' : x.mode === 'FixedMonthly' ? '/month' : '');
+    }
+    var used = b.profiles.filter(function (x) { return x.eventsThisMonth || (x.mode !== 'None' && x.rate > 0); });
+    var idle = b.profiles.length - used.length;
+    return '<div class="rcard" id="bill-card"><div class="rcard-h">Billing in MMS' + (b.issues.length ? ' <span class="pill warn">' + b.issues.length + ' to check</span>' : '') + '</div>' +
+      b.issues.map(function (i) { return '<div class="rmini"><b>' + esc(i.problem) + '</b><div class="muted small">' + esc(i.detail) + '</div></div>'; }).join('') +
+      (used.length ? used.map(function (x) {
+        return '<div class="rmini"><div><b>' + esc(x.teacher) + '</b> · ' + esc(x.category) + '</div><div class="muted small">' + esc(rate(x)) +
+          ' · ' + (x.eventsThisMonth ? x.eventsThisMonth + ' event' + (x.eventsThisMonth === 1 ? '' : 's') + ' this month' : 'no events this month') + '</div></div>';
+      }).join('') : '<p class="muted small">No billing set up.</p>') +
+      (idle ? '<p class="muted small">' + idle + ' more teacher' + (idle === 1 ? '' : 's') + ' at no charge.</p>' : '') +
+      (b.charges.length ? '<div class="rcard-sub">Charges</div>' + b.charges.slice(0, 6).map(function (c) {
+        return '<div class="bline"><span>' + esc(dayOnly(c.date)) + '</span><span class="bdesc">' + esc(c.desc) + '</span><span class="bamt' + (c.type === 'Charge' ? '' : ' neg') + '">' +
+          (c.type === 'Charge' ? '' : '-') + esc(money(Math.abs(c.amount))) + '</span></div>';
+      }).join('') : '') +
+      (p.mmsUrl ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(p.mmsUrl) + '">Change billing in MMS</a>' : '') + '</div>';
+  }
+  function loadBilling(sid) {
+    if (loadBilling.busy === sid) return;
+    loadBilling.busy = sid;
+    swr('billing', { sid: sid }, function (b) {
+      billCache[sid] = b;
+      if (current && current.id === sid) { var el = $('#bill-card'); if (el) el.outerHTML = billCard(current); }
+    }).catch(function (e) {
+      billCache[sid] = { error: /Unknown action/.test(e.message) ? 'Shows up once the new backend is deployed.' : e.message };
+      if (current && current.id === sid) { var el = $('#bill-card'); if (el) el.outerHTML = billCard(current); }
+    }).then(function () { loadBilling.busy = ''; });
   }
 
   // ---------- Lessons ----------
@@ -844,6 +897,20 @@
   });
 
   function curTab() { var t = document.querySelector('#person .tab.on'); return t ? t.dataset.tab : 'overview'; }
+  $('#person').addEventListener('submit', function (e) {
+    var f = e.target.closest('[data-sedit]');
+    if (!f || !current) return;
+    e.preventDefault();
+    var field = f.dataset.sedit, value = f.v.value.trim(), btn = f.querySelector('button'), sid = current.id;
+    btn.disabled = true; btn.textContent = 'Saving';
+    api('studentedit', { sid: sid, field: field, value: value }).then(function (r) {
+      if (!current || current.id !== sid) return;
+      if (r.after) { current.phone = r.after.phone; current.skill = r.after.skill; }
+      try { localStorage.removeItem(ckey('person', { sid: sid })); localStorage.removeItem(ckey('contacts')); } catch (x) {}
+      propOpen = ''; renderPerson(current, curTab());
+      toast(r.changed ? 'Saved to MMS' : 'No change');
+    }).catch(function (err) { toast(err.message); btn.disabled = false; btn.textContent = 'Save'; });
+  });
   $('#person').addEventListener('input', function (e) {
     if (e.target.id === 'act-q' && current) { actF.q = e.target.value; $('#act-list').innerHTML = actList(actItems(current)); }
   });
@@ -851,7 +918,7 @@
     var tab = e.target.closest('[data-tab]');
     if (tab && current) { renderPerson(current, tab.dataset.tab); window.scrollTo(0, 0); return; }
     var pr = e.target.closest('[data-prop]');
-    if (pr && current) { propOpen = propOpen === pr.dataset.prop ? '' : pr.dataset.prop; renderPerson(current, curTab()); return; }
+    if (pr && current) { propOpen = propOpen === pr.dataset.prop ? '' : pr.dataset.prop; aboutKeep = true; renderPerson(current, curTab()); return; }
     var ak = e.target.closest('[data-actk]');
     if (ak && current) { actF.kind = ak.dataset.actk; renderPerson(current, 'activity'); return; }
     var open = e.target.closest('[data-open]');
@@ -1337,6 +1404,11 @@
         '<div class="pills"><span class="pill open">Open: ' + esc(openText(g.open)) + '</span></div>' +
         (g.bySeat ? '<div class="meta">' + esc('Could fill it: ' + Object.keys(g.bySeat).map(function (k) { return k + ' ' + g.bySeat[k]; }).join(' · ')) + '</div>' : '') + '</a>';
     }).join('') + '</div>' : '<div class="empty small-empty">Every group is full.</div>');
+    if (d.billing && d.billing.length) {
+      html += section('Billing to check', d.billing.length, '', '<p class="muted small">From last night\'s check of MMS. Nothing was changed.</p><div class="list">' + d.billing.slice(0, 12).map(function (b) {
+        return '<a class="card" href="#p/' + encodeURIComponent(b.id) + '"><div class="line1"><span class="name">' + esc(b.name) + '</span><span class="pill warn">' + esc(b.problem) + '</span></div><div class="meta">' + esc(b.detail) + '</div></a>';
+      }).join('') + '</div>');
+    }
     $('#today').innerHTML = '<div id="teaching"></div>' + html;
     renderTeaching();
   }

@@ -226,6 +226,7 @@ function tagWriteMany_(name, sids, on) {
   Utilities.sleep(800);
   var after = members_(g.ID);
   var ok = after.length === next.length && sids.every(function (x) { return (after.indexOf(x) >= 0) === on; });
+  mmsLog_(sids.join(' '), (on ? 'Add tag ' : 'Remove tag ') + name, ids.length + ' people', after.length + ' people', ok ? 'ok' : 'not confirmed');
   if (!ok) throw new Error('MMS did not confirm the change to "' + name + '". Check the tag in MMS.');
   return { changed: true, count: after.length };
 }
@@ -435,27 +436,10 @@ function mmsFamily_(fid) {
   return (r || []).filter(function (x) { return x.ID === fid; })[0] || null;
 }
 
+/** Status change through the guarded writer (Mms.gs): verified, logged, written through to the roster. */
 function setStatus_(sid, status) {
-  var before = mms_('get', 'students/' + sid);
-  if (Array.isArray(before)) before = before[0];
-  if (!before || before.ID !== sid) throw new Error('Could not read the student from MMS.');
-  var body = JSON.parse(JSON.stringify(before));
-  body.Status = status;
-  Utilities.sleep(600);
-  mms_('put', 'students/' + sid, body);
-  Utilities.sleep(800);
-  var after = mms_('get', 'students/' + sid);
-  if (Array.isArray(after)) after = after[0];
-  if (!after || after.Status !== status) throw new Error('MMS did not take the status change. Check the student in MMS.');
-  var drift = Object.keys(before).filter(function (k) {
-    if (k === 'Status' || k === 'Active' || k === 'AccessStatus' || k === 'LastLogin') return false;
-    var a = before[k], b = after[k];
-    if ((a === '' || a == null) && (b === '' || b == null)) return false;
-    return JSON.stringify(a) !== JSON.stringify(b);
-  });
-  if (drift.length) {
-    tab_(NOTES_TAB).appendRow([new Date(), sid, '', 'app', 'change', 'Check in MMS: status change also touched ' + drift.join(', '), '', '', '']);
-  }
+  if (['Active', 'Inactive', 'Lead', 'Trial', 'Waiting'].indexOf(status) < 0) throw new Error('Unknown status ' + status);
+  studentPut_(sid, { status: status });
 }
 
 /** Reflect a placement in the roster tab right away. */

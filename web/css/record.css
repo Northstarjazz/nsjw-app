@@ -109,3 +109,18 @@
 label.fu { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; margin: 8px 0; }
 label.fu select { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--surface); }
 .due-presets { margin-bottom: 8px; }
+
+/* In-place field edits that save to MMS */
+.sedit { display: flex; gap: 8px; margin: 4px 0 2px; }
+.sedit input { flex: 1; min-width: 0; height: 44px; padding: 0 12px; border: 1px solid var(--line, #C9C5AF); border-radius: 4px; font: inherit; background: #fff; }
+.sedit .btn { height: 44px; }
+
+/* Billing card */
+.rcard-sub { font-weight: 600; font-size: 13px; margin: 10px 0 4px; }
+.bline { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 8px; font-size: 13px; padding: 4px 0; border-top: 1px solid var(--line-soft, #ECEADF); }
+.bline .bdesc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted, #5B5A52); }
+.bline .bamt { font-variant-numeric: tabular-nums; font-weight: 600; }
+.bline .bamt.neg { color: #2F5B3E; }
+#bill-card .btn { margin-top: 10px; }
+#bill-card a.btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; box-sizing: border-box; text-decoration: none; }
+#bill-card .rmini + p { margin-top: 4px; }
