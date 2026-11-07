@@ -756,6 +756,7 @@
     var b = billCache[p.id];
     if (!b) { loadBilling(p.id); return '<div class="rcard" id="bill-card"><div class="rcard-h">Billing in MMS</div><div class="loading">Loading</div></div>'; }
     if (b.error) return '<div class="rcard" id="bill-card"><div class="rcard-h">Billing in MMS</div><p class="muted small">' + esc(b.error) + '</p></div>';
+    b = { profiles: b.profiles || [], charges: b.charges || [], issues: b.issues || [] };
     function rate(x) {
       if (x.mode === 'None' || !(x.rate > 0)) return 'No charge';
       return money(x.rate) + (x.mode === 'PerLesson' ? '/lesson' : x.mode === 'FixedMonthly' ? '/month' : x.mode === 'Hourly' ? '/hour' : '');

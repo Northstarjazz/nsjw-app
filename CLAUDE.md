@@ -33,12 +33,13 @@ app: Scope" (Claude Docs, Nov 2026).
 - Google sign-in on the page, restricted to northstarjazzworkshops.com accounts.
 - Backend: the Sequencer Apps Script exposed as a JSON web app. Add endpoints
   there; do not stand up another server.
-- Phone first. Design from the mockups on the "Student Journey app: screens"
-  canvas, in the Sgraffito style (`web/css/sgraffito.css`, loaded last):
-  plaster ground (#EFE6D6), ink (#1E1B18), terracotta clay fields (#E07A55),
-  combed black (#141312), gold seams (#C9A14A, never as text on plaster),
-  natural palette and EB Garamond + Figtree from web/css/natural.css (Nov 2026), 2 to 6px
-  corners, no drop shadows, diamond markers instead of dots, 44px tap targets.
+- Phone first. Design from the "Leads pipeline" canvas (Claude design artifact, Nov 2026),
+  card 4 "One set of parts": `web/css/hq.css`, loaded last, is the source of truth.
+  Figtree only; page #F4F3EC, white cards with 12px corners, items 8px, tags 4px; lines
+  1px #E2E0D4; one accent #204E46; dark side nav #23231F. Buttons fully rounded, 36px
+  (28px small), 44px on touch screens. Tags (interests, groups) are square-ish green tints;
+  status is a rounded pill and color only ever means status. No shadows, no all-caps,
+  no diamonds. The older sgraffito/natural sheets stay underneath until screens are rebuilt.
 
 ## Rules (do not loosen these)
 
