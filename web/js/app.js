@@ -557,7 +557,7 @@
       (sms ? '<a class="ract" href="' + esc(sms) + '"><span class="ri">' + ico('text') + '</span><span>Text</span></a>' : act('text', 'Text', 'disabled')) +
       act('call', 'Log call', p.id ? 'data-logcall' : 'disabled') +
       act('note', 'Note', 'data-open="note"') +
-      act('next', 'Next step', 'data-open="next_step"') +
+      act('next', 'Task', 'data-open="next_step"') +
       (p.mmsUrl ? '<a class="ract" target="_blank" rel="noopener" href="' + esc(p.mmsUrl) + '"><span class="ri">' + ico('mms') + '</span><span>MMS</span></a>' : '') +
       '</div>';
 
@@ -609,16 +609,6 @@
     return t || '';
   }
 
-  function nextStepHtml(p) {
-    var ns = p.nextStep;
-    if (!ns) return '<button class="card next none" data-open="next_step" type="button" style="width:100%;text-align:left;font:inherit;cursor:pointer"><div><div class="label">No next step</div><div class="text">Add one</div></div></button>';
-    var overdue = ns.Due && parse(ns.Due) < new Date(new Date().toDateString());
-    return '<div class="card next' + (overdue ? ' overdue' : '') + '"><div><div class="label">Next step' +
-      (ns.Due ? ' · due ' + esc(dayOnly(ns.Due)) : '') + '</div><div class="text">' + esc(ns.Text) + '</div></div>' +
-      '<div class="next-side">' + (ns.Owner ? '<span class="pill">' + esc(ownerName(ns.Owner)) + '</span>' : '') +
-      '<button class="btn" type="button" data-next-done>Done</button></div></div>';
-  }
-
   function overviewHtml(p) {
     var lead = p.id && p.status !== 'Active';
     var hi = [
@@ -630,14 +620,14 @@
     var items = actItems(p);
     return '<div class="rcard"><div class="rcard-h">Highlights</div><div class="rhi">' +
       hi.map(function (h) { return '<div><div class="rl">' + h[0] + '</div><div class="rhv">' + h[1] + '</div></div>'; }).join('') + '</div></div>' +
-      nextStepHtml(p) +
+      tasksCardHtml(p) +
       '<div class="rcard"><div class="rcard-h">Recent activity<button type="button" class="link" data-tab="activity">See all ' + items.length + '</button></div>' +
       (p.mailError ? '<p class="muted small mail-note">Emails could not load right now (Gmail limit). Notes and calls are all here.</p>' : '') +
       tlList(items.slice(0, 5), false) + '</div>';
   }
 
   // Activity: one kind per filter chip, newest first, grouped by month like HubSpot.
-  var ACT_KINDS = [['all', 'All'], ['email', 'Emails'], ['seq', 'Sequences'], ['note', 'Notes'], ['call', 'Calls and texts'], ['next', 'Next steps'], ['signup', 'Sign-up']];
+  var ACT_KINDS = [['all', 'All'], ['email', 'Emails'], ['seq', 'Sequences'], ['note', 'Notes'], ['call', 'Calls and texts'], ['next', 'Tasks'], ['signup', 'Sign-up']];
   function actKind(t) {
     return { 'mail-in': 'email', 'mail-out': 'email', 'email-reply': 'email', 'email-sent': 'seq', note: 'note', call: 'call', next_step: 'next', signup: 'signup' }[t.kind] || 'note';
   }
@@ -689,7 +679,7 @@
     var head, body = t.text || '', extra = '', s = t.stats;
     switch (t.kind) {
       case 'note': head = 'Note' + (t.author ? ' · ' + ownerName(t.author) : ''); break;
-      case 'next_step': head = 'Next step set' + (t.due ? ' · due ' + dayOnly(t.due) : '') + (t.owner ? ' · ' + ownerName(t.owner) : ''); break;
+      case 'next_step': head = 'Task' + (t.due ? ' · due ' + dayOnly(t.due) : '') + (t.owner ? ' · ' + ownerName(t.owner) : ''); break;
       case 'email-sent':
         head = t.sequence + ' · step ' + t.step;
         if (s && s.o) extra += '<span class="pill">Opened' + (s.o > 1 ? ' ' + s.o + 'x' : '') + '</span>';
@@ -874,19 +864,28 @@
     noteKind = k;
     $$('.seg-btn').forEach(function (b) { b.classList.toggle('on', b.dataset.kind === k); });
     $('.next-only').hidden = k !== 'next_step';
-    $('#note-text').placeholder = k === 'next_step' ? 'What should happen next' : 'What happened';
+    $('.note-only').hidden = k === 'next_step';
+    $('#note-text').placeholder = k === 'next_step' ? 'What to do, like "Call Sam about Tuesday sit-in"' : 'What happened';
   }
   function openSheet(kind) {
     setKind(kind);
     $('#note-text').value = '';
-    $('#note-due').value = '';
-    $('#note-owner').value = me && me.given_name ? me.given_name : '';
+    $('#note-due').value = duePresets()[2].value;
+    $('#note-owner').innerHTML = ownerOptions(myName());
+    $('.due-presets').innerHTML = duePresets().map(function (o, i) { return '<button type="button" class="chip' + (i === 2 ? ' on' : '') + '" data-due="' + o.value + '">' + esc(o.label) + '</button>'; }).join('');
+    $('#note-fu').checked = false; $('#note-fu-due').innerHTML = dueOptions(null, 2);
     $('#sheet').hidden = false;
     setTimeout(function () { $('#note-text').focus(); }, 50);
   }
   function closeSheet() { $('#sheet').hidden = true; }
   $$('.seg-btn').forEach(function (b) { b.addEventListener('click', function () { setKind(b.dataset.kind); }); });
   $('#note-cancel').addEventListener('click', closeSheet);
+  $('.due-presets').addEventListener('click', function (e) {
+    var c = e.target.closest('[data-due]'); if (!c) return;
+    $('#note-due').value = c.dataset.due;
+    $$('.due-presets .chip').forEach(function (x) { x.classList.toggle('on', x === c); });
+  });
+  $('#note-due').addEventListener('input', function () { var v = this.value; $$('.due-presets .chip').forEach(function (x) { x.classList.toggle('on', x.dataset.due === v); }); });
   $('#sheet').addEventListener('click', function (e) { if (e.target === this) closeSheet(); });
   $('#note-form').addEventListener('submit', function (e) {
     e.preventDefault();
@@ -896,11 +895,216 @@
       sid: current.id, email: current.email, kind: noteKind, text: $('#note-text').value,
       due: noteKind === 'next_step' ? $('#note-due').value : '', owner: noteKind === 'next_step' ? $('#note-owner').value : ''
     }).then(function () {
-      closeSheet(); toast(noteKind === 'next_step' ? 'Next step saved' : 'Note saved');
+      if (noteKind === 'note' && $('#note-fu').checked) {
+        return addFollowUp(current.id, current.email, 'Follow up: ' + $('#note-text').value.split('\n')[0].slice(0, 80), $('#note-fu-due').value);
+      }
+    }).then(function () {
+      if (noteKind === 'next_step') afterTaskWrite();
+      closeSheet(); toast(noteKind === 'next_step' ? 'Task saved' : 'Note saved' + ($('#note-fu').checked ? ' with a follow-up task' : ''));
       loadPerson(current.id || current.email, true);
     }).catch(function (err) { toast(err.message); })
       .then(function () { btn.disabled = false; btn.textContent = 'Save'; });
   });
+
+
+  // ---------- Tasks (follow-ups): one person each, a due date and an owner ----------
+  // Stored as next_step rows in the Notes tab. HubSpot's pattern: Due today / Overdue / Upcoming,
+  // a "Start tasks" run through each person, and a follow-up checkbox wherever you log something.
+  var OWNERS = ['Ben', 'Kelley', 'Joe', 'Chris'];
+  function myName() {
+    var n = me ? ownerName(me.email || '') : '';
+    return n && n.indexOf('@') < 0 ? n : ((me && me.given_name) || '');
+  }
+  function ymd(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function addDays(n) { var d = today0(); d.setDate(d.getDate() + n); return d; }
+  function addBiz(n) { var d = today0(); while (n > 0) { d.setDate(d.getDate() + 1); if (d.getDay() % 6) n--; } return d; }
+  function duePresets() {
+    var wd = function (d) { return d.toLocaleDateString(undefined, { weekday: 'short' }); };
+    var b3 = addBiz(3), w1 = addDays(7);
+    return [['Today', today0()], ['Tomorrow', addDays(1)], ['In 3 business days (' + wd(b3) + ')', b3], ['In 1 week', w1], ['In 2 weeks', addDays(14)]]
+      .map(function (x) { return { label: x[0], value: ymd(x[1]) }; });
+  }
+  function dueOptions(sel, pick) {
+    return duePresets().map(function (o, i) { return '<option value="' + o.value + '"' + (i === pick ? ' selected' : '') + '>' + esc(o.label) + '</option>'; }).join('');
+  }
+  function ownerOptions(cur) {
+    var list = OWNERS.slice(); if (cur && list.indexOf(cur) < 0) list.push(cur);
+    return list.map(function (o) { return '<option' + (o === cur ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('');
+  }
+  function dueState(t) {
+    if (t.done) return 'done';
+    if (!t.due) return 'nodate';
+    var d = ymd(today0());
+    return t.due < d ? 'overdue' : t.due === d ? 'today' : 'upcoming';
+  }
+  function dueLabel(t) {
+    if (!t.due) return 'No date';
+    var st = dueState(t);
+    return (st === 'overdue' ? 'Overdue · ' : '') + (st === 'today' ? 'Today' : dayOnly(t.due));
+  }
+  function resSelect(t) {
+    return '<select class="tres" data-tres="' + t.row + '" aria-label="Reschedule"><option value="">Reschedule</option>' + dueOptions(null, -1) + '</select>';
+  }
+  function taskRowHtml(t, withName) {
+    var st = dueState(t);
+    return '<div class="trow ' + st + '" data-row="' + t.row + '">' +
+      '<button type="button" class="tchk' + (t.done ? ' on' : '') + '" data-tdone="' + (t.row || '') + '" aria-label="' + (t.done ? 'Reopen' : 'Mark complete') + '"></button>' +
+      '<div class="tmain"><div class="ttext">' + esc(t.text) + '</div><div class="tmeta">' +
+        (withName && t.sid ? '<a href="#p/' + encodeURIComponent(t.sid) + '">' + esc(t.name || t.email) + '</a> · ' : '') +
+        '<span class="tdue">' + esc(t.done ? 'Done ' + dayOnly(t.done) : dueLabel(t)) + '</span>' +
+        (t.owner ? ' · ' + esc(ownerName(t.owner)) : '') + '</div></div>' +
+      (t.done || !t.row ? '' : resSelect(t)) + '</div>';
+  }
+  // Tasks on the person page. Older backends only send the newest open one as nextStep.
+  function personTasks(p) {
+    if (p.tasks) return p.tasks.map(function (t) { return Object.assign({}, t, { sid: p.id, email: p.email }); });
+    var ns = p.nextStep;
+    return ns ? [{ row: 0, sid: p.id, email: p.email, text: ns.Text, due: ns.Due ? String(ns.Due).slice(0, 10) : '', owner: ns.Owner, done: '' }] : [];
+  }
+  function tasksCardHtml(p) {
+    var list = personTasks(p).sort(function (a, b) { return (a.due || '9').localeCompare(b.due || '9'); });
+    return '<div class="rcard"><div class="rcard-h">Tasks <span class="cnt">' + list.length + ' open</span></div>' +
+      (list.length ? list.map(function (t) { return taskRowHtml(t, false); }).join('') : '<p class="muted small">No follow-up set.</p>') +
+      '<button type="button" class="btn" data-open="next_step">Add a task</button></div>';
+  }
+
+  var tasksState = { rows: null, tab: store('nsjw_ttab') || 'today', who: store('nsjw_twho') == null ? 'me' : store('nsjw_twho'), err: '' };
+  var run = null; // { list, i } while working through tasks
+  function loadTasks(force) {
+    if (tasksState.rows && !force) { renderTasks(); return; }
+    if (!tasksState.rows) $('#tasks').innerHTML = '<div class="loading">Loading</div>';
+    api('tasks', {}).then(function (rows) { tasksState.rows = rows; tasksState.err = ''; renderTasks(); })
+      .catch(function (e) {
+        tasksState.err = /unknown|action/i.test(e.message) ? 'The task list needs the newest backend. In Apps Script: Deploy, Manage deployments, edit, New version, Deploy.' : e.message;
+        $('#tasks').innerHTML = '<div class="empty err">' + esc(tasksState.err) + '</div>';
+      });
+  }
+  function taskFilter(tab) {
+    var mine = myName();
+    return (tasksState.rows || []).filter(function (t) {
+      if (tasksState.who === 'me' && t.owner && ownerName(t.owner) !== mine) return false;
+      var st = dueState(t);
+      if (tab === 'done') return st === 'done';
+      if (st === 'done') return false;
+      if (tab === 'today') return st === 'today';
+      if (tab === 'overdue') return st === 'overdue';
+      if (tab === 'upcoming') return st === 'upcoming' || st === 'nodate';
+      return true;
+    }).sort(function (a, b) {
+      return tab === 'done' ? String(b.done).localeCompare(String(a.done)) : (a.due || '9').localeCompare(b.due || '9');
+    });
+  }
+  function renderTasks() {
+    $$('#task-tabs [data-tt]').forEach(function (b) {
+      var n = taskFilter(b.dataset.tt).length;
+      b.classList.toggle('on', b.dataset.tt === tasksState.tab);
+      b.innerHTML = esc(b.textContent.replace(/\s*\d+$/, '')) + (b.dataset.tt === 'done' ? '' : ' <span class="cnt">' + n + '</span>');
+    });
+    $('#task-who').value = tasksState.who;
+    var list = taskFilter(tasksState.tab);
+    var open = list.filter(function (t) { return !t.done && t.sid; });
+    $('#task-start').disabled = !open.length;
+    $('#task-start').textContent = open.length ? 'Start ' + open.length + ' task' + (open.length === 1 ? '' : 's') : 'Start tasks';
+    $('#tasks').innerHTML = list.length ? '<div class="tlist">' + list.map(function (t) { return taskRowHtml(t, true); }).join('') + '</div>'
+      : '<div class="empty">' + ({ today: 'Nothing due today.', overdue: 'Nothing overdue.', upcoming: 'Nothing coming up.', open: 'No open tasks.', done: 'Nothing completed in the last 30 days.' }[tasksState.tab]) + '</div>';
+    taskBadge();
+  }
+  function taskBadge() {
+    var n = tasksState.rows ? taskFilter('today').length + taskFilter('overdue').length : 0;
+    $('#task-badge').hidden = !n; $('#task-badge').textContent = n;
+  }
+  $('#task-tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-tt]'); if (!b) return;
+    tasksState.tab = b.dataset.tt; store('nsjw_ttab', tasksState.tab); renderTasks();
+  });
+  $('#task-who').addEventListener('change', function () { tasksState.who = this.value; store('nsjw_twho', this.value); renderTasks(); });
+
+  function findTask(row) {
+    row = Number(row);
+    return (tasksState.rows || []).filter(function (t) { return t.row === row; })[0] ||
+      (current ? personTasks(current).filter(function (t) { return t.row === row; })[0] : null);
+  }
+  function afterTaskWrite() {
+    tasksState.rows = null; leadsState.rows = null; todayState.data = null;
+    if (current) { try { localStorage.removeItem(ckey('person', { sid: current.id })); } catch (e) {} }
+  }
+  function completeTask(t, done) {
+    var call = t.row ? api('taskdone', { row: t.row, sid: t.sid, email: t.email, done: done }) : api('nextdone', { sid: t.sid, email: t.email });
+    return call.then(function () { afterTaskWrite(); toast(done === false ? 'Reopened' : 'Task done'); });
+  }
+  function rescheduleTask(t, due) {
+    return api('taskedit', { row: t.row, sid: t.sid, email: t.email, due: due }).then(function () { afterTaskWrite(); toast('Due ' + dayOnly(due)); });
+  }
+  function onTaskClick(e) {
+    var b = e.target.closest('[data-tdone]'); if (!b) return false;
+    var row = b.dataset.tdone, t = row ? findTask(row) : (current ? personTasks(current)[0] : null);
+    if (!t) return true;
+    b.disabled = true; b.classList.add('busy');
+    completeTask(t, !t.done ? true : false).then(function () {
+      if (location.hash.indexOf('#p/') === 0 && current) loadPerson(current.id, true); else loadTasks(true);
+    }).catch(function (err) { toast(err.message); b.disabled = false; b.classList.remove('busy'); });
+    return true;
+  }
+  function onTaskChange(e) {
+    var s = e.target.closest('[data-tres]'); if (!s || !s.value) return;
+    var t = findTask(s.dataset.tres); if (!t) return;
+    s.disabled = true;
+    rescheduleTask(t, s.value).then(function () {
+      if (location.hash.indexOf('#p/') === 0 && current) loadPerson(current.id, true); else loadTasks(true);
+    }).catch(function (err) { toast(err.message); s.disabled = false; });
+  }
+  $('#tasks').addEventListener('click', onTaskClick);
+  $('#tasks').addEventListener('change', onTaskChange);
+  $('#person').addEventListener('click', function (e) { onTaskClick(e); });
+  $('#person').addEventListener('change', onTaskChange);
+
+  // Start tasks: open each person in turn with Complete / Skip / Reschedule on top.
+  $('#task-start').addEventListener('click', function () {
+    var list = taskFilter(tasksState.tab).filter(function (t) { return !t.done && t.sid; });
+    if (!list.length) return;
+    run = { list: list, i: 0, done: 0 };
+    goRun();
+  });
+  function goRun() {
+    if (!run) return;
+    if (run.i >= run.list.length) {
+      toast('Finished: ' + run.done + ' done, ' + (run.list.length - run.done) + ' left open');
+      run = null; renderRun(); location.hash = '#tasks'; return;
+    }
+    var t = run.list[run.i], h = '#p/' + encodeURIComponent(t.sid);
+    if (location.hash === h) renderRun(); else location.hash = h;
+  }
+  function renderRun() {
+    var bar = $('#runbar');
+    if (!run || location.hash.indexOf('#p/') !== 0) { bar.hidden = true; return; }
+    var t = run.list[run.i];
+    bar.hidden = false;
+    bar.innerHTML = '<div class="run-n">Task ' + (run.i + 1) + ' of ' + run.list.length + '</div>' +
+      '<div class="run-t"><b>' + esc(t.text) + '</b><span class="muted"> · ' + esc(dueLabel(t)) + '</span></div>' +
+      '<div class="run-b"><button type="button" class="btn primary" data-run="done">Complete</button>' +
+      '<select data-run-res aria-label="Reschedule"><option value="">Reschedule</option>' + dueOptions(null, -1) + '</select>' +
+      '<button type="button" class="btn" data-run="skip">Skip</button>' +
+      '<button type="button" class="btn" data-run="exit">Exit</button></div>';
+  }
+  $('#runbar').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-run]'); if (!b || !run) return;
+    var t = run.list[run.i];
+    if (b.dataset.run === 'exit') { run = null; renderRun(); return; }
+    if (b.dataset.run === 'skip') { run.i++; goRun(); return; }
+    b.disabled = true;
+    completeTask(t, true).then(function () { run.done++; run.i++; goRun(); }).catch(function (err) { toast(err.message); b.disabled = false; });
+  });
+  $('#runbar').addEventListener('change', function (e) {
+    var s = e.target.closest('[data-run-res]'); if (!s || !s.value || !run) return;
+    s.disabled = true;
+    rescheduleTask(run.list[run.i], s.value).then(function () { run.i++; goRun(); }).catch(function (err) { toast(err.message); s.disabled = false; });
+  });
+
+  // Follow-up checkbox on notes and single emails (HubSpot's "Create a To-do").
+  function addFollowUp(sid, email, text, due) {
+    return api('note', { sid: sid, email: email || '', kind: 'next_step', text: text, due: due, owner: myName() })
+      .then(function () { afterTaskWrite(); });
+  }
 
   // ---------- Today ----------
   var todayState = { data: null, at: 0 };
@@ -914,6 +1118,7 @@
     swr('today', null, function (d) { todayState.data = d; todayState.at = Date.now(); renderToday(); })
       .catch(function (e) { $('#today').innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
     loadTeaching();
+    if (!tasksState.rows) api('tasks', {}).then(function (r) { tasksState.rows = r; taskBadge(); }).catch(function () {});
   }
 
   // ---------- Teaching: my week and subs ----------
@@ -1923,6 +2128,8 @@
     $('#mail-send').textContent = 'Send to ' + composeTo.length + (composeTo.length === 1 ? ' person' : ' people');
     $('#mail-send').disabled = !composeTo.length || composeTo.length > 50;
     $('#mail-cap').hidden = composeTo.length <= 50;
+    $('#mail-fu-row').hidden = composeTo.length !== 1;
+    if (!$('#mail-fu-due').options.length) $('#mail-fu-due').innerHTML = dueOptions(null, 2);
   }
   $('#mail-to').addEventListener('click', function (e) {
     var b = e.target.closest('[data-rmto]'); if (!b) return; composeTo.splice(Number(b.dataset.rmto), 1); renderTo();
@@ -1935,6 +2142,10 @@
     btn.disabled = true; btn.textContent = test ? 'Sending test' : 'Sending';
     api('groupmail', { sids: composeTo.map(function (p) { return p.id; }), subject: subject, body: body, test: !!test }).then(function (r) {
       if (test) { toast('Test sent to ' + r.to); return; }
+      if (composeTo.length === 1 && $('#mail-fu').checked) {
+        addFollowUp(composeTo[0].id, '', 'Follow up on "' + subject + '"', $('#mail-fu-due').value).catch(function (err) { toast('Sent, but the follow-up task failed: ' + err.message); });
+        $('#mail-fu').checked = false;
+      }
       $('#mail-sheet').hidden = true; $('#mail-subject').value = ''; $('#mail-body').value = '';
       picked = {}; $$('.pick.on').forEach(function (x) { x.classList.remove('on'); }); selBar();
       leadsState.rows = null; peopleState.rows = null; todayState.data = null;
@@ -1975,7 +2186,8 @@
   function route() {
     if (!token) { nav(null); show('v-signin'); return; }
     var h = location.hash.replace(/^#/, '');
-    if (h.indexOf('p/') === 0) { nav(null); $('#v-person .back').href = backTo; $('#v-person .back').innerHTML = '&#8249; ' + (backTo === '#lessons' ? 'Lessons' : backTo === '#groups' ? 'Groups' : backTo === '#leads' ? 'Leads' : backTo === '#today' ? 'Today' : backTo.indexOf('#g/') === 0 ? decodeURIComponent(backTo.slice(3)) : 'People'); show('v-person'); loadPerson(decodeURIComponent(h.slice(2))); return; }
+    if (h.indexOf('p/') === 0) { nav(null); $('#v-person .back').href = backTo; $('#v-person .back').innerHTML = '&#8249; ' + (backTo === '#tasks' ? 'Tasks' : backTo === '#lessons' ? 'Lessons' : backTo === '#groups' ? 'Groups' : backTo === '#leads' ? 'Leads' : backTo === '#today' ? 'Today' : backTo.indexOf('#g/') === 0 ? decodeURIComponent(backTo.slice(3)) : 'People'); show('v-person'); renderRun(); loadPerson(decodeURIComponent(h.slice(2))); return; }
+    if (h === 'tasks') { backTo = '#tasks'; nav('tasks'); show('v-tasks'); loadTasks(); renderRun(); return; }
     if (h === 'lessons') { backTo = '#lessons'; nav('lessons'); show('v-lessons'); loadLessons(); return; }
     if (h === 'leads') { backTo = '#leads'; nav('leads'); show('v-leads'); loadLeads(); return; }
     if (h === 'groups') { backTo = '#groups'; nav('groups'); show('v-groups'); loadGroups(); return; }

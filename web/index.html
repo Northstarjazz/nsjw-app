@@ -26,11 +26,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/css/tabulator.min.css">
-<link rel="stylesheet" href="css/nsjw.css?v=52">
-<link rel="stylesheet" href="css/app.css?v=52">
-<link rel="stylesheet" href="css/sgraffito.css?v=52">
-<link rel="stylesheet" href="css/natural.css?v=52">
-<link rel="stylesheet" href="css/record.css?v=52">
+<link rel="stylesheet" href="css/nsjw.css?v=53">
+<link rel="stylesheet" href="css/app.css?v=53">
+<link rel="stylesheet" href="css/sgraffito.css?v=53">
+<link rel="stylesheet" href="css/natural.css?v=53">
+<link rel="stylesheet" href="css/record.css?v=53">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -88,6 +88,29 @@
   </section>
 
   <!-- Lessons -->
+  <section id="v-tasks" class="view" hidden>
+    <header class="art black">
+      <div class="eyebrow">Follow-ups</div>
+      <h1>Tasks</h1>
+    </header>
+    <main>
+      <div class="task-bar">
+        <div class="chips" id="task-tabs">
+          <button class="chip on" data-tt="today">Due today</button>
+          <button class="chip" data-tt="overdue">Overdue</button>
+          <button class="chip" data-tt="upcoming">Upcoming</button>
+          <button class="chip" data-tt="open">All open</button>
+          <button class="chip" data-tt="done">Completed</button>
+        </div>
+        <div class="task-tools">
+          <select id="task-who" aria-label="Assigned to"><option value="me">Assigned to me</option><option value="">Everyone</option></select>
+          <button type="button" class="btn primary" id="task-start" disabled>Start tasks</button>
+        </div>
+      </div>
+      <div id="tasks"></div>
+    </main>
+  </section>
+
   <section id="v-lessons" class="view" hidden>
     <header class="art black">
       <div class="eyebrow">Private lessons</div>
@@ -198,12 +221,14 @@
       <a class="back" href="#people" aria-label="Back to people">&#8249; People</a>
       <a class="link" id="mms-link" target="_blank" rel="noopener">Open in MMS</a>
     </header>
+    <div id="runbar" class="runbar" hidden></div>
     <main id="person"></main>
   </section>
 
   <nav class="tabbar" id="tabbar" hidden>
     <a href="#today" data-nav="today" title="Today"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 10l7-6 7 6v7H3z"/></svg><span>Today</span></a>
     <a href="#people" data-nav="people" title="People"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></svg><span>People</span></a>
+    <a href="#tasks" data-nav="tasks" title="Tasks"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 5l1.5 1.5L8 4M4 10l1.5 1.5L8 9M4 15l1.5 1.5L8 14M10.5 5.5H17M10.5 10.5H17M10.5 15.5H17"/></svg><span>Tasks</span><b class="nbadge" id="task-badge" hidden></b></a>
     <a href="#leads" data-nav="leads" title="Leads"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 4h14l-5 6v5l-4 2v-7z"/></svg><span>Leads</span></a>
     <a href="#groups" data-nav="groups" title="Groups"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="7" cy="7" r="3"/><circle cx="14" cy="8" r="2.5"/><path d="M2 17c0-3 2.5-5 5-5s5 2 5 5M12 17c0-2 1.5-4 4-4"/></svg><span>Groups</span></a>
     <a href="#lessons" data-nav="lessons" title="Lessons"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 15V4l9-2v11"/><circle cx="5.5" cy="15" r="2.5"/><circle cx="14.5" cy="13" r="2.5"/></svg><span>Lessons</span></a>
@@ -256,13 +281,18 @@
   <form id="note-form" class="sheet-body">
     <div class="seg" role="tablist">
       <button type="button" class="seg-btn on" data-kind="note">Note</button>
-      <button type="button" class="seg-btn" data-kind="next_step">Next step</button>
+      <button type="button" class="seg-btn" data-kind="next_step">Task</button>
     </div>
-    <textarea id="note-text" rows="4" placeholder="What happened, or what's next" required></textarea>
-    <div class="row next-only" hidden>
-      <label>Due <input id="note-due" type="date"></label>
-      <label>Owner <input id="note-owner" type="text" placeholder="Ben"></label>
+    <textarea id="note-text" rows="4" placeholder="What happened" required></textarea>
+    <div class="next-only" hidden>
+      <div class="flabel">Due</div>
+      <div class="optgrid due-presets" data-for="note-due"></div>
+      <div class="row">
+        <label>Date <input id="note-due" type="date"></label>
+        <label>Assigned to <select id="note-owner"></select></label>
+      </div>
     </div>
+    <label class="fu note-only"><input type="checkbox" id="note-fu"> Also create a follow-up task <select id="note-fu-due" aria-label="Follow-up due"></select></label>
     <div class="row end">
       <button type="button" class="btn" id="note-cancel">Cancel</button>
       <button type="submit" class="btn primary" id="note-save">Save</button>
@@ -401,6 +431,7 @@
     <label class="flabel">Subject<input id="mail-subject" class="field" placeholder="Rehearsal this Sunday"></label>
     <label class="flabel">Message<textarea id="mail-body" rows="8" placeholder="Hi {first},"></textarea></label>
     <p class="muted small" style="margin:0">Type {first} and it becomes each person's first name.</p>
+    <label class="fu" id="mail-fu-row"><input type="checkbox" id="mail-fu"> Create a follow-up task <select id="mail-fu-due" aria-label="Follow-up due"></select></label>
     <p class="error small" id="mail-err"></p>
     <p class="muted small" id="mail-confirm" hidden></p>
     <div class="row end">
@@ -452,7 +483,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
-<script src="js/grid.js?v=52"></script>
-<script src="js/app.js?v=52"></script>
+<script src="js/grid.js?v=53"></script>
+<script src="js/app.js?v=53"></script>
 </body>
 </html>

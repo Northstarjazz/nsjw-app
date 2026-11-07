@@ -48,6 +48,9 @@ function api_(e) {
       case 'today':  out = cachedRead_('today', 600, today_); break;
       case 'leadtag': out = setLeadTag_(who, p); break;
       case 'nextdone': out = nextDone_(who, p); break;
+      case 'tasks':  out = cachedRead_('tasks', 300, listTasks_); break;
+      case 'taskdone': out = taskDone_(who, p); break;
+      case 'taskedit': out = taskEdit_(who, p); break;
       case 'place':  out = placeInGroup_(who, p); break;
       case 'leave':  out = leaveGroup_(who, p); break;
       case 'logcall': out = logCall_(who, p); break;
@@ -72,7 +75,7 @@ function api_(e) {
 // Reads are cached in CacheService under a version stamp. Any write, and every roster
 // sync, bumps the stamp, so a cached answer is never older than the last change.
 // Values over 90 KB are split across keys (CacheService caps one value at 100 KB).
-var READS_ = { whoami: 1, person: 1, people: 1, contacts: 1, lessons: 1, groups: 1, group: 1, leads: 1, today: 1, myteaching: 1, templates: 1, calpreview: 1 };
+var READS_ = { whoami: 1, person: 1, people: 1, contacts: 1, lessons: 1, groups: 1, group: 1, leads: 1, today: 1, myteaching: 1, templates: 1, calpreview: 1, tasks: 1 };
 
 function cacheVer_() {
   var c = CacheService.getScriptCache(), v = c.get('ver');
@@ -366,7 +369,7 @@ function getPerson_(sid, email) {
     formInstruments: r ? formInstruments_(signup_(r.Note).instrument) : [],
     tags: r ? split_(r['Other tags']) : [],
     mmsUrl: sid ? 'https://app.mymusicstaff.com/Teacher/v2/en/students/details?id=' + sid : '',
-    nextStep: nextStep, sequences: enroll, threads: mail, mailError: mailError, timeline: timeline.slice(0, 60),
+    nextStep: nextStep, tasks: personTasks_(sid, email), sequences: enroll, threads: mail, mailError: mailError, timeline: timeline.slice(0, 60),
     lesson: sid ? (sheetObjects_(LESSONS_TAB).filter(function (l) { return l['MMS ID'] === sid; })[0] || null) : null
   };
 }
@@ -450,3 +453,86 @@ function sheetObjects_(name) {
 
 function split_(s) { return String(s || '').split(';').map(function (x) { return x.trim(); }).filter(String); }
 function day_(s) { return s ? String(s).slice(0, 10) : ''; }
+
+// ---------- Tasks ----------
+/**
+ * Tasks: follow-ups with a due date and an owner, one person each.
+ * A task is a "next_step" row in the Notes tab (Timestamp, MMS ID, Email, Author, Kind,
+ * Text, Due, Owner, Done). Done holds the date it was completed. No new tab, no new columns.
+ * The row number is the task id; every write checks the row still belongs to that person.
+ */
+
+/** Open tasks, plus ones completed in the last 30 days. */
+function listTasks_() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOTES_TAB);
+  if (!sh || sh.getLastRow() < 2) return [];
+  var v = sh.getDataRange().getValues(), h = v[0];
+  var c = col_(h);
+  var names = {}, byEmail = {};
+  rosterRows_().forEach(function (r) {
+    names[r.ID] = { name: r.Name, status: r.Status, email: r.Email };
+    if (r.Email) byEmail[String(r.Email).toLowerCase()] = r.ID;
+  });
+  var cutoff = new Date(Date.now() - 30 * 86400000), out = [];
+  for (var i = 1; i < v.length; i++) {
+    if (v[i][c.kind] !== 'next_step') continue;
+    var done = v[i][c.done];
+    if (done && new Date(done) < cutoff) continue;
+    var sid = v[i][c.sid] || byEmail[String(v[i][c.email]).toLowerCase()] || '';
+    var who = names[sid] || {};
+    out.push(taskObj_(v[i], c, i + 1, sid, who.name || v[i][c.email], who.status || ''));
+  }
+  return out;
+}
+
+function col_(h) {
+  return { ts: h.indexOf('Timestamp'), sid: h.indexOf('MMS ID'), email: h.indexOf('Email'), author: h.indexOf('Author'),
+    kind: h.indexOf('Kind'), text: h.indexOf('Text'), due: h.indexOf('Due'), owner: h.indexOf('Owner'), done: h.indexOf('Done') };
+}
+
+function taskObj_(r, c, row, sid, name, status) {
+  return { row: row, sid: sid, name: name, status: status, email: String(r[c.email] || '').toLowerCase(),
+    text: String(r[c.text] || ''), due: gday_(r[c.due]), owner: String(r[c.owner] || ''),
+    created: r[c.ts], author: r[c.author], done: r[c.done] ? gday_(r[c.done]) : '' };
+}
+
+/** Open tasks for one person (the person page). */
+function personTasks_(sid, email) {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOTES_TAB);
+  if (!sh || sh.getLastRow() < 2) return [];
+  var v = sh.getDataRange().getValues(), c = col_(v[0]), out = [];
+  email = String(email || '').toLowerCase();
+  for (var i = 1; i < v.length; i++) {
+    if (v[i][c.kind] !== 'next_step' || v[i][c.done]) continue;
+    if ((sid && v[i][c.sid] === sid) || (email && String(v[i][c.email]).toLowerCase() === email)) out.push(taskObj_(v[i], c, i + 1, sid, '', ''));
+  }
+  return out;
+}
+
+/** The row, checked against the person it was read for. */
+function taskRow_(p) {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOTES_TAB);
+  var row = Number(p.row);
+  if (!sh || !(row >= 2) || row > sh.getLastRow()) throw new Error('That task is gone. Reload and try again.');
+  var h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0], c = col_(h);
+  var r = sh.getRange(row, 1, 1, h.length).getValues()[0];
+  var same = r[c.kind] === 'next_step' && ((p.sid && r[c.sid] === p.sid) || (p.email && String(r[c.email]).toLowerCase() === String(p.email).toLowerCase()));
+  if (!same) throw new Error('That task moved. Reload and try again.');
+  return { sh: sh, row: row, c: c, r: r };
+}
+
+/** Complete or reopen. */
+function taskDone_(who, p) {
+  var t = taskRow_(p);
+  t.sh.getRange(t.row, t.c.done + 1).setValue(p.done === false ? '' : new Date());
+  return { ok: true };
+}
+
+/** Change the due date, owner or title. */
+function taskEdit_(who, p) {
+  var t = taskRow_(p);
+  if (p.due !== undefined) t.sh.getRange(t.row, t.c.due + 1).setValue(p.due || '');
+  if (p.owner !== undefined) t.sh.getRange(t.row, t.c.owner + 1).setValue(p.owner || '');
+  if (p.text !== undefined && String(p.text).trim()) t.sh.getRange(t.row, t.c.text + 1).setValue(String(p.text).trim().slice(0, 5000));
+  return { ok: true };
+}

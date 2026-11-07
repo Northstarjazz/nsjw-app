@@ -79,3 +79,33 @@
 .rabout > summary::after { content: "Show"; font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--accent); }
 .rabout[open] > summary::after { content: "Hide"; }
 @media (min-width: 1000px) { .rabout > summary { pointer-events: none; } .rabout > summary::after, .rabout[open] > summary::after { content: none; } }
+
+/* Tasks */
+.trow { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.rcard .trow:first-of-type, .tlist .trow:first-child { border-top: 0; }
+.tchk { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--ink-2); background: var(--surface); cursor: pointer; padding: 0; position: relative; }
+.tchk::after { content: ""; position: absolute; border: solid var(--accent); border-width: 0 2px 2px 0; transform: rotate(40deg) scale(.9); opacity: 0; width: 5px; height: 9px; left: 7px; top: 3px; }
+.tchk:hover::after { opacity: .35; }
+.tchk.on { background: var(--accent); border-color: var(--accent); }
+.tchk.on::after { opacity: 1; border-color: var(--surface); }
+.tchk.busy { opacity: .4; }
+.ttext { font-weight: 500; overflow-wrap: anywhere; }
+.trow.done .ttext { text-decoration: line-through; color: var(--muted); }
+.tmeta { font-size: 13px; color: var(--muted); }
+.tmeta a { color: var(--accent); font-weight: 600; }
+.trow.overdue .tdue { color: #A3331F; font-weight: 600; }
+.trow.today .tdue { color: var(--accent); font-weight: 600; }
+.tres, .task-tools select, .runbar select { font: inherit; font-size: 13px; padding: 6px 8px; min-height: 36px; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--surface); color: var(--ink); max-width: 150px; }
+.tlist { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 0 14px; }
+.task-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.task-bar .chips { flex-wrap: wrap; overflow: visible; }
+.task-bar .cnt { opacity: .65; font-weight: 500; }
+.task-tools { display: flex; gap: 8px; align-items: center; }
+.nbadge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--gold); color: var(--ink); font-size: 11px; font-weight: 700; margin-left: 6px; }
+.runbar { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px max(16px, env(safe-area-inset-left, 0px)); background: var(--lav); color: var(--ink); border-bottom: 1px solid var(--ink); }
+.run-n { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.run-t { flex: 1 1 240px; min-width: 0; }
+.run-b { display: flex; flex-wrap: wrap; gap: 6px; }
+label.fu { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; margin: 8px 0; }
+label.fu select { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--surface); }
+.due-presets { margin-bottom: 8px; }
