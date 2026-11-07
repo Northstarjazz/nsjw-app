@@ -167,9 +167,9 @@ function eventsByStudent_(from, to, sids) {
     (e.Attendances || []).forEach(function (a) {
       if (!a.StudentID) return;
       var m = out[a.StudentID] = out[a.StudentID] || {};
-      // A sub's event still counts for the regular teacher, whose profile does the billing.
-      [e.TeacherID, e.OriginalTeacherID].filter(function (t, i, l) { return t && l.indexOf(t) === i; })
-        .forEach(function (t) { m[t] = (m[t] || 0) + 1; });
+      // MMS bills a subbed event to the regular teacher (OriginalTeacherID), not the sub.
+      var t = e.OriginalTeacherID || e.TeacherID;
+      if (t) m[t] = (m[t] || 0) + 1;
     });
   });
   return out;
