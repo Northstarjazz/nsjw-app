@@ -609,6 +609,7 @@
       (p.id ? prop('nights', 'Nights they can do', esc(nights.join(', ')), chips('nights', LEAD.nights, nights)) : '') +
       prop('skill', 'Skill', esc(p.skill), p.id ? fieldEd('skill', p.skill, 'text', 'Beginner, Intermediate, Advanced') : '') +
       prop('started', 'Signed up', esc(dayOnly(p.started))) +
+      (p.id ? prop('referrer', 'Referred by', esc(p.referrer || ''), fieldEd('referrer', p.referrer, 'text', 'Who sent them our way')) : '') +
       prop('programs', 'Groups and programs', esc((p.programs || []).join(', '))) +
       (p.lastEvent || p.nextEvent ? prop('last', 'Last lesson', esc(dayOnly(p.lastEvent))) + prop('next', 'Next lesson', esc(dayOnly(p.nextEvent))) : '') +
       (other.length ? prop('tags', 'Other tags', esc(other.join(', '))) : '') + '</details>';
@@ -705,6 +706,7 @@
       case 'mail-out': head = 'Email to them'; break;
       case 'signup': head = 'Sign-up form answers'; break;
       case 'call': head = 'Call or text' + (t.author ? ' · ' + ownerName(t.author) : ''); break;
+      case 'mms': head = 'Check in MMS' + (t.author ? ' · ' + ownerName(t.author) : ''); extra = '<span class="pill warn">Not clean</span>'; break;
       default: head = t.kind;
     }
     var inner = '<div class="head">' + esc(head) + ' · ' + esc(when(t.at)) + ' ' + extra + '</div>' +
@@ -827,16 +829,21 @@
     $('#lesson-stats').innerHTML =
       '<div class="stat"><div class="n">' + active.length + '</div><div class="l">Active</div></div>' +
       '<div class="stat"><div class="n">$' + Math.round(monthly).toLocaleString() + '</div><div class="l">Per month</div></div>' +
-      '<div class="stat"><div class="n">' + sched + '</div><div class="l">Scheduling</div></div>';
+      '<div class="stat"><div class="n">' + sched + '</div><div class="l">Scheduling</div></div>' +
+      '<div class="stat"><div class="n">' + byTeacher.filter(function (r) { return (r.check || []).length; }).length + '</div><div class="l">To check</div></div>';
     var rows = byTeacher.filter(function (r) { return !lessonsState.stage || r.Stage === lessonsState.stage; });
     if (!rows.length) { $('#lesson-list').innerHTML = '<div class="empty">No one here.</div>'; return; }
     $('#lesson-list').innerHTML = rows.map(function (r) {
       var href = r['MMS ID'] ? '#p/' + encodeURIComponent(r['MMS ID']) : '';
-      var when = [r['Day and time'], r.Frequency].filter(Boolean).join(' · ');
+      var m = r.mms || null;
+      var when = [r['Day and time'], r.Frequency, m && m.location].filter(Boolean).join(' · ');
+      var cost = m && m.mode === 'PerLesson' && m.rate ? money(m.rate) + '/lesson' : money(r['Monthly cost']);
       return '<' + (href ? 'a href="' + href + '"' : 'div') + ' class="card lesson-row">' +
-        '<div class="line1"><span class="name">' + esc(r.Name) + '</span><span class="cost">' + esc(money(r['Monthly cost'])) + '</span></div>' +
+        '<div class="line1"><span class="name">' + esc(r.Name) + '</span><span class="cost">' + esc(cost) + '</span></div>' +
         '<div class="sub">' + esc([r.Teacher || 'No teacher yet', r.Instrument].filter(Boolean).join(' · ')) + '</div>' +
         (when ? '<div class="sub">' + esc(when) + '</div>' : '') +
+        (m && (m.next || m.last) ? '<div class="sub faint">' + (m.next ? 'Next lesson ' + esc(dayOnly(m.next)) : 'Last lesson ' + esc(dayOnly(m.last))) + '</div>' : '') +
+        ((r.check || []).length ? '<div class="pills">' + r.check.map(function (c) { return '<span class="pill warn">' + esc(c) + '</span>'; }).join('') + '</div>' : '') +
         (r['Schedule notes'] ? '<div class="note">' + esc(r['Schedule notes']) + '</div>' : '') +
         (lessonsState.stage === '' ? '<div class="pills">' + statusPill(r.Stage) + '</div>' : '') +
         setupPills(r) + (href ? '</a>' : '</div>');
@@ -905,7 +912,7 @@
     btn.disabled = true; btn.textContent = 'Saving';
     api('studentedit', { sid: sid, field: field, value: value }).then(function (r) {
       if (!current || current.id !== sid) return;
-      if (r.after) { current.phone = r.after.phone; current.skill = r.after.skill; }
+      if (r.after) { current.phone = r.after.phone; current.skill = r.after.skill; current.referrer = r.after.referrer; }
       try { localStorage.removeItem(ckey('person', { sid: sid })); localStorage.removeItem(ckey('contacts')); } catch (x) {}
       propOpen = ''; renderPerson(current, curTab());
       toast(r.changed ? 'Saved to MMS' : 'No change');
@@ -2077,6 +2084,8 @@
         '<div class="line1"><span class="name">' + esc(g.name) + '</span><span class="count">' + g.members + (g.members === 1 ? ' person' : ' people') + '</span></div>' +
         (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + fillBar(g) +
         (g.open.length ? '<div class="pills"><span class="pill open">Open: ' + esc(openText(g.open)) + '</span></div>' : '') +
+        (g.live ? '<div class="sub faint">Next rehearsal ' + esc(dayOnly(g.live.next)) + (g.live.when ? ' · ' + esc(g.live.when) : '') + '</div>' : '') +
+        ((g.check || []).length ? '<div class="pills">' + g.check.map(function (c) { return '<span class="pill warn">' + esc(c) + '</span>'; }).join('') + '</div>' : '') +
         '</a>';
     }).join('');
   }

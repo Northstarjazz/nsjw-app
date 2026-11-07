@@ -124,3 +124,8 @@ label.fu select { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px 
 #bill-card .btn { margin-top: 10px; }
 #bill-card a.btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; box-sizing: border-box; text-decoration: none; }
 #bill-card .rmini + p { margin-top: 4px; }
+
+/* Lessons: four numbers fit on one row on a phone */
+#lesson-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#lesson-stats .stat { min-width: 0; }
+@media (max-width: 420px) { #lesson-stats .stat .n { font-size: 26px; } #lesson-stats .stat .l { font-size: 10px; letter-spacing: .06em; } }

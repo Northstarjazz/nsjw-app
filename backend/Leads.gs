@@ -15,6 +15,7 @@
 // lesson package, or class registration form), then Enrolled (MMS status Active).
 // Nurture and Closed (lost) sit off the board.
 var LEAD_STAGES = ['First Contact', 'Qualified', 'Committed', 'Nurture', 'Closed'];
+var LOST_REASONS = ['Timing', 'Price', 'Schedule', 'Level', 'No reply', 'Went elsewhere'];
 // Tags written before Nov 4, 2026 used these names; read them as the new stages.
 var LEGACY_STAGES = { 'New Lead': 'First Contact', 'Deposit Submitted': 'Committed', 'Ready to Join': 'Committed' };
 // Days in a stage with no activity before a card turns red on the board.
@@ -314,6 +315,17 @@ function setLeadTag_(who, p) {
       });
       if (p.value !== 'First Contact') { tagWrite_(sid, 'Stage: ' + p.value, true); rosterTag_(sid, 'Stage: ' + p.value, true); }
       var why = String(p.reason || '').trim().slice(0, 300);
+      // Why a lead was lost, as MMS tags ("Lost: Price"), so it stays with them in MMS.
+      // Only the preset reasons become tags; anything typed stays in the note. Reopening clears them.
+      var lostNow = r ? split_(r['Other tags']).filter(function (t) { return /^Lost: /.test(t); }) : [];
+      if (p.value === 'Closed') {
+        var parts = why.split(',').map(function (x) { return x.trim(); });
+        LOST_REASONS.filter(function (x) { return parts.indexOf(x) >= 0 && lostNow.indexOf('Lost: ' + x) < 0; }).forEach(function (x) {
+          tagWrite_(sid, 'Lost: ' + x, true); rosterTag_(sid, 'Lost: ' + x, true);
+        });
+      } else {
+        lostNow.forEach(function (t) { tagWrite_(sid, t, false); rosterTag_(sid, t, false); });
+      }
       changes.push('Stage set to ' + p.value + (why ? ' (' + why + ')' : ''));
     } else {
       var name = map[0] + p.value, on = !!p.on;

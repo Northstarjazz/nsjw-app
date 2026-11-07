@@ -95,10 +95,10 @@ function studentPut_(sid, changes) {
   mmsLog_(sid, action, desc(before), desc(after), result);
   if (missed.length) throw new Error('MMS did not take the change to ' + missed.map(function (k) { return STUDENT_FIELDS_[k].label.toLowerCase(); }).join(', ') + '. Check the student in MMS.');
   // Write-through: the roster tab shows the new value now, not after the next 15-minute sync.
-  var cols = { status: 'Status', phone: 'Phone', skill: 'Skill level' }, set = {};
+  var cols = { status: 'Status', phone: 'Phone', skill: 'Skill level', referrer: 'Referrer' }, set = {};
   todo.forEach(function (k) { if (cols[k]) set[cols[k]] = STUDENT_FIELDS_[k].get(after); });
   rosterSet_(sid, set);
-  return { changed: true, after: { phone: STUDENT_FIELDS_.phone.get(after), skill: after.SkillLevel || '', status: after.Status } };
+  return { changed: true, after: { phone: STUDENT_FIELDS_.phone.get(after), skill: after.SkillLevel || '', referrer: after.Referrer || '', status: after.Status } };
 }
 
 /** Update cells on one roster row by header name. */
@@ -158,7 +158,12 @@ function searchAll_(entity, body) {
   return out;
 }
 
-/** Events in a date range, as { sid: { teacherId: count } }. */
+/** Ensemble, Vocal Ensemble and Ensemble Program are one kind of thing; lessons and classes are others. */
+var KIND_ = { ect_q531JP: 'ensemble', ect_TFGxJD: 'ensemble', ect_qSMxJk: 'ensemble', ect_qk7jJc: 'lesson', ect_qCkJJb: 'class' };
+function kindOf_(cat) { return KIND_[cat] || 'other'; }
+var KIND_WORD_ = { ensemble: 'ensemble', lesson: 'private lesson', class: 'class', other: 'other' };
+
+/** Events in a date range, as { sid: { teacherId: { n, kinds } } }. */
 function eventsByStudent_(from, to, sids) {
   var body = { StartDate: iso_(from), EndDate: iso_(to) };
   if (sids) body.StudentIDs = sids;
@@ -169,7 +174,10 @@ function eventsByStudent_(from, to, sids) {
       var m = out[a.StudentID] = out[a.StudentID] || {};
       // MMS bills a subbed event to the regular teacher (OriginalTeacherID), not the sub.
       var t = e.OriginalTeacherID || e.TeacherID;
-      if (t) m[t] = (m[t] || 0) + 1;
+      if (!t) return;
+      var x = m[t] = m[t] || { n: 0, kinds: {} };
+      x.n++;
+      x.kinds[kindOf_(e.EventCategory && e.EventCategory.ID)] = true;
     });
   });
   return out;
@@ -201,7 +209,14 @@ function driftFor_(sid, status, month, charges, events, profiles, names) {
   Object.keys(byT).forEach(function (t) {
     var n = names[t] || 'a teacher';
     if (byT[t].length > 1) out.push({ problem: 'Charged twice by one teacher', detail: byT[t].length + ' monthly charges from ' + n + ' in ' + month });
-    if (!ev[t]) out.push({ problem: 'Charge with no events', detail: '$' + byT[t][0].amount + ' from ' + n + ' but no ' + n + ' events this month' });
+    if (!ev[t]) { out.push({ problem: 'Charge with no events', detail: '$' + byT[t][0].amount + ' from ' + n + ' but no ' + n + ' events this month' }); return; }
+    // An old profile set off by a different program with the same teacher (an ensemble charge
+    // from lesson dates). Only when both kinds are known, so odd categories never flag.
+    var ck = kindOf_(byT[t][0].cat), have = Object.keys(ev[t].kinds);
+    if (ck !== 'other' && have.indexOf('other') < 0 && have.indexOf(ck) < 0) {
+      out.push({ problem: 'Charge for the wrong program', detail: '$' + byT[t][0].amount + ' ' + KIND_WORD_[ck] + ' charge from ' + n + ', but this month with ' + n + ' is only ' +
+        have.map(function (k) { return KIND_WORD_[k]; }).join(' and ') + 's' });
+    }
   });
   if (status === 'Inactive' && Object.keys(byT).length) out.push({ problem: 'Inactive but charged', detail: 'Status is Inactive and ' + month + ' has charges' });
   (profiles || []).forEach(function (p) {
@@ -229,7 +244,7 @@ function billing_(p) {
     month: month,
     profiles: profiles.filter(function (b) { return b.Active; }).map(function (b) {
       return { teacher: names[b.TeacherID] || b.TeacherID, category: (b.EventCategory && b.EventCategory.Name) || CAT_NAMES[b.EventCategoryID] || '',
-        rate: b.BillingRate, mode: b.DefaultBillingMode, eventsThisMonth: events[b.TeacherID] || 0 };
+        rate: b.BillingRate, mode: b.DefaultBillingMode, eventsThisMonth: events[b.TeacherID] ? events[b.TeacherID].n : 0 };
     }).sort(function (a, b) { return (b.eventsThisMonth - a.eventsThisMonth) || (b.rate - a.rate); }),
     charges: tx.filter(function (t) { var m = t.date.slice(0, 7); return m >= lo && m <= hi && t.type !== 'Payment'; })
       .sort(function (a, b) { return a.date < b.date ? 1 : -1; })
@@ -298,4 +313,102 @@ function mmsChanges_(p) {
   return rows.slice(-50).reverse().map(function (r) {
     return { at: r.Timestamp, who: r.Who, sid: r['MMS ID'], action: r.Action, before: r.Before, after: r.After, result: r.Result };
   });
+}
+
+// ---------- private lessons, live from MMS ----------
+
+var LESSON_CAT = 'ect_qk7jJc';
+
+function lessonWhen_(iso) {
+  var d = new Date(String(iso).replace(/(\.\d+)?Z?$/, ''));
+  if (isNaN(d)) return '';
+  return Utilities.formatDate(d, Session.getScriptTimeZone(), 'EEE h:mm a');
+}
+function lessonFreq_(e) {
+  var r = e.RepeatDetails;
+  if (!e.Recurring || !r) return 'One time';
+  if (r.Frequency === 'Weekly') return r.Interval === 1 ? 'Weekly' : 'Every ' + r.Interval + ' weeks';
+  if (r.Frequency === 'Monthly') return r.Interval === 1 ? 'Monthly' : 'Every ' + r.Interval + ' months';
+  return r.Frequency || '';
+}
+
+/**
+ * Everyone with a private lesson on the MMS calendar from 45 days ago to 75 days out,
+ * as { sid: { teacher, teacherId, when, freq, next, last, upcoming, thisMonth, rate, mode, location } }.
+ * The teacher and schedule come from the next lesson (or the last one if none is coming).
+ */
+function lessonsLive_() {
+  var now = new Date(), names = teacherNames_(), tz = Session.getScriptTimeZone();
+  var from = new Date(now.getTime() - 45 * 864e5), to = new Date(now.getTime() + 75 * 864e5);
+  var month = ym_(now);
+  var rows = searchAll_('calendar/events', { StartDate: iso_(from), EndDate: iso_(to), EventCategoryIDs: [LESSON_CAT] });
+  var out = {};
+  rows.forEach(function (e) {
+    var start = String(e.StartDate || ''), future = new Date(start) >= now;
+    (e.Attendances || []).forEach(function (a) {
+      var sid = a.StudentID; if (!sid) return;
+      var x = out[sid] = out[sid] || { upcoming: 0, thisMonth: 0, next: '', last: '', _n: null, _l: null };
+      if (start.slice(0, 7) === month) x.thisMonth++;
+      if (future) { x.upcoming++; if (!x._n || start < x._n.StartDate) x._n = e; }
+      else if (!x._l || start > x._l.StartDate) x._l = e;
+    });
+  });
+  var sids = Object.keys(out), prof = {};
+  for (var i = 0; i < sids.length; i += 50) {
+    Utilities.sleep(500);
+    searchAll_('billingprofiles', { StudentIDs: sids.slice(i, i + 50) }).forEach(function (b) {
+      if (b.Active) prof[b.StudentID + '|' + b.TeacherID] = b;
+    });
+  }
+  sids.forEach(function (sid) {
+    var x = out[sid], e = x._n || x._l, tid = e.OriginalTeacherID || e.TeacherID, b = prof[sid + '|' + tid];
+    x.next = x._n ? String(x._n.StartDate).slice(0, 10) : '';
+    x.last = x._l ? String(x._l.StartDate).slice(0, 10) : '';
+    x.teacherId = tid; x.teacher = names[tid] || (e.Teacher && e.Teacher.Name) || '';
+    x.when = lessonWhen_(e.StartDate); x.freq = lessonFreq_(e); x.length = e.Duration || '';
+    x.location = (e.EventLocation && e.EventLocation.Name) || '';
+    x.rate = b ? b.BillingRate : 0; x.mode = b ? b.DefaultBillingMode : 'None';
+    x.monthly = !b || !(b.BillingRate > 0) ? 0 : b.DefaultBillingMode === 'FixedMonthly' ? b.BillingRate :
+      b.DefaultBillingMode === 'PerLesson' ? b.BillingRate * x.thisMonth : 0;
+    delete x._n; delete x._l;
+  });
+  return out;
+}
+
+// ---------- groups, checked against the MMS calendar ----------
+
+/**
+ * The next rehearsal of every numbered group in the next 5 weeks, from one MMS search:
+ * { 'Group 6': { next, when, teacher, onEvent: { sid: name } } }. Sub rehearsals show the regular teacher.
+ */
+function groupsLive_() {
+  var names = teacherNames_(), out = {}, now = new Date();
+  ensembleEvents_(35).forEach(function (e) {
+    var m = /^(?:Ensemble|Group) (\d+)(?:\D|$)/i.exec(String(e.Description || ''));
+    if (!m || new Date(e.StartDate) < now) return;
+    var g = 'Group ' + m[1];
+    if (out[g] && out[g].next <= String(e.StartDate)) return;
+    var tid = e.OriginalTeacherID || e.TeacherID, on = {};
+    (e.Attendances || []).forEach(function (a) { if (a.StudentID) on[a.StudentID] = a.StudentFullName; });
+    out[g] = { next: String(e.StartDate), when: lessonWhen_(e.StartDate), teacher: names[tid] || (e.Teacher && e.Teacher.Name) || '', onEvent: on };
+  });
+  return out;
+}
+
+/** Add the live rehearsal facts and tag-vs-calendar checks to a group summary. */
+function groupLive_(s, rows, live) {
+  s.check = [];
+  if (!/^Group \d+$/.test(s.name) || s.when !== 'Current') return s;
+  var x = live[s.name];
+  if (!x) { s.check.push('No rehearsals in MMS in the next 5 weeks'); return s; }
+  s.live = { next: x.next.slice(0, 10), when: x.when, teacher: x.teacher, onEvent: Object.keys(x.onEvent).length };
+  if (s.teacher && x.teacher && String(s.teacher).toLowerCase().indexOf(x.teacher.toLowerCase()) < 0) s.check.push('MMS says ' + x.teacher);
+  if (!s.teacher) s.teacher = x.teacher;
+  var tagged = {};
+  rows.filter(function (r) { return r.Status === 'Active' || r.Status === 'Trial'; }).forEach(function (r) { tagged[r.ID] = true; });
+  var noTag = Object.keys(x.onEvent).filter(function (id) { return !tagged[id]; }).length;
+  var noCal = Object.keys(tagged).filter(function (id) { return !x.onEvent[id]; }).length;
+  if (noTag) s.check.push(noTag + ' on the rehearsal without the tag');
+  if (noCal) s.check.push(noCal + ' tagged but not on the rehearsal');
+  return s;
 }

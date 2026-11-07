@@ -96,8 +96,11 @@ function listGroups_() {
     split_(r.Programs).forEach(function (t) { (byTag[t] = byTag[t] || []).push(r); });
   });
   var cfg = groupConfig_(Object.keys(byTag));
+  var live = null;
+  try { live = groupsLive_(); } catch (e) { Logger.log('groupsLive_: ' + e.message); }
   return Object.keys(cfg).filter(function (t) { return cfg[t].Kind !== 'Lessons'; }).map(function (t) {
-    return summary_(cfg[t], byTag[t] || []);
+    var s = summary_(cfg[t], byTag[t] || []);
+    return live ? groupLive_(s, byTag[t] || [], live) : s;
   }).sort(function (a, b) { return a.name.localeCompare(b.name, 'en', { numeric: true }); });
 }
 

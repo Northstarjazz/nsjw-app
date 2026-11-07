@@ -182,7 +182,7 @@ function syncRoster() {
     });
   });
   var out = [['ID', 'Name', 'First', 'Status', 'Email', 'Phone', 'Started', 'Last event',
-    'Next event', 'Programs', 'Instruments', 'Other tags', 'Note', 'Synced', 'Skill level']];
+    'Next event', 'Programs', 'Instruments', 'Other tags', 'Note', 'Synced', 'Skill level', 'Referrer']];
   var now = new Date();
   rows.forEach(function (s) {
     var tags = tagsBySid[s.ID] || [];
@@ -193,7 +193,7 @@ function syncRoster() {
     out.push([s.ID, s.FullName || '', s.FirstName || '', s.Status || '',
       (s.Email && s.Email.EmailAddress) || '', (s.Telephone && s.Telephone.TelephoneNumber) || '',
       day_(s.DateStarted), day_(s.LastEventDate), day_(s.NextEventDate),
-      prog.join('; '), inst.join('; '), other.join('; '), String(s.Note || '').slice(0, 2000), now, s.SkillLevel || '']);
+      prog.join('; '), inst.join('; '), other.join('; '), String(s.Note || '').slice(0, 2000), now, s.SkillLevel || '', s.Referrer || '']);
   });
   var sh = tab_(ROSTER_TAB);
   keepAppEdits_(sh, out, started);
@@ -363,11 +363,17 @@ function getPerson_(sid, email) {
   });
 
   if (r && r.Note) timeline.push({ at: r.Started || '', kind: 'signup', text: r.Note });
+
+  // MMS writes that did not go cleanly (not confirmed, or touched other fields). Clean ones already have a note.
+  if (sid) sheetObjects_(MMS_LOG_TAB).forEach(function (m) {
+    if (String(m['MMS ID']).indexOf(sid) < 0 || m.Result === 'ok') return;
+    timeline.push({ at: m.Timestamp, kind: 'mms', author: m.Who, text: m.Action + ': ' + m.Result });
+  });
   timeline.sort(function (a, b) { return new Date(b.at) - new Date(a.at); });
 
   return {
     id: sid, name: r ? r.Name : email, first: r ? r.First : '', status: r ? r.Status : 'Not in MMS',
-    email: email, phone: r ? r.Phone : '', started: r ? r.Started : '', skill: r ? r['Skill level'] : '',
+    email: email, phone: r ? r.Phone : '', started: r ? r.Started : '', skill: r ? r['Skill level'] : '', referrer: r ? r.Referrer || '' : '',
     lastEvent: r ? r['Last event'] : '', nextEvent: r ? r['Next event'] : '',
     programs: r ? split_(r.Programs) : [], instruments: r ? split_(r.Instruments) : [],
     formInstruments: r ? formInstruments_(signup_(r.Note).instrument) : [],
@@ -388,12 +394,45 @@ var LESSON_FIELDS = ['Stage', 'Teacher', 'Instrument', 'Frequency', 'Day and tim
 function listLessons_() {
   var roster = {};
   rosterRows_().forEach(function (r) { roster[r.ID] = r; });
-  return sheetObjects_(LESSONS_TAB).map(function (l) {
-    var r = roster[l['MMS ID']] || {};
-    l.email = r.Email || ''; l.phone = r.Phone || ''; l.mmsStatus = r.Status || '';
-    l.nextEvent = r['Next event'] || ''; l.lastEvent = r['Last event'] || '';
-    return l;
+  var live = {};
+  try { live = lessonsLive_(); } catch (e) { Logger.log('lessonsLive_: ' + e.message); live = null; }
+  var seen = {};
+  var rows = sheetObjects_(LESSONS_TAB).map(function (l) {
+    var sid = l['MMS ID'];
+    if (sid) seen[sid] = true;
+    return mergeLesson_(l, live && sid ? live[sid] : null, roster[sid] || {}, !!live);
   });
+  // On the MMS calendar but not on the lessons list yet.
+  if (live) Object.keys(live).forEach(function (sid) {
+    if (seen[sid] || !live[sid].upcoming) return;
+    var r = roster[sid] || {};
+    rows.push(mergeLesson_({ 'MMS ID': sid, Name: r.Name || sid, Stage: 'Active', Instrument: split_(r.Instruments)[0] || '' }, live[sid], r, true, true));
+  });
+  return rows;
+}
+
+/**
+ * One lesson row: the sheet's stage, instrument and notes, with teacher, schedule and rate from
+ * MMS when MMS has them. check lists where the two disagree, so someone can fix the right one.
+ */
+function mergeLesson_(l, m, r, haveLive, added) {
+  l.email = r.Email || ''; l.phone = r.Phone || ''; l.mmsStatus = r.Status || '';
+  l.nextEvent = r['Next event'] || ''; l.lastEvent = r['Last event'] || '';
+  l.check = [];
+  if (added) l.check.push('Not on the lessons list yet');
+  if (m) {
+    if (l.Teacher && m.teacher && String(l.Teacher).toLowerCase().indexOf(m.teacher.toLowerCase()) < 0) l.check.push('MMS says ' + m.teacher);
+    l.Teacher = m.teacher || l.Teacher;
+    l['Day and time'] = m.when; l.Frequency = m.freq;
+    if (m.monthly) l['Monthly cost'] = m.monthly;
+    l.mms = m;
+    if (m.upcoming && /^(Ended)$/.test(l.Stage)) l.check.push('Still on the MMS calendar');
+    if (m.upcoming && !(m.rate > 0)) l.check.push('No rate in MMS. Billed by hand?');
+  } else if (haveLive && /^(Active)$/.test(l.Stage)) {
+    l.check.push('No lessons on the MMS calendar');
+  }
+  if (m && !m.upcoming && /^(Active)$/.test(l.Stage)) l.check.push('No lessons coming up in MMS');
+  return l;
 }
 
 function saveLesson_(who, p) {
