@@ -191,7 +191,10 @@ function transactions_(sids) {
 
 /** The checks, for one month. Shared by the person page and the nightly run. */
 function driftFor_(sid, status, month, charges, events, profiles, names) {
-  var out = [], byT = {};
+  var out = [], byT = {}, anyT = {};
+  // Any charge row from a teacher this month, even $0, means MMS is billing that pair on purpose
+  // (course students who paid a deposit get $0 calendar charges until billing starts).
+  charges.filter(function (c) { return c.type === 'Charge' && c.date.slice(0, 7) === month; }).forEach(function (c) { anyT[c.teacher] = true; });
   charges.filter(function (c) { return c.type === 'Charge' && c.date.slice(0, 7) === month && c.source === 'FixedMonthly'; })
     .forEach(function (c) { (byT[c.teacher] = byT[c.teacher] || []).push(c); });
   var ev = events || {};
@@ -203,7 +206,7 @@ function driftFor_(sid, status, month, charges, events, profiles, names) {
   if (status === 'Inactive' && Object.keys(byT).length) out.push({ problem: 'Inactive but charged', detail: 'Status is Inactive and ' + month + ' has charges' });
   (profiles || []).forEach(function (p) {
     if (!p.Active || p.DefaultBillingMode !== 'FixedMonthly' || !(p.BillingRate > 0)) return;
-    if (ev[p.TeacherID] && !byT[p.TeacherID]) out.push({ problem: 'Events but no charge', detail: (names[p.TeacherID] || 'A teacher') + ' has events this month at $' + p.BillingRate + '/month, and no charge' });
+    if (ev[p.TeacherID] && !anyT[p.TeacherID]) out.push({ problem: 'Events but no charge', detail: (names[p.TeacherID] || 'A teacher') + ' has events this month at $' + p.BillingRate + '/month, and no charge' });
   });
   return out;
 }
