@@ -1861,6 +1861,7 @@
     api('leadtag', Object.assign({ sid: l.id, email: l.email, field: 'stage', value: to, on: true, reason: reason || '' }, opts || {}))
       .then(function (r) {
         todayState.data = null; tasksState.rows = null;
+        if (current && current.id === l.id) { propOpen = ''; loadPerson(l.id, true); }
         if (r && r.task) { l.next = { text: r.task.text, due: r.task.due, owner: r.task.owner, row: r.task.row }; renderLeads(); }
         if (to === 'Closed') { l.lost = (reason || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 1); renderLeads(); }
         var msg = '<b>' + esc(l.name) + '</b> moved to ' + esc(to) + '.' +
@@ -2131,7 +2132,15 @@
     var tk = e.target.closest('[data-track]');
     if (tk) { leadTag('interest', tk.dataset.track, !tk.classList.contains('on'), tk); return; }
     var sc = e.target.closest('[data-stage]');
-    if (sc) { if (!sc.classList.contains('on')) leadTag('stage', sc.dataset.stage, true, sc); return; }
+    if (sc) {
+      if (sc.classList.contains('on')) return;
+      if (sc.dataset.stage === 'Closed' && current) {
+        var nt = personTasks(current)[0];
+        openClose({ id: current.id, name: current.name, email: current.email, stage: tagStage(current.tags, current.status), stageAt: '', next: nt ? { text: nt.text, due: nt.due, owner: nt.owner } : null });
+        return;
+      }
+      leadTag('stage', sc.dataset.stage, true, sc); return;
+    }
     var b = e.target.closest('[data-lt]');
     if (b) { leadTag(b.dataset.lt, b.dataset.v, !b.classList.contains('on'), b); return; }
     if (e.target.closest('[data-next-done]') && current) {
