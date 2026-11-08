@@ -12,7 +12,7 @@
  *     month for 1, 2 or 4 lessons (member $80 a lesson). Clinics are not priced there.
  */
 
-var SETTINGS_TAB = 'Settings';
+var SETTINGS_TAB = 'Pipeline settings'; // not "Settings": that tab belongs to the Sequencer
 var SETTINGS_HEAD = ['Kind', 'Name', 'A', 'B', 'C', 'D'];
 
 // stage: Name = stage, A = task, B = due, C = owner, D = requires
