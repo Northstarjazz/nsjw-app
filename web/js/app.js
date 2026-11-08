@@ -1632,13 +1632,14 @@
     var open = all.filter(isOpen);
     var late = open.filter(function (l) { return urgency(l) === 'overdue'; });
     var none = open.filter(function (l) { return !l.next && onBoard(l); });
-    var openVal = open.reduce(function (n, l) { var v = leadValue(l); return n + (v ? v.price : 0); }, 0);
+    var live = open.filter(onBoard);
+    var openVal = live.reduce(function (n, l) { var v = leadValue(l); return n + (v ? v.price : 0); }, 0);
     function names(list) { var f = list.slice(0, 3).map(function (l) { return String(l.name).split(' ')[0]; }); return list.length ? f.join(', ') + (list.length > 3 ? ' and ' + (list.length - 3) + ' more' : '') : 'None'; }
     return [
       ['New leads, last 30 days', String(n30), esc(d > 0 ? 'Up ' + d : d < 0 ? 'Down ' + -d : 'Same as') + ' from the 30 days before<br><a href="#instruments">See by instrument</a>', '', true],
       ['Tasks overdue', String(late.length), names(late), late.length ? 'red' : ''],
       ['No task set', String(none.length), names(none), none.length ? 'amber' : ''],
-      ['Open pipeline', openVal ? money0(openVal) + '/mo' : '--', open.length + ' open lead' + (open.length === 1 ? '' : 's')]
+      ['Open pipeline', openVal ? money0(openVal) + '/mo' : '--', live.length + ' active open lead' + (live.length === 1 ? '' : 's')]
     ];
   }
   function lastHeard(l) { return l.lastContact ? dayOnly(l.lastContact) : 'Never'; }
@@ -1806,7 +1807,7 @@
   function median(a) { if (!a.length) return null; a = a.slice().sort(function (x, y) { return x - y; }); var m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2); }
 
   function leadStats(all) {
-    var open = all.filter(function (l) { return /^(First Contact|Qualified|Committed)$/.test(l.stage); });
+    var open = all.filter(function (l) { return /^(First Contact|Qualified|Committed)$/.test(l.stage) && onBoard(l); });
     var openVal = open.reduce(function (n, l) { var v = leadValue(l); return n + (v ? v.price : 0); }, 0);
     var lessons = open.filter(function (l) { return (l.tracks || []).indexOf('Private lessons') >= 0; });
     var lp = priceOf('Private lessons');
@@ -1815,7 +1816,7 @@
     var days = (leadsState.enrolled || []).map(function (e) { return e.started && e.at ? Math.round((parse(e.at) - parse(e.started)) / 864e5) : null; }).filter(function (n) { return n != null && n >= 0; });
     var md = median(days);
     return [
-      ['Open pipeline', openVal ? money0(openVal) + '/mo' : '--', open.length + ' open lead' + (open.length === 1 ? '' : 's')],
+      ['Open pipeline', openVal ? money0(openVal) + '/mo' : '--', open.length + ' active open lead' + (open.length === 1 ? '' : 's')],
       ['Lesson leads', String(lessons.length), lp ? 'Value at ' + money(lp.price) + '/mo' : 'Set a lesson value'],
       ['Enrolled this month', enrVal ? money0(enrVal) + '/mo' : String(enr.length), enr.length + (enr.length === 1 ? ' person' : ' people')],
       ['Median days to enroll', md == null ? '--' : String(md), 'Last 90 days']
