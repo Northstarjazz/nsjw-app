@@ -309,6 +309,12 @@
   function gridHooks(o) {
     return Object.assign({
       LEAD: LEAD, picked: picked, actText: actText,
+      stageNote: function (st) { var r = settings && settings.stages.filter(function (x) { return x.stage === st; })[0]; return r && r.task ? 'Adds a task' : ''; },
+      askClose: function (row) {
+        var l = (o.source && o.source(row.id)) || (leadsState.rows || []).filter(function (x) { return x.id === row.id; })[0] ||
+          { id: row.id, name: row.name, email: row.email, stage: row.stage, next: null };
+        openClose(l);
+      },
       onSelect: function (data) {
         picked = {}; data.forEach(function (d) { picked[d.id] = d.name; }); selBar();
       },
@@ -1602,63 +1608,94 @@
     return true;
   }
 
+  // List views (canvas board 12). Open means still being worked: First Contact, Qualified, Committed.
+  var LVIEWS = [['follow', 'Needs follow-up'], ['new30', 'New in 30 days'], ['new60', 'New in 60 days'], ['open', 'All open'], ['nurture', 'Nurture'], ['closed', 'Closed']];
+  function isOpen(l) { return /^(First Contact|Qualified|Committed)$/.test(l.stage); }
+  function inView(l, v) {
+    var age = daysSince(l.started);
+    if (v === 'follow') { var u = urgency(l); return isOpen(l) && (u === 'overdue' || u === 'today' || u === 'none') && (u !== 'none' || onBoard(l)); }
+    if (v === 'new30') return l.stage !== 'Enrolled' && age != null && age < 30;
+    if (v === 'new60') return l.stage !== 'Enrolled' && age != null && age < 60;
+    if (v === 'nurture') return l.stage === 'Nurture';
+    if (v === 'closed') return l.stage === 'Closed';
+    return isOpen(l);
+  }
+  function listFilter(l) {
+    if (leadsState.stage && l.stage !== leadsState.stage) return false;
+    if (leadsState.who === 'me' && !(l.next && ownerName(l.next.owner) === myName())) return false;
+    return true;
+  }
+  function listStats(all) {
+    var n30 = all.filter(function (l) { var a = daysSince(l.started); return a != null && a < 30; }).length;
+    var p30 = all.filter(function (l) { var a = daysSince(l.started); return a != null && a >= 30 && a < 60; }).length;
+    var d = n30 - p30;
+    var open = all.filter(isOpen);
+    var late = open.filter(function (l) { return urgency(l) === 'overdue'; });
+    var none = open.filter(function (l) { return !l.next && onBoard(l); });
+    var openVal = open.reduce(function (n, l) { var v = leadValue(l); return n + (v ? v.price : 0); }, 0);
+    function names(list) { var f = list.slice(0, 3).map(function (l) { return String(l.name).split(' ')[0]; }); return list.length ? f.join(', ') + (list.length > 3 ? ' and ' + (list.length - 3) + ' more' : '') : 'None'; }
+    return [
+      ['New leads, last 30 days', String(n30), esc(d > 0 ? 'Up ' + d : d < 0 ? 'Down ' + -d : 'Same as') + ' from the 30 days before<br><a href="#instruments">See by instrument</a>', '', true],
+      ['Tasks overdue', String(late.length), names(late), late.length ? 'red' : ''],
+      ['No task set', String(none.length), names(none), none.length ? 'amber' : ''],
+      ['Open pipeline', openVal ? money0(openVal) + '/mo' : '--', open.length + ' open lead' + (open.length === 1 ? '' : 's')]
+    ];
+  }
+  function lastHeard(l) { return l.lastContact ? dayOnly(l.lastContact) : 'Never'; }
+
   function renderLeads() {
     var board = leadsState.mode === 'board';
     $('#lead-board-wrap').hidden = !board; $('#lead-list-wrap').hidden = board;
+    $('#leads-card').classList.toggle('listmode', !board);
     $$('#lead-mode .tab').forEach(function (t) { t.classList.toggle('on', t.dataset.mode === leadsState.mode); });
-    if (board) { renderBoard(); return; }
-    var all = (leadsState.rows || []).filter(leadMatches);
-    var month = new Date(); month.setDate(1); month = new Date(month.toDateString());
-    var counts = {};
-    all.forEach(function (l) { counts[l.stage] = (counts[l.stage] || 0) + 1; });
-    $('#stagebar').innerHTML = LEAD.stages.map(function (s) {
-      return '<button type="button" class="stagechip' + (leadsState.stage === s ? ' on' : '') + '" data-stage="' + esc(s) + '">' +
-        '<b>' + (counts[s] || 0) + '</b><span>' + esc(s) + '</span></button>';
-    }).join('');
-    var rows = all.filter(function (l) {
-      if (leadsState.stage) return l.stage === leadsState.stage;
-      if (l.stage === 'Closed' || l.stage === 'Enrolled') return false;
-      var u = urgency(l);
-      if (leadsState.view === 'action') return u === 'overdue' || u === 'today' || (u === 'none' && !l.notes && l.started && parse(l.started) >= new Date(Date.now() - 30 * 864e5)) || (l.stage === 'Committed' && u === 'none');
-      if (leadsState.view === 'new') return l.started && parse(l.started) >= month;
-      if (leadsState.view === 'nonext') return u === 'none' && l.stage !== 'Nurture';
-      return true;
-    });
-    var rank = { overdue: 0, today: 1, none: 2, later: 3 };
-    rows.sort(function (a, b) {
-      return (rank[urgency(a)] - rank[urgency(b)]) || String(b.started).localeCompare(String(a.started));
-    });
-    $$('#lead-views .chip').forEach(function (c) { c.classList.toggle('on', !leadsState.stage && c.dataset.view === leadsState.view); });
+    leadBulkBar();
     var active = [];
     Object.keys(leadsState.f).forEach(function (k) { (leadsState.f[k] || []).forEach(function (v) { active.push([k, v]); }); });
     $('#lead-active').innerHTML = active.map(function (a) {
       return '<button type="button" class="chip on" data-rm="' + esc(a[0]) + '|' + esc(a[1]) + '">' + esc(a[1]) + ' &times;</button>';
     }).join('');
-    $('#lead-filter-btn').textContent = active.length ? 'Filter · ' + active.length : 'Filter';
-    $('#leads-sum').textContent = rows.length + (rows.length === 1 ? ' lead' : ' leads') +
-      (leadsState.stage ? ' in ' + leadsState.stage : '') + ' · ' + all.length + ' open in total';
+    $('#lead-filter-btn').textContent = active.length ? 'More filters · ' + active.length : 'More filters';
+    if (board) { renderBoard(); return; }
+    if (!settings) loadSettings(renderLeads);
+    var base = (leadsState.rows || []).filter(leadMatches);
+    $('#lead-stats').innerHTML = statStrip(listStats(base));
+    var pool = base.filter(listFilter);
+    if (!LVIEWS.some(function (v) { return v[0] === leadsState.view; })) leadsState.view = 'open';
+    $('#lead-views').innerHTML = LVIEWS.map(function (v) {
+      var n = pool.filter(function (l) { return inView(l, v[0]); }).length;
+      return '<button type="button" class="vt' + (leadsState.view === v[0] ? ' on' : '') + '" data-view="' + v[0] + '"' + (leadsState.view === v[0] ? ' aria-current="page"' : '') + '>' + esc(v[1]) +
+        (v[0] === 'closed' ? '' : ' <span class="cnt' + (v[0] === 'follow' && n ? ' bad' : '') + '">' + n + '</span>') + '</button>';
+    }).join('');
+    var rows = pool.filter(function (l) { return inView(l, leadsState.view); });
+    // Sorted by next task: late first (most late on top), then no task, then soonest due.
+    function key(l) { var u = urgency(l); return u === 'overdue' ? 'a' + l.next.due : u === 'none' ? 'b' : 'c' + (l.next.due || '9999'); }
+    rows.sort(function (a, b) { return key(a).localeCompare(key(b)) || String(b.started).localeCompare(String(a.started)); });
+    $('#leads-sum').textContent = rows.length + (rows.length === 1 ? ' lead' : ' leads') + ' · sorted by next task';
     if (useGrid()) {
       $('#lead-more').hidden = true; $('#lead-list').classList.remove('list'); $('#lead-list').classList.add('g-host');
       NSJWGrid.leads($('#lead-list'), rows.map(function (l) {
-        return { id: l.id, name: l.name, email: l.email, phone: l.phone, status: l.status, stage: l.stage, urgency: urgency(l),
-          nextText: l.next ? l.next.text : '', nextDue: l.next ? l.next.due : '', interests: l.interests.slice(), formInterests: l.formInterests,
+        var v = leadValue(l), u = urgency(l), inStage = daysSince(l.stageAt || l.started);
+        return { id: l.id, name: l.name, email: l.email, phone: l.phone, status: l.status, stage: l.stage, urgency: u,
+          nextText: l.next ? l.next.text : '', nextDue: l.next ? l.next.due : '', dueText: dueText(l), interests: l.interests.slice(), formInterests: l.formInterests,
           instruments: l.instruments.slice(), formInstruments: l.formInstruments, nights: l.nights.slice(), started: l.started,
-          lastContact: l.lastContact, source: l.form.source || '' };
+          lastContact: l.lastContact, heard: lastHeard(l), source: l.form.source || '', value: v ? v.price : null, valueText: v ? money(v.price) + '/mo' : '',
+          inStage: inStage, stale: !l.lastContact && isOpen(l) };
       }), gridHooks({ colsBtn: $('#lcols'), keepLeads: true,
         source: function (id) { return (leadsState.rows || []).filter(function (x) { return x.id === id; })[0]; } }));
       return;
     }
     if (!rows.length) { $('#lead-list').innerHTML = '<div class="empty">No one here. Try another view or clear a filter.</div>'; $('#lead-more').hidden = true; return; }
     $('#lead-list').innerHTML = rows.slice(0, leadsState.show).map(function (l) {
-      var u = urgency(l);
-      var bits = [allInstruments(l).join(', '), allInterests(l).join(', '), l.nights.join(' ')].filter(Boolean).join(' · ');
-      var nx = l.next ? '<div class="nx ' + u + '">' + esc(l.next.text) + (l.next.due ? ' · ' + (u === 'overdue' ? 'was due ' : 'due ') + esc(dayOnly(l.next.due)) : '') + (l.next.owner ? ' · ' + esc(l.next.owner) : '') + '</div>'
-        : '<div class="nx none">No next step</div>';
-      var meta = [l.started ? 'Signed up ' + when(l.started) : '', l.lastContact ? 'last note ' + when(l.lastContact) : 'never contacted', l.form.source ? 'via ' + l.form.source : ''].filter(Boolean).join(' · ');
+      var u = urgency(l), v = leadValue(l);
+      var tags = allInterests(l).slice(0, 3).map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('');
+      var tc = u === 'overdue' ? 'var(--bad)' : 'var(--accent)';
       return '<a class="card lead-row" href="#p/' + encodeURIComponent(l.id) + '">' + pickBox(l.id, l.name) +
-        '<span class="lz ' + u + '" aria-label="' + u + '"></span>' +
-        '<div class="who"><div class="line1"><span class="name">' + esc(l.name) + '</span>' + statusPill(l.stage) + '</div>' +
-        (bits ? '<div class="sub">' + esc(bits) + '</div>' : '') + nx + '<div class="meta">' + esc(meta) + '</div></div></a>';
+        '<div class="who"><div class="line1"><span class="name">' + esc(l.name) + '</span><span class="stg"><span class="kdot" style="background:' + (STAGE_DOT[l.stage] || '#8C8B80') + '"></span>' + esc(l.stage) + '</span></div>' +
+        (tags ? '<div class="kc-tags">' + tags + '</div>' : '') +
+        '<div class="sub">' + esc([allInstruments(l).join(', '), v ? money(v.price) + '/mo' : ''].filter(Boolean).join(' · ')) + '</div>' +
+        (l.next ? '<div class="kc-task"><span class="ring" style="border-color:' + tc + '"></span><span>' + esc(l.next.text) + (l.next.due ? ' <b style="color:' + tc + '">· ' + esc(dueText(l)) + '</b>' : '') + '</span></div>'
+          : '<div class="kc-task none">No task set</div>') +
+        '<div class="meta">Last heard ' + esc(lastHeard(l)) + ' · ' + esc(ageText(l.stageAt || l.started) || '') + ' in stage</div></div></a>';
     }).join('');
     $('#lead-more').hidden = rows.length <= leadsState.show;
   }
@@ -1824,12 +1861,27 @@
   function fillLeadFilters() {
     var tr = [['', 'All'], ['Ensemble', 'Ensemble'], ['Private lessons', 'Private lessons'], ['Classes', 'Classes'], ['Undecided', 'Undecided']];
     $('#lf-prog').innerHTML = tr.map(function (t) { return '<option value="' + esc(t[0]) + '"' + (leadsState.track === t[0] ? ' selected' : '') + '>Program: ' + esc(t[1]) + '</option>'; }).join('');
+    function opts(label, list, cur) {
+      return '<option value="">' + esc(label) + ': Any</option>' + list.map(function (x) { return '<option value="' + esc(x) + '"' + (x === cur ? ' selected' : '') + '>' + esc(label) + ': ' + esc(x) + '</option>'; }).join('');
+    }
+    var f = leadsState.f;
+    $('#lf-stage').innerHTML = opts('Stage', LEAD.stages, leadsState.stage);
+    $('#lf-int').innerHTML = opts('Interested in', LEAD.interests, (f.Interest || [])[0]);
+    $('#lf-plays').innerHTML = opts('Plays', LEAD.instruments, (f.Instrument || [])[0]);
+    $('#lf-nights').innerHTML = opts('Nights', LEAD.nights, (f.Nights || [])[0]);
     $('#lf-who').value = leadsState.who || ''; $('#lf-due').value = leadsState.due || '';
-    ['#lf-prog', '#lf-who', '#lf-due'].forEach(function (id) { $(id).classList.toggle('on', !!$(id).value); });
+    ['#lf-prog', '#lf-who', '#lf-due', '#lf-stage', '#lf-int', '#lf-plays', '#lf-nights'].forEach(function (id) { $(id).classList.toggle('on', !!$(id).value); });
   }
   $('#lf-prog').addEventListener('change', function () { leadsState.track = this.value; store('nsjw_ltrack', this.value); fillLeadFilters(); renderLeads(); });
   $('#lf-who').addEventListener('change', function () { leadsState.who = this.value; store('nsjw_lwho', this.value); fillLeadFilters(); renderLeads(); });
   $('#lf-due').addEventListener('change', function () { leadsState.due = this.value; fillLeadFilters(); renderLeads(); });
+  $('#lf-stage').addEventListener('change', function () { leadsState.stage = this.value; fillLeadFilters(); renderLeads(); });
+  [['#lf-int', 'Interest'], ['#lf-plays', 'Instrument'], ['#lf-nights', 'Nights']].forEach(function (x) {
+    $(x[0]).addEventListener('change', function () {
+      if (this.value) leadsState.f[x[1]] = [this.value]; else delete leadsState.f[x[1]];
+      store('nsjw_lf', JSON.stringify(leadsState.f)); fillLeadFilters(); renderLeads();
+    });
+  });
 
   $('#lead-mode').addEventListener('click', function (e) {
     var b = e.target.closest('[data-mode]'); if (!b) return;
@@ -1837,8 +1889,9 @@
   });
   $('#board-foot').addEventListener('click', function (e) {
     var b = e.target.closest('[data-goto]'); if (!b) return;
-    leadsState.mode = 'list'; leadsState.view = 'all'; leadsState.stage = b.dataset.goto === 'older' ? 'First Contact' : b.dataset.goto; leadsState.show = 60;
-    store('nsjw_lmode', 'list'); renderLeads();
+    var g = b.dataset.goto;
+    leadsState.mode = 'list'; leadsState.view = g === 'Nurture' ? 'nurture' : g === 'Closed' ? 'closed' : 'open'; leadsState.stage = g === 'older' ? 'First Contact' : ''; leadsState.show = 60;
+    store('nsjw_lmode', 'list'); fillLeadFilters(); renderLeads();
   });
 
   // Moving a card: drag on a computer, tap and pick on a phone.
@@ -1917,6 +1970,122 @@
     step.then(function () {
       if (nurture) moveLead(l, 'Nurture', why); else moveLead(l, 'Closed', why);
     }).catch(function (err) { toast(err.message); });
+  });
+
+  // ---------- New leads by instrument (canvas board 13) ----------
+  var instState = { days: Number(store('nsjw_idays') || 30), open: {} };
+  function firstInstrument(x) { return (x.formInstruments && x.formInstruments[0]) || (x.instruments && x.instruments[0]) || 'Not given'; }
+  function instPeople() {
+    // Leads plus recent enrollments, one entry per person, by sign-up date.
+    var seen = {}, out = [];
+    (leadsState.rows || []).forEach(function (l) { seen[l.id] = 1; out.push({ id: l.id, name: l.name, email: l.email, started: l.started, stage: l.stage, tags: allInterests(l), next: l.next, nights: l.nights, inst: firstInstrument(l), lead: l, enrolled: false }); });
+    (leadsState.enrolled || []).forEach(function (e) { if (seen[e.id] || !e.started) return; seen[e.id] = 1; out.push({ id: e.id, name: e.name, started: e.started, stage: 'Enrolled', tags: e.programs || [], next: null, nights: [], inst: (e.instruments || [])[0] || 'Not given', enrolled: true }); });
+    return out.filter(function (x) { return x.started; });
+  }
+  function inWindow(x, from, to) { var a = daysSince(x.started); return a != null && a >= from && (to == null || a < to); }
+  function loadInst() {
+    $$('#inst-range .tab').forEach(function (t) { t.classList.toggle('on', Number(t.dataset.days) === instState.days); });
+    if (!leadsState.rows) {
+      $('#inst').innerHTML = '<div class="loading">Loading</div>';
+      swr('leads', null, function (d) { leadsState.rows = d.leads; leadsState.enrolled = d.enrolled || []; leadsState.stale = d.stale || {}; leadsState.boardDays = d.boardDays || 60; renderInst(); })
+        .catch(function (e) { $('#inst').innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
+      return;
+    }
+    renderInst();
+  }
+  function instRows() {
+    var d = instState.days, all = instPeople();
+    return { now: d ? all.filter(function (x) { return inWindow(x, 0, d); }) : all, before: d ? all.filter(function (x) { return inWindow(x, d, 2 * d); }) : [], all: all };
+  }
+  function renderInst() {
+    var d = instState.days, r = instRows(), now = r.now;
+    function count(list) { var c = {}; list.forEach(function (x) { c[x.inst] = (c[x.inst] || 0) + 1; }); return c; }
+    var cn = count(now), cb = count(r.before);
+    var order = Object.keys(cn).sort(function (a, b) { return (cn[b] - cn[a]) || a.localeCompare(b); });
+    var top = order.filter(function (k) { return k !== 'Not given'; })[0];
+    var ens = now.filter(function (x) { return x.tags.some(function (t) { return /ensemble|^group/i.test(t); }); }).length;
+    var lessonsOnly = now.filter(function (x) { return x.tags.length && x.tags.every(function (t) { return /private/i.test(t); }); }).length;
+    var enr = now.filter(function (x) { return x.enrolled || x.stage === 'Enrolled'; }).length;
+    var diff = now.length - r.before.length;
+    var span = d ? 'the ' + d + ' days before' : '';
+    var stats = [
+      ['New leads', String(now.length), d ? (diff > 0 ? 'Up ' + diff : diff < 0 ? 'Down ' + -diff : 'Same as') + ' from ' + span : 'Since records began', diff > 0 ? 'good' : ''],
+      ['Most asked-for', top || '--', top ? cn[top] + ' of ' + now.length : ''],
+      ['Want an ensemble', String(ens), lessonsOnly + ' want lessons only'],
+      ['Already enrolled', String(enr), 'From these ' + now.length]
+    ];
+    var max = Math.max.apply(null, order.map(function (k) { return cn[k]; }).concat([1]));
+    var bars = order.map(function (k) {
+      var delta = (cn[k] || 0) - (cb[k] || 0);
+      return '<button type="button" class="ibar" data-inst="' + esc(k) + '"><span class="ib-n">' + esc(k) + '</span><span class="ib-t"><span style="width:' + Math.round(100 * cn[k] / max) + '%"></span></span>' +
+        '<b class="num">' + cn[k] + '</b>' + (d ? '<span class="ib-d ' + (delta > 0 ? 'up' : delta < 0 ? 'down' : '') + '">' + (delta > 0 ? '+' + delta : delta) + '</span>' : '') + '</button>';
+    }).join('');
+    // New leads each month, last six months.
+    var months = [], t0 = new Date(); t0.setDate(1);
+    for (var i = 5; i >= 0; i--) { var m = new Date(t0.getFullYear(), t0.getMonth() - i, 1); months.push({ key: m.getFullYear() + '-' + m.getMonth(), label: m.toLocaleDateString(undefined, { month: 'short' }), n: 0, now: i === 0 }); }
+    r.all.forEach(function (x) { var k = monthKey(x.started); months.forEach(function (m) { if (m.key === k) m.n++; }); });
+    var mmax = Math.max.apply(null, months.map(function (m) { return m.n; }).concat([1]));
+    var chart = '<div class="mchart" role="img" aria-label="New leads each month">' + months.map(function (m) {
+      return '<div class="mc"><span class="num">' + m.n + '</span><span class="mbar' + (m.now ? ' now' : '') + '" style="height:' + Math.round(150 * m.n / mmax) + 'px"></span><span class="lbl">' + esc(m.label) + '</span></div>';
+    }).join('') + '</div>';
+    var dayN = new Date().getDate();
+    var groups = order.map(function (k) {
+      var list = now.filter(function (x) { return x.inst === k; }).sort(function (a, b) { return String(b.started).localeCompare(String(a.started)); });
+      var open = !!instState.open[k];
+      return '<section class="igrp' + (open ? ' open' : '') + '"><header class="igh"><button type="button" class="igt" data-igrp="' + esc(k) + '" aria-expanded="' + open + '">' +
+        '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>' + esc(k) + ' <span class="cnt">' + list.length + '</span></button>' +
+        '<button type="button" class="btn sm" data-imail="' + esc(k) + '">Email</button></header>' +
+        (open ? '<div class="itable"><div class="tr th"><span class="lbl">Name</span><span class="lbl">Signed up</span><span class="lbl">Stage</span><span class="lbl">Interested in</span><span class="lbl">Next task</span><span class="lbl">Nights</span></div>' +
+          list.map(function (x) {
+            var late = x.lead && urgency(x.lead) === 'overdue';
+            return '<div class="tr"><a href="#p/' + encodeURIComponent(x.id) + '" class="b">' + esc(x.name) + '</a><span>' + esc(dayOnly(x.started)) + '</span>' +
+              '<span class="stg"><span class="kdot" style="background:' + (STAGE_DOT[x.stage] || '#8C8B80') + '"></span>' + esc(x.stage || 'First Contact') + '</span>' +
+              '<span class="kc-tags">' + x.tags.slice(0, 3).map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') + '</span>' +
+              '<span' + (late ? ' class="late"' : '') + '>' + (x.next ? esc(x.next.text) + (x.next.due ? ' · ' + esc(dueText(x.lead)) : '') : '<span class="faint">--</span>') + '</span>' +
+              '<span>' + (esc((x.nights || []).join(', ')) || '<span class="faint">--</span>') + '</span></div>';
+          }).join('') + '</div>' : '') + '</section>';
+    }).join('');
+    $('#inst').innerHTML =
+      '<section class="statstrip">' + stats.map(function (s) { return '<div class="ss"><div class="lbl">' + esc(s[0]) + '</div><div class="ss-v' + (s[3] === 'good' ? ' good' : '') + '">' + esc(s[1]) + '</div><div class="ss-s">' + esc(s[2]) + '</div></div>'; }).join('') + '</section>' +
+      '<div class="inst-2">' +
+        '<section class="rcard"><div class="rcard-h"><h2 class="cardh">' + (d ? 'Last ' + d + ' days' : 'All time') + ' <span class="muted small">' + now.length + ' leads</span></h2>' + (d ? '<span class="muted small">vs the ' + d + ' days before</span>' : '') + '</div>' +
+          (bars || '<div class="empty">No new leads in this window.</div>') +
+          '<p class="muted small">Counted by the instrument on their sign-up form. Someone who plays two counts once, under the first. Click a row to see those people.</p></section>' +
+        '<section class="rcard"><h2 class="cardh">New leads each month</h2>' + chart + '<p class="muted small">' + esc(months[5].label === new Date().toLocaleDateString(undefined, { month: 'short' }) ? new Date().toLocaleDateString(undefined, { month: 'long' }) + ' so far, ' + dayN + (dayN === 1 ? ' day' : ' days') + ' in.' : '') + '</p></section>' +
+      '</div>' +
+      '<section class="rcard"><div class="rcard-h"><h2 class="cardh">The ' + now.length + ' people, grouped by instrument</h2><button type="button" class="btn sm" id="inst-all">' + (order.every(function (k) { return instState.open[k]; }) && order.length ? 'Collapse all' : 'Expand all') + '</button></div>' +
+        (groups || '<div class="empty">Nobody yet.</div>') + '</section>';
+  }
+  $('#inst-range').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-days]'); if (!b) return;
+    instState.days = Number(b.dataset.days); store('nsjw_idays', String(instState.days)); loadInst();
+  });
+  $('#inst').addEventListener('click', function (e) {
+    var g = e.target.closest('[data-igrp]'), bar = e.target.closest('[data-inst]'), m = e.target.closest('[data-imail]');
+    if (g) { instState.open[g.dataset.igrp] = !instState.open[g.dataset.igrp]; renderInst(); return; }
+    if (bar) {
+      var k = bar.dataset.inst; instState.open = {}; instState.open[k] = true; renderInst();
+      var sec = $$('#inst .igrp').filter(function (x) { return x.classList.contains('open'); })[0]; if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (m) {
+      var list = instRows().now.filter(function (x) { return x.inst === m.dataset.imail && x.id; });
+      openCompose(list.map(function (x) { return { id: x.id, name: x.name }; }), list.length + ' ' + m.dataset.imail + (list.length === 1 ? ' lead' : ' leads'));
+      return;
+    }
+    if (e.target.closest('#inst-all')) {
+      var keys = $$('#inst [data-igrp]').map(function (x) { return x.dataset.igrp; }), allOpen = keys.every(function (k) { return instState.open[k]; });
+      instState.open = {}; if (!allOpen) keys.forEach(function (k) { instState.open[k] = true; }); renderInst();
+    }
+  });
+  $('#inst-export').addEventListener('click', function () {
+    // Names and what they asked for only; contact details stay in MyMusicStaff.
+    var rows = [['Name', 'Instrument', 'Signed up', 'Stage', 'Interested in', 'Next task', 'Nights']].concat(instRows().now.map(function (x) {
+      return [x.name, x.inst, x.started, x.stage || 'First Contact', x.tags.join('; '), x.next ? x.next.text : '', (x.nights || []).join('; ')];
+    }));
+    var csv = rows.map(function (r) { return r.map(function (c) { c = String(c == null ? '' : c); return /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(','); }).join('\n');
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = 'new-leads-by-instrument-' + ymd(new Date()) + '.csv'; document.body.appendChild(a); a.click(); a.remove();
   });
 
   // ---------- Pipeline settings (canvas board 3) ----------
@@ -2044,13 +2213,9 @@
   $('#move-open').addEventListener('click', function () { $('#move-sheet').hidden = true; });
   $('#move-sheet').addEventListener('click', function (e) { if (e.target === this) closeMove(); });
 
-  $('#stagebar').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-stage]'); if (!b) return;
-    leadsState.stage = leadsState.stage === b.dataset.stage ? '' : b.dataset.stage; leadsState.show = 60; renderLeads();
-  });
   $('#lead-views').addEventListener('click', function (e) {
-    var b = e.target.closest('.chip'); if (!b) return;
-    leadsState.view = b.dataset.view; leadsState.stage = ''; leadsState.show = 60; store('nsjw_lview', leadsState.view); renderLeads();
+    var b = e.target.closest('[data-view]'); if (!b) return;
+    leadsState.view = b.dataset.view; leadsState.show = 60; store('nsjw_lview', leadsState.view); renderLeads();
   });
   $('#lq').addEventListener('input', function () { leadsState.q = this.value.trim().toLowerCase(); leadsState.show = 60; renderLeads(); });
   $('#lead-more').addEventListener('click', function () { leadsState.show += 60; renderLeads(); });
@@ -2058,7 +2223,7 @@
     var b = e.target.closest('[data-rm]'); if (!b) return;
     var kv = b.dataset.rm.split('|');
     leadsState.f[kv[0]] = (leadsState.f[kv[0]] || []).filter(function (x) { return x !== kv[1]; });
-    store('nsjw_lf', JSON.stringify(leadsState.f)); renderLeads();
+    store('nsjw_lf', JSON.stringify(leadsState.f)); fillLeadFilters(); renderLeads();
   });
 
   var LF_GROUPS = [['Interest', LEAD.interests], ['Instrument', LEAD.instruments], ['Nights', LEAD.nights], ['Next step', ['Overdue', 'Due today', 'Scheduled', 'None']]];
@@ -2532,11 +2697,120 @@
   function pickBox(id, name) {
     return '<span class="pick' + (picked[id] ? ' on' : '') + '" data-pick="' + esc(id) + '" data-name="' + esc(name) + '" role="checkbox" aria-checked="' + (picked[id] ? 'true' : 'false') + '" aria-label="Select ' + esc(name) + '"></span>';
   }
+  function onLeadList() { return location.hash === '#leads' && leadsState.mode === 'list'; }
   function selBar() {
     var ids = Object.keys(picked), bar = $('#selbar');
-    bar.hidden = !ids.length;
+    bar.hidden = !ids.length || onLeadList();
     $('#sel-count').textContent = ids.length + ' selected';
+    leadBulkBar();
   }
+  function leadBulkBar() {
+    var n = Object.keys(picked).length;
+    $('#lead-bulk').hidden = !n || !onLeadList();
+    $('#lb-count').textContent = n + ' selected';
+    if (onLeadList()) $('#selbar').hidden = true;
+  }
+
+  // Bulk actions on the Leads list (canvas boards 12 and 2B). Each person is written the same way as one
+  // move on the board, a few at a time, so MMS and the notes stay in step.
+  var bulkMode = '';
+  function pickedLeads() {
+    var by = {}; (leadsState.rows || []).forEach(function (l) { by[l.id] = l; });
+    return Object.keys(picked).map(function (id) { return by[id] || { id: id, name: picked[id], email: '', stage: '' }; });
+  }
+  function runEach(list, fn, label) {
+    var i = 0, done = 0, failed = [];
+    return new Promise(function (resolve) {
+      function next() {
+        if (i >= list.length) { if (done + failed.length === list.length) resolve(failed); return; }
+        var l = list[i++];
+        fn(l).then(function () { done++; }, function (e) { failed.push(l.name + ': ' + e.message); })
+          .then(function () { if (list.length > 3) toast(label + ' ' + (done + failed.length) + ' of ' + list.length); next(); });
+      }
+      for (var k = 0; k < Math.min(4, list.length); k++) next();
+    });
+  }
+  function finishBulk(failed, msg) {
+    picked = {}; selBar(); todayState.data = null; tasksState.rows = null;
+    if (failed.length) toast(failed.length + ' did not save. ' + failed[0]); else toast(msg);
+    loadLeads(true);
+  }
+  function openBulk(mode) {
+    var list = pickedLeads(); if (!list.length) return;
+    bulkMode = mode;
+    var n = list.length, who = n === 1 ? list[0].name : n + ' selected leads';
+    var body = '', go = 'Save';
+    if (mode === 'stage') {
+      $('#bulk-title').textContent = 'Change stage for ' + who;
+      $('#bulk-sub').textContent = 'Each person gets the task their new stage asks for. Closed has its own button, since it asks why.';
+      body = '<fieldset class="opts"><legend>Move to</legend>' + ['First Contact', 'Qualified', 'Committed', 'Nurture'].map(function (st) {
+        var rule = settings && settings.stages.filter(function (x) { return x.stage === st; })[0];
+        return '<label class="opt"><input type="radio" name="bstage" value="' + esc(st) + '"><span class="dotr" aria-hidden="true"></span><span class="kdot" style="background:' + STAGE_DOT[st] + '"></span><span>' + esc(st) + '</span>' +
+          (rule && rule.task ? '<span class="muted small optnote">Adds a task</span>' : '') + '</label>';
+      }).join('') + '</fieldset>';
+      go = 'Move ' + (n === 1 ? '1 lead' : n + ' leads');
+    } else if (mode === 'task') {
+      $('#bulk-title').textContent = 'Add a task for ' + who;
+      $('#bulk-sub').textContent = 'One task each, on their record and in Tasks. It replaces nothing they already have.';
+      body = '<label class="fl"><span class="lbl">Task</span><input id="bt-text" type="text" required placeholder="Check in about the spring groups"></label>' +
+        '<div class="row2"><label class="fl"><span class="lbl">Due</span><select id="bt-due">' + dueOptions(null, 2) + '</select></label>' +
+        '<label class="fl"><span class="lbl">Assigned to</span><select id="bt-owner">' + ownerOptions(myName() || 'Ben') + '</select></label></div>';
+      go = 'Add ' + (n === 1 ? '1 task' : n + ' tasks');
+    } else if (mode === 'close') {
+      var tasks = list.filter(function (l) { return l.next; }).length;
+      var reasons = (settings && settings.reasons.length ? settings.reasons : ['Something else']);
+      $('#bulk-title').textContent = 'Close ' + who;
+      $('#bulk-sub').textContent = n === 1 ? 'They get a timeline note with the reason.' : 'Same question, one answer for everyone you picked. Each person gets a timeline note with the reason.';
+      body = '<label class="fl"><span class="lbl">Reason <span aria-hidden="true">*</span></span><select id="bc-why" required><option value="">Pick a reason</option>' +
+        reasons.map(function (r) { return '<option>' + esc(r) + '</option>'; }).join('') + '</select></label>' +
+        '<label class="fl"><span class="lbl">Note (optional)</span><input id="bc-note" type="text" placeholder="Signed up before May 2026, never wrote back"></label>' +
+        '<div class="bsum"><div><span>Leads</span><b>' + n + '</b></div><div><span>Open tasks that will be completed</span><b>' + tasks + '</b></div>' +
+        '<div><span>Set to Inactive in MyMusicStaff</span><b>' + list.filter(function (l) { return /^(Lead|Trial|Waiting)$/.test(l.status); }).length + '</b></div></div>' +
+        '<p class="muted small">Nothing is deleted. Anyone can be moved back from Closed.</p>';
+      go = 'Close ' + (n === 1 ? '1 lead' : n + ' leads');
+    }
+    $('#bulk-body').innerHTML = body; $('#bulk-go').textContent = go; $('#bulk-go').disabled = mode !== 'task';
+    $('#bulk-sheet').hidden = false;
+  }
+  function shutBulk() { $('#bulk-sheet').hidden = true; bulkMode = ''; }
+  $('#bulk-x').addEventListener('click', shutBulk);
+  $('#bulk-cancel').addEventListener('click', shutBulk);
+  $('#bulk-sheet').addEventListener('click', function (e) { if (e.target === this) shutBulk(); });
+  $('#bulk-body').addEventListener('change', function () {
+    if (bulkMode === 'stage') { $('#bulk-go').disabled = !$('#bulk-body input:checked'); $$('#bulk-body .opt').forEach(function (o) { o.classList.toggle('on', o.querySelector('input').checked); }); }
+    if (bulkMode === 'close') $('#bulk-go').disabled = !$('#bc-why').value;
+  });
+  $('#bulk-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var list = pickedLeads(), mode = bulkMode;
+    if (mode === 'stage') {
+      var to = ($('#bulk-body input:checked') || {}).value; if (!to) return;
+      shutBulk();
+      runEach(list.filter(function (l) { return l.stage !== to; }), function (l) {
+        return api('leadtag', { sid: l.id, email: l.email, field: 'stage', value: to, on: true, reason: '' });
+      }, 'Moving').then(function (f) { finishBulk(f, 'Moved ' + list.length + ' to ' + to); });
+    } else if (mode === 'task') {
+      var text = $('#bt-text').value.trim(), due = $('#bt-due').value, owner = $('#bt-owner').value; if (!text) return;
+      shutBulk();
+      runEach(list, function (l) { return api('note', { sid: l.id, email: l.email, kind: 'next_step', text: text, due: due, owner: owner }); }, 'Adding tasks')
+        .then(function (f) { finishBulk(f, 'Added ' + list.length + (list.length === 1 ? ' task' : ' tasks')); });
+    } else if (mode === 'close') {
+      var why = $('#bc-why').value, note = $('#bc-note').value.trim(); if (!why) return;
+      why += note ? ', ' + note.replace(/,/g, ';') : '';
+      shutBulk();
+      runEach(list.filter(function (l) { return l.stage !== 'Closed'; }), function (l) {
+        var step = l.next ? api('nextdone', { sid: l.id, email: l.email }) : Promise.resolve();
+        return step.then(function () { return api('leadtag', { sid: l.id, email: l.email, field: 'stage', value: 'Closed', on: true, reason: why }); });
+      }, 'Closing').then(function (f) { finishBulk(f, 'Closed ' + list.length + (list.length === 1 ? ' lead' : ' leads')); });
+    }
+  });
+  $('#lead-bulk').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-bulk]'); if (!b) return;
+    var m = b.dataset.bulk;
+    if (m === 'clear') { picked = {}; $$('.pick.on').forEach(function (x) { x.classList.remove('on'); }); var g = $('#lead-list')._grid; if (g) g.deselectRow(); selBar(); return; }
+    if (m === 'email') { openCompose(Object.keys(picked).map(function (id) { return { id: id, name: picked[id] }; }), ''); return; }
+    loadSettings(function () { openBulk(m); });
+  });
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-pick]'); if (!b) return;
     e.preventDefault(); e.stopPropagation();
@@ -2632,6 +2906,7 @@
     if (h === 'lessons') { backTo = '#lessons'; nav('lessons'); show('v-lessons'); loadLessons(); return; }
     if (h === 'leads') { backTo = '#leads'; nav('leads'); show('v-leads'); fillLeadFilters(); loadSettings(function () { if (leadsState.rows) renderLeads(); }); loadLeads(); return; }
     if (h === 'pipeline') { nav('leads'); show('v-pipeline'); loadPipeline(); return; }
+    if (h === 'instruments') { nav('leads'); show('v-inst'); loadSettings(); loadInst(); return; }
     if (h === 'groups') { backTo = '#groups'; nav('groups'); show('v-groups'); loadGroups(); return; }
     if (h.indexOf('g/') === 0) { backTo = location.hash; nav(null); show('v-group'); loadGroup(decodeURIComponent(h.slice(2))); return; }
     if (h === '' || h === 'today') { backTo = '#today'; nav('today'); show('v-today'); loadToday(); return; }

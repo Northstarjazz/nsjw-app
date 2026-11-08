@@ -30,6 +30,8 @@
   }
   function joinList(v) { return (v || []).map(function (t) { return t === 'Classes' ? 'Class' : t; }).join(', '); }
 
+  var STAGE_DOT = { 'First Contact': '#5B7A99', 'Qualified': '#C8913F', 'Committed': '#204E46', 'Enrolled': '#2F5B3E', 'Closed': '#8C8B80', 'Nurture': '#9A86B8' };
+
   // ---- editors ----
   var editingStage = function (cell) {
     var s = cell.getRow().getData().status;
@@ -75,6 +77,8 @@
     return function (cell) {
       var row = cell.getRow().getData(), v = cell.getValue();
       if (!v || v === cell.getOldValue()) return;
+      // Closed needs a reason: put the old stage back and let the app ask why first.
+      if (v === 'Closed' && hooks.askClose) { cell.restoreOldValue(); hooks.askClose(row); return; }
       cell.getElement().classList.add('g-saving');
       hooks.save(row, 'stage', v, true)
         .then(function () { cell.getElement().classList.remove('g-saving'); hooks.saved(row, 'stage', v); })
@@ -203,28 +207,39 @@
     leads: function (el, rows, h) {
       var L = LIST(h);
       var grid = build(el, {
-        id: 'nsjw-leads-v1', paginate: true, per: 50, empty: 'No one here. Try another view or clear a filter.',
+        id: 'nsjw-leads-v2', paginate: true, per: 50, empty: 'No one here. Try another view or clear a filter.',
         onSelect: function (data) { if (!el._quiet) h.onSelect(data); },
         columns: [
           selectCol,
-          nameCol(),
-          { title: 'Stage', field: 'stage', minWidth: 150, widthGrow: 1, editor: 'list', editable: editingStage,
-            editorParams: { values: L.stages }, formatter: stageFormatter, cellEdited: stageEdited(h) },
-          { title: 'Next step', field: 'nextText', minWidth: 140, widthGrow: 2, formatter: function (cell) {
-            var d = cell.getRow().getData();
-            if (!d.nextText) return '<span class="g-add">No next step</span>';
-            return '<span class="g-next ' + esc(d.urgency) + '">' + esc(d.nextText) + '</span>' +
-              (d.nextDue ? '<span class="g-ln g-sub">' + (d.urgency === 'overdue' ? 'Was due ' : 'Due ') + esc(day(d.nextDue)) + '</span>' : '');
-          } },
-          { title: 'Due', field: 'nextDue', minWidth: 110, widthGrow: 1, visible: false, formatter: function (c) { return esc(day(c.getValue())); } },
-          { title: 'Interested in', field: 'interests', minWidth: 120, widthGrow: 1, editor: 'list', editorParams: multi(L.interests),
-            formatter: listFormatter('formInterests'), cellEdited: tagEdits(h, 'interest') },
+          { title: 'Name', field: 'name', minWidth: 160, widthGrow: 2, formatter: function (cell) { return '<span class="g-name b">' + esc(cell.getValue()) + '</span>'; },
+            cellClick: function (e, cell) { location.hash = '#p/' + encodeURIComponent(cell.getRow().getData().id); } },
+          { title: 'Stage', field: 'stage', minWidth: 170, widthGrow: 1, editor: 'list', editable: editingStage,
+            editorParams: { values: L.stages, itemFormatter: function (label, value) {
+              var note = value === 'Closed' ? 'Asks why' : h.stageNote ? h.stageNote(value) : '';
+              return '<span class="g-opt"><span class="kdot" style="background:' + (STAGE_DOT[value] || '#8C8B80') + '"></span>' + esc(label) + (note ? '<span class="g-optnote">' + esc(note) + '</span>' : '') + '</span>';
+            } },
+            formatter: function (cell) { var v = cell.getValue() || 'First Contact'; return '<span class="g-dd"><span class="kdot" style="background:' + (STAGE_DOT[v] || '#8C8B80') + '"></span>' + esc(v) + '<svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>'; },
+            cellEdited: stageEdited(h) },
+          { title: 'Interested in', field: 'interests', minWidth: 150, widthGrow: 2, editor: 'list', editorParams: multi(L.interests),
+            formatter: function (cell) {
+              var d = cell.getRow().getData(), v = d.interests && d.interests.length ? d.interests : d.formInterests || [];
+              return v.length ? '<span class="g-tags">' + v.slice(0, 3).map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') + '</span>' : '<span class="g-add">Add</span>';
+            }, cellEdited: tagEdits(h, 'interest') },
           { title: 'Plays', field: 'instruments', minWidth: 110, widthGrow: 1, editor: 'list', editorParams: multi(L.instruments),
             formatter: listFormatter('formInstruments'), cellEdited: tagEdits(h, 'instrument') },
-          { title: 'Nights', field: 'nights', minWidth: 110, widthGrow: 1, editor: 'list', editorParams: multi(L.nights),
+          { title: 'Value', field: 'value', minWidth: 90, widthGrow: 1, cssClass: 'g-nowrap', sorter: 'number', formatter: function (cell) { var t = cell.getRow().getData().valueText; return t ? '<b class="num">' + esc(t) + '</b>' : '<span class="g-add">--</span>'; } },
+          { title: 'Next task', field: 'nextDue', minWidth: 220, widthGrow: 3, sorter: function (a, b, ra, rb) { var x = ra.getData(), y = rb.getData(); return String(x.nextDue || '9999').localeCompare(String(y.nextDue || '9999')); },
+            formatter: function (cell) {
+              var d = cell.getRow().getData(), late = d.urgency === 'overdue' || (!d.nextText && d.stale);
+              if (!d.nextText) return '<span class="g-task"><span class="ring' + (late ? ' late' : '') + '"></span><span class="g-none' + (late ? ' late' : '') + '">No task set</span></span>';
+              return '<span class="g-task"><span class="ring' + (late ? ' late' : '') + '"></span><span class="g-tt">' + esc(d.nextText) + '</span>' + (d.dueText ? '<b class="' + (late ? 'late' : '') + '">' + esc(d.dueText) + '</b>' : '') + '</span>';
+            } },
+          { title: 'Last heard', field: 'lastContact', minWidth: 100, widthGrow: 1, formatter: function (c) { return esc(c.getRow().getData().heard); } },
+          { title: 'In stage', field: 'inStage', minWidth: 80, widthGrow: 1, sorter: 'number', formatter: function (c) {
+            var n = c.getValue(), d = c.getRow().getData(); return n == null ? '' : '<span class="num' + (d.stale ? ' late' : '') + '">' + n + 'd</span>'; } },
+          { title: 'Nights', field: 'nights', minWidth: 110, widthGrow: 1, visible: false, editor: 'list', editorParams: multi(L.nights),
             formatter: listFormatter(), cellEdited: tagEdits(h, 'nights') },
-          { title: 'Signed up', field: 'started', minWidth: 105, widthGrow: 1, formatter: function (c) { return esc(day(c.getValue())); } },
-          { title: 'Last contact', field: 'lastContact', minWidth: 115, widthGrow: 1, formatter: function (c) { return c.getValue() ? esc(day(c.getValue())) : '<span class="g-add">Never</span>'; } },
+          { title: 'Signed up', field: 'started', minWidth: 105, widthGrow: 1, visible: false, formatter: function (c) { return esc(day(c.getValue())); } },
           { title: 'Source', field: 'source', minWidth: 140, widthGrow: 1, visible: false },
           { title: 'Contact', field: 'email', minWidth: 140, widthGrow: 2, visible: false, formatter: function (cell) {
             var d = cell.getRow().getData();

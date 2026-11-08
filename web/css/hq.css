@@ -471,3 +471,84 @@ select.btn.filter.on { background-color: var(--accent-tint); border-color: var(-
 .sheet .opt span:last-child { flex: 1; }
 .sheet .fl { font: inherit !important; }
 .sheet-body::before, .sheet-body::after { display: none !important; content: none !important; }
+
+/* ---------- Leads list (canvas board 12) ---------- */
+#leads-card .ph { order: -3; }
+#leads-card:not(.listmode) .fbar { order: -2; }
+#leads-card:not(.listmode) .lonly, #leads-card.listmode .bonly { display: none !important; }
+.grow { flex: 1; }
+.vtabs { display: flex; gap: 24px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.vt { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  background: none; font: 500 14px var(--font); color: var(--muted); cursor: pointer; white-space: nowrap; }
+.vt:hover { color: var(--ink); }
+.vt.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+.cnt { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); font: 600 12px/1 var(--font); font-variant-numeric: tabular-nums; box-sizing: border-box; }
+.cnt.bad { background: var(--bad-tint); color: var(--bad); }
+.bulkbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; margin-bottom: 12px; background: var(--nav); color: #FFFFFF; border-radius: var(--r-item); }
+.bulkbar b { margin-right: 8px; }
+.bulkbar .btn { background: transparent !important; color: #FFFFFF !important; border-color: #8C8B80 !important; }
+.bulkbar .btn.ghost { border-color: transparent !important; color: var(--nav-ink) !important; }
+.lfoot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.ss-v.good { color: var(--good); }
+.num { font-variant-numeric: tabular-nums; }
+.g-host .g-name.b, a.b { font-weight: 600; }
+.g-dd { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: var(--r-item); background: var(--surface); font-weight: 500; }
+.g-dd svg { margin-left: 2px; color: var(--muted); }
+.g-opt { display: flex; align-items: center; gap: 10px; width: 100%; }
+.g-optnote { margin-left: auto; font-size: 12px; color: var(--muted); }
+.g-task { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.g-task .g-tt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-task b { white-space: nowrap; font-size: 13px; color: var(--accent); }
+.g-task b.late, .late { color: var(--bad) !important; }
+.ring.late { border-color: var(--bad); }
+.g-host .tabulator-cell .tag { margin: 1px 0; }
+.lead-row .stg, .stg { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.optnote { margin-left: auto; flex: none !important; }
+.bsum { border: 1px solid var(--line); border-radius: var(--r-item); }
+.bsum > div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 14px; }
+.bsum > div + div { border-top: 1px solid var(--line-soft); }
+.bsum b { font-variant-numeric: tabular-nums; }
+#bulk-body { display: flex; flex-direction: column; gap: 12px; }
+#bulk-body .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ---------- New leads by instrument (canvas board 13) ---------- */
+#inst { display: flex; flex-direction: column; gap: 20px; }
+.inst-2 { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; }
+.inst-2 .rcard, #inst > .rcard { border: 1px solid var(--line); border-radius: var(--r-card); }
+.ibar { display: grid; grid-template-columns: 110px minmax(0, 1fr) 32px 36px; align-items: center; gap: 12px; width: 100%; min-height: 36px; padding: 0 8px; border: 0; border-radius: var(--r-item);
+  background: none; font: 500 14px var(--font); color: var(--ink); text-align: left; cursor: pointer; }
+.ibar:hover { background: var(--ground); }
+.ib-t { height: 10px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.ib-t span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.ibar b { text-align: right; }
+.ib-d { font: 600 12px var(--font); color: var(--muted); text-align: right; }
+.ib-d.up { color: var(--good); } .ib-d.down { color: var(--bad); }
+.mchart { display: flex; align-items: flex-end; gap: 16px; height: 200px; padding: 8px 4px 0; border-bottom: 1px solid var(--line); }
+.mc { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; }
+.mc .lbl { margin-bottom: -24px; }
+.mbar { width: 100%; max-width: 44px; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px; }
+.mbar.now { background: #9DBCB0; }
+.mchart + p { margin-top: 32px; }
+.igrp { border-top: 1px solid var(--line-soft); }
+.igh { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; }
+.igt { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; font: 600 15px var(--font); color: var(--ink); cursor: pointer; padding: 0; }
+.igt svg { transform: rotate(-90deg); transition: transform .15s; }
+.igrp.open .igt svg { transform: none; }
+.itable { overflow-x: auto; padding-bottom: 12px; }
+.itable .tr { grid-template-columns: minmax(150px, 1.2fr) 90px 140px minmax(160px, 1.3fr) minmax(200px, 1.6fr) 100px; min-width: 900px; }
+@media (max-width: 999px) {
+  .inst-2 { grid-template-columns: 1fr; }
+  .vtabs { gap: 16px; }
+  #bulk-body .row2 { grid-template-columns: 1fr; }
+}
+.g-dd { white-space: nowrap; }
+.g-none { color: var(--muted); }
+.g-none.late { color: var(--warn); font-weight: 600; }
+.g-host .tabulator-cell .g-tags { display: flex; flex-wrap: wrap; gap: 4px; white-space: normal; }
+.g-host .tabulator-cell:has(.g-tags) { white-space: normal; }
+#leads-card .fbar select.btn.filter { max-width: 200px; text-overflow: ellipsis; }
+#leads-card.listmode .fsearch { flex: 0 1 240px; }
+#inst .btn, #leads-card .btn { width: auto; flex: none; }
+#inst .cardh { align-items: baseline; }
+#inst .cardh .muted { font: 400 13px var(--font); }
+#inst a.b, #inst .itable a { text-decoration: none; }
