@@ -15,7 +15,6 @@
 // lesson package, or class registration form), then Enrolled (MMS status Active).
 // Nurture and Closed (lost) sit off the board.
 var LEAD_STAGES = ['First Contact', 'Qualified', 'Committed', 'Nurture', 'Closed'];
-var LOST_REASONS = ['Timing', 'Price', 'Schedule', 'Level', 'No reply', 'Went elsewhere'];
 // Tags written before Nov 4, 2026 used these names; read them as the new stages.
 var LEGACY_STAGES = { 'New Lead': 'First Contact', 'Deposit Submitted': 'Committed', 'Ready to Join': 'Committed' };
 // Days in a stage with no activity before a card turns red on the board.
@@ -82,7 +81,7 @@ function track_(interests) {
 
 /** People who became students in the last 30 days, for the Enrolled column. */
 function recentEnrolled_() {
-  var since = new Date(Date.now() - 30 * 864e5);
+  var since = new Date(Date.now() - 90 * 864e5);
   var when = {};
   sheetObjects_(NOTES_TAB).forEach(function (n) {
     if (!/^(Placed in |Joined: )/.test(String(n.Text))) return;
@@ -95,7 +94,7 @@ function recentEnrolled_() {
     return when[r.ID] || (st && st >= since);
   }).map(function (r) {
     var at = when[r.ID] || r.Started;
-    return { id: r.ID, name: r.Name, programs: split_(r.Programs), instruments: split_(r.Instruments), at: gday_(at) };
+    return { id: r.ID, name: r.Name, programs: split_(r.Programs), instruments: split_(r.Instruments), at: gday_(at), started: gday_(r.Started) };
   }).sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
 }
 
@@ -141,7 +140,9 @@ function leadRows_() {
       track: track_(tracksOf_(tags, s)),
       tracks: tracksOf_(tags, s),
       notes: (n.count || 0) + (m.out ? 1 : 0),
-      next: n.next ? { text: n.next.Text, due: gday_(n.next.Due), owner: n.next.Owner } : null
+      next: n.next ? { text: n.next.Text, due: gday_(n.next.Due), owner: n.next.Owner, row: n.nextRow || '' } : null,
+      lost: tags.filter(function (t) { return /^Lost: /.test(t); }).map(function (t) { return t.slice(6); }),
+      owner: (tags.filter(function (t) { return /^Owner: /.test(t); })[0] || '').slice(7)
     };
   });
 }
@@ -315,12 +316,19 @@ function setLeadTag_(who, p) {
       });
       if (p.value !== 'First Contact') { tagWrite_(sid, 'Stage: ' + p.value, true); rosterTag_(sid, 'Stage: ' + p.value, true); }
       var why = String(p.reason || '').trim().slice(0, 300);
+      var cfg = getSettings_();
+      var need = (cfg.stages.filter(function (x) { return x.stage === p.value; })[0] || {}).requires || '';
+      if (/lost reason/i.test(need) && !why) throw new Error('Pick why they are not joining first.');
+      if (/^program$/i.test(need)) {
+        var hasProg = split_(r && r['Other tags']).some(function (t) { return /^Interest: /.test(t); }) || (r && formInterests_(signup_(r.Note).interested, signup_(r.Note).form).length);
+        if (!hasProg) throw new Error('Set what they are interested in before Committed.');
+      }
       // Why a lead was lost, as MMS tags ("Lost: Price"), so it stays with them in MMS.
       // Only the preset reasons become tags; anything typed stays in the note. Reopening clears them.
       var lostNow = r ? split_(r['Other tags']).filter(function (t) { return /^Lost: /.test(t); }) : [];
       if (p.value === 'Closed') {
         var parts = why.split(',').map(function (x) { return x.trim(); });
-        LOST_REASONS.filter(function (x) { return parts.indexOf(x) >= 0 && lostNow.indexOf('Lost: ' + x) < 0; }).forEach(function (x) {
+        cfg.reasons.filter(function (x) { return parts.indexOf(x) >= 0 && lostNow.indexOf('Lost: ' + x) < 0; }).forEach(function (x) {
           tagWrite_(sid, 'Lost: ' + x, true); rosterTag_(sid, 'Lost: ' + x, true);
         });
       } else {
@@ -335,7 +343,19 @@ function setLeadTag_(who, p) {
     }
     var sh = tab_(NOTES_TAB, ['Timestamp', 'MMS ID', 'Email', 'Author', 'Kind', 'Text', 'Due', 'Owner', 'Done']);
     sh.appendRow([new Date(), sid, String(p.email || '').toLowerCase(), who, 'change', changes.join('; '), '', '', '']);
-    return { ok: true };
+    var out = { ok: true };
+    if (p.field === 'stage') {
+      // SOP-007: a closed lead's MMS record goes to Inactive.
+      if (p.restoreStatus && /^(Lead|Trial|Waiting)$/.test(p.restoreStatus) && r && r.Status === 'Inactive') {
+        try { setStatus_(sid, p.restoreStatus); rosterStatus_(sid, p.restoreStatus); } catch (e) { out.statusError = e.message; }
+      }
+      if (p.value === 'Closed' && r && /^(Lead|Trial|Waiting)$/.test(r.Status)) {
+        try { setStatus_(sid, 'Inactive'); rosterStatus_(sid, 'Inactive'); out.inactive = true; } catch (e) { out.statusError = e.message; }
+      }
+      if (!p.norule) { try { out.task = applyStageRule_(who, sid, String(p.email || '').toLowerCase(), p.value); } catch (e) { out.taskError = e.message; } }
+      out.was = r ? r.Status : '';
+    }
+    return out;
   } finally {
     lock.releaseLock();
   }

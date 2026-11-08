@@ -53,6 +53,8 @@ function api_(e) {
       case 'taskdone': out = taskDone_(who, p); break;
       case 'taskedit': out = taskEdit_(who, p); break;
       case 'studentedit': out = studentEdit_(who, p); break;
+      case 'settings': out = getSettings_(); break;
+      case 'settingssave': out = saveSettings_(who, p); break;
       case 'billing': out = cachedRead_('billing:' + p.sid, 300, function () { return billing_(p); }); break;
       case 'mmschanges': out = mmsChanges_(p); break;
       case 'place':  out = placeInGroup_(who, p); break;
@@ -79,7 +81,7 @@ function api_(e) {
 // Reads are cached in CacheService under a version stamp. Any write, and every roster
 // sync, bumps the stamp, so a cached answer is never older than the last change.
 // Values over 90 KB are split across keys (CacheService caps one value at 100 KB).
-var READS_ = { whoami: 1, person: 1, people: 1, contacts: 1, lessons: 1, groups: 1, group: 1, leads: 1, today: 1, myteaching: 1, templates: 1, calpreview: 1, tasks: 1, billing: 1, mmschanges: 1 };
+var READS_ = { whoami: 1, person: 1, people: 1, contacts: 1, lessons: 1, groups: 1, group: 1, leads: 1, today: 1, myteaching: 1, templates: 1, calpreview: 1, tasks: 1, billing: 1, mmschanges: 1, settings: 1 };
 
 function cacheVer_() {
   var c = CacheService.getScriptCache(), v = c.get('ver');

@@ -1561,7 +1561,7 @@
     var t = ((tags || []).filter(function (x) { return /^Stage: /.test(x); })[0] || '').slice(7);
     return LEGACY[t] || t || (status === 'Active' ? '' : status === 'Inactive' ? 'Closed' : 'First Contact');
   }
-  var leadsState = { track: store('nsjw_ltrack') || '', mode: store('nsjw_lmode') || 'board', enrolled: [], stale: {}, boardDays: 60, rows: null, view: store('nsjw_lview') || 'action', stage: '', q: '', show: 60,
+  var leadsState = { who: store('nsjw_lwho') || '', due: '', track: store('nsjw_ltrack') || '', mode: store('nsjw_lmode') || 'board', enrolled: [], stale: {}, boardDays: 60, rows: null, view: store('nsjw_lview') || 'action', stage: '', q: '', show: 60,
     f: (function () { try { return JSON.parse(store('nsjw_lf') || '{}'); } catch (e) { return {}; } })() };
 
   function today0() { return new Date(new Date().toDateString()); }
@@ -1665,12 +1665,12 @@
 
 
   // ---------- Board ----------
-  var COLS = ['First Contact', 'Qualified', 'Committed', 'Enrolled'];
+  var COLS = ['First Contact', 'Qualified', 'Committed', 'Enrolled', 'Closed'];
   var COMMIT = { Ensemble: 'Deposit', Lessons: 'Lesson package', Class: 'Registered' };
   var TRACK = { Ensemble: 'Ensemble', Lessons: 'Private lessons', Class: 'Class' };
   function daysSince(d) { return d ? Math.floor((today0() - parse(d)) / 864e5) : null; }
   function onBoard(l) {
-    if (COLS.indexOf(l.stage) < 0 || l.stage === 'Enrolled') return false;
+    if (COLS.indexOf(l.stage) < 0 || l.stage === 'Enrolled' || l.stage === 'Closed') return false;
     if (l.stage !== 'First Contact' || l.next) return true;
     var fresh = [l.started, l.lastContact, l.stageAt].some(function (d) { var n = daysSince(d); return n != null && n <= leadsState.boardDays; });
     return fresh;
@@ -1682,57 +1682,155 @@
     var since = [l.stageAt, l.lastContact, l.started].map(daysSince).filter(function (n) { return n != null; });
     return since.length && Math.min.apply(null, since) > lim;
   }
+  // ---------- Leads board (canvas board 1): totals, five columns, stage tasks ----------
+  var STAGE_DOT = { 'First Contact': '#5B7A99', 'Qualified': '#C8913F', 'Committed': '#204E46', 'Enrolled': '#2F5B3E', 'Closed': '#8C8B80', 'Nurture': '#9A86B8' };
+  var settings = null;
+  function loadSettings(cb) {
+    if (settings) { if (cb) cb(settings); return; }
+    swr('settings', null, function (s) { settings = s; if (cb) cb(s); }).catch(function () {
+      settings = { stages: [], values: [], reasons: ["Schedule doesn't work", 'Too expensive', 'Chose another program or school', 'No response after three nurture rounds', 'Not the right level yet', 'Asked us to stop contacting them', 'Something else'], reasonUse: {} };
+      if (cb) cb(settings);
+    });
+  }
+  var TRACK_PROGRAM = { Ensemble: 'Ensemble', 'Private lessons': 'Private lessons', Classes: 'Classes', Foundations: 'Foundations', Voice: 'Voice', Clinics: 'Clinics' };
+  function priceOf(program) {
+    var v = settings && settings.values.filter(function (x) { return x.program === program; })[0];
+    return v && v.price != null && !isNaN(v.price) ? v : null;
+  }
+  function leadValue(l) {
+    var best = null;
+    (l.tracks || []).forEach(function (t) { var v = priceOf(TRACK_PROGRAM[t] || t); if (v && v.per === 'per month' && (!best || v.price > best.price)) best = v; });
+    return best;
+  }
+  function programValue(name) {
+    var p = /^Group \d+$/.test(name) || /ensemble/i.test(name) && !/vocal/i.test(name) ? 'Ensemble' : /vocal|singer/i.test(name) ? 'Voice' : /private/i.test(name) ? 'Private lessons' : 'Classes';
+    return priceOf(p);
+  }
+  function money0(n) { return '$' + Math.round(n).toLocaleString(); }
+  function monthKey(d) { var x = parse(d); return isNaN(x) ? '' : x.getFullYear() + '-' + x.getMonth(); }
+  var thisMonth = monthKey(new Date().toISOString().slice(0, 10));
+  var monShort = new Date().toLocaleDateString(undefined, { month: 'short' });
+
+  function dueText(l) {
+    if (!l.next || !l.next.due) return '';
+    var d = parse(l.next.due), t = today0(), days = Math.round((t - d) / 864e5);
+    if (days > 0) return days === 1 ? '1 day late' : days + ' days late';
+    if (days === 0) return 'Today';
+    if (days === -1) return 'Tomorrow';
+    if (days > -7) return d.toLocaleDateString(undefined, { weekday: 'short' });
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+  function ageText(d) {
+    var n = daysSince(d);
+    if (n == null) return '';
+    if (n <= 0) return 'Just now';
+    return n === 1 ? '1 day' : n + ' days';
+  }
+  function boardFilter(l) {
+    var w = leadsState.who, due = leadsState.due;
+    if (w === 'me' && !(l.next && ownerName(l.next.owner) === myName())) return false;
+    if (due) {
+      var u = urgency(l);
+      if (due === 'none' && l.next) return false;
+      if (due === 'overdue' && u !== 'overdue') return false;
+      if (due === 'today' && u !== 'today') return false;
+      if (due === 'week') { if (!l.next || !l.next.due) return false; var dd = (parse(l.next.due) - today0()) / 864e5; if (dd < 0 || dd > 7) return false; }
+    }
+    return true;
+  }
+
   function card(l) {
-    var u = urgency(l), st = stale(l), inStage = daysSince(l.stageAt || l.started);
-    var tr = (l.tracks || []).map(function (t) { return t === 'Classes' ? 'Class' : t; }).join(' + ') || 'Undecided';
-    var bits = [tr, allInstruments(l).join(', ')].filter(Boolean).join(' · ');
-    var nx = l.next ? '<div class="nx ' + u + '">' + esc(l.next.text) + (l.next.due ? ' · ' + esc(dayOnly(l.next.due)) : '') + '</div>' : '<div class="nx none">No next step</div>';
-    var tag = l.stage === 'Committed' && COMMIT[l.track] ? '<span class="pill">' + COMMIT[l.track] + '</span>' : '';
-    return '<div class="kcard card' + (st ? ' stale' : '') + '" draggable="true" data-id="' + esc(l.id) + '" tabindex="0">' +
-      '<div class="line1"><span class="name">' + esc(l.name) + '</span>' + tag + '</div>' +
-      (bits ? '<div class="sub">' + esc(bits) + '</div>' : '') + nx +
-      '<div class="meta">' + (inStage != null ? inStage + (inStage === 1 ? ' day' : ' days') + ' here' : '') +
-      (l.lastContact ? ' · last contact ' + esc(when(l.lastContact)) : ' · not contacted') + (l.repliedAt ? ' · replied ' + esc(when(l.repliedAt)) : '') + (st ? ' · stalled' : '') + '</div></div>';
+    var u = urgency(l), v = leadValue(l);
+    var tags = (l.interests && l.interests.length ? l.interests : l.formInterests || []).slice(0, 3);
+    var plays = [allInstruments(l).join(', '), (l.nights || []).join(', ')].filter(Boolean).join(' · ');
+    var tc = u === 'overdue' ? 'var(--bad)' : u === 'today' ? '#B5761F' : 'var(--accent)';
+    var lost = l.stage === 'Closed' && l.lost && l.lost.length ? l.lost.join(', ') : '';
+    return '<article class="kcard' + (u === 'overdue' ? ' late' : '') + '" draggable="true" data-id="' + esc(l.id) + '" tabindex="0">' +
+      '<div class="kc-h"><a href="#p/' + encodeURIComponent(l.id) + '" class="kc-name">' + esc(l.name) + '</a><span class="kc-age">' + esc(l.stage === 'Closed' ? dayOnly(l.stageAt) : ageText(l.stageAt || l.started)) + '</span></div>' +
+      (tags.length ? '<div class="kc-tags">' + tags.map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') + '</div>' : '') +
+      '<div class="kc-grid"><span class="lbl">Plays</span><span>' + (esc(plays) || '<span class="faint">--</span>') + '</span>' +
+      '<span class="lbl">Value</span><span class="kc-val">' + (v ? esc(money(v.price)) + '/mo' : '<span class="faint">--</span>') + '</span></div>' +
+      (l.next && l.stage !== 'Closed' ? '<div class="kc-task"><span class="ring" style="border-color:' + tc + '"></span><span>' + esc(l.next.text) + (l.next.due ? ' <b style="color:' + tc + '">· ' + esc(dueText(l)) + '</b>' : '') + '</span></div>'
+        : l.stage !== 'Closed' ? '<div class="kc-task none">No task set</div>' : '') +
+      (lost ? '<div class="kc-lost">Lost reason: <b>' + esc(lost) + '</b></div>' : '') + '</article>';
+  }
+  function enrolledCard(e) {
+    var v = (e.programs || []).map(programValue).filter(Boolean)[0];
+    return '<article class="kcard done"><div class="kc-h"><a href="#p/' + encodeURIComponent(e.id) + '" class="kc-name">' + esc(e.name) + '</a><span class="kc-age">' + esc(dayOnly(e.at)) + '</span></div>' +
+      ((e.programs || []).length ? '<div class="kc-tags">' + e.programs.slice(0, 3).map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') + '</div>' : '') +
+      '<div class="kc-grid"><span class="lbl">Plays</span><span>' + (esc((e.instruments || []).join(', ')) || '<span class="faint">--</span>') + '</span>' +
+      '<span class="lbl">Value</span><span class="kc-val">' + (v ? esc(money(v.price)) + '/mo' : '<span class="faint">--</span>') + '</span></div></article>';
   }
   function trackOk(l) {
     var t = leadsState.track; if (!t) return true;
     var have = l.tracks || [];
     return t === 'Undecided' ? !have.length : have.indexOf(t) >= 0;
   }
-  function renderBoard() {
-    var all = (leadsState.rows || []).filter(leadMatches).filter(trackOk);
-    $('#board-tracks').innerHTML = [['', 'All'], ['Ensemble', 'Ensemble'], ['Private lessons', 'Private lessons'], ['Classes', 'Class'], ['Undecided', 'Undecided']].map(function (t) {
-      var n = (leadsState.rows || []).filter(leadMatches).filter(function (l) { var x = leadsState.track; leadsState.track = t[0]; var ok = trackOk(l) && onBoard(l); leadsState.track = x; return ok; }).length;
-      return '<button type="button" class="chip' + (leadsState.track === t[0] ? ' on' : '') + '" data-trk="' + esc(t[0]) + '">' + esc(t[1]) + ' · ' + n + '</button>';
+  function median(a) { if (!a.length) return null; a = a.slice().sort(function (x, y) { return x - y; }); var m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2); }
+
+  function leadStats(all) {
+    var open = all.filter(function (l) { return /^(First Contact|Qualified|Committed)$/.test(l.stage); });
+    var openVal = open.reduce(function (n, l) { var v = leadValue(l); return n + (v ? v.price : 0); }, 0);
+    var lessons = open.filter(function (l) { return (l.tracks || []).indexOf('Private lessons') >= 0; });
+    var lp = priceOf('Private lessons');
+    var enr = (leadsState.enrolled || []).filter(function (e) { return monthKey(e.at) === thisMonth; });
+    var enrVal = enr.reduce(function (n, e) { var v = (e.programs || []).map(programValue).filter(Boolean)[0]; return n + (v ? v.price : 0); }, 0);
+    var days = (leadsState.enrolled || []).map(function (e) { return e.started && e.at ? Math.round((parse(e.at) - parse(e.started)) / 864e5) : null; }).filter(function (n) { return n != null && n >= 0; });
+    var md = median(days);
+    return [
+      ['Open pipeline', openVal ? money0(openVal) + '/mo' : '--', open.length + ' open lead' + (open.length === 1 ? '' : 's')],
+      ['Lesson leads', String(lessons.length), lp ? 'Value at ' + money(lp.price) + '/mo' : 'Set a lesson value'],
+      ['Enrolled this month', enrVal ? money0(enrVal) + '/mo' : String(enr.length), enr.length + (enr.length === 1 ? ' person' : ' people')],
+      ['Median days to enroll', md == null ? '--' : String(md), 'Last 90 days']
+    ];
+  }
+  function statStrip(list) {
+    return list.map(function (s, i) {
+      return '<div class="ss"><div class="lbl">' + esc(s[0]) + '</div><div class="ss-v' + (s[3] ? ' ' + s[3] : '') + '">' + esc(s[1]) + '</div><div class="ss-s">' + (s[4] ? s[2] : esc(s[2])) + '</div></div>';
     }).join('');
-    var live = all.filter(onBoard), older = all.filter(function (l) { return l.stage === 'First Contact' && !onBoard(l); });
+  }
+
+  function renderBoard() {
+    if (!settings) { loadSettings(renderBoard); }
+    var base = (leadsState.rows || []).filter(leadMatches).filter(trackOk).filter(boardFilter);
+    $('#lead-stats').innerHTML = statStrip(leadStats((leadsState.rows || []).filter(leadMatches).filter(trackOk)));
+    var live = base.filter(onBoard), older = base.filter(function (l) { return l.stage === 'First Contact' && !onBoard(l); });
     var by = {}; COLS.forEach(function (c) { by[c] = []; });
-    live.forEach(function (l) { by[l.stage].push(l); });
-    COLS.slice(0, 3).forEach(function (c) {
-      by[c].sort(function (a, b) { return (stale(b) - stale(a)) || String(b.stageAt || b.started).localeCompare(String(a.stageAt || a.started)); });
+    live.forEach(function (l) { if (by[l.stage]) by[l.stage].push(l); });
+    by.Closed = base.filter(function (l) { return l.stage === 'Closed' && monthKey(l.stageAt) === thisMonth; });
+    ['First Contact', 'Qualified', 'Committed'].forEach(function (c) {
+      by[c].sort(function (a, b) { var ua = urgency(a) === 'overdue', ub = urgency(b) === 'overdue'; return (ub - ua) || String(b.stageAt || b.started).localeCompare(String(a.stageAt || a.started)); });
     });
     var q = leadsState.q;
-    var enr = leadsState.enrolled.filter(function (e) { return !q || (e.name + ' ' + e.instruments.join(' ')).toLowerCase().indexOf(q) >= 0; });
+    var enr = (leadsState.enrolled || []).filter(function (e) { return monthKey(e.at) === thisMonth && (!q || (e.name + ' ' + e.instruments.join(' ')).toLowerCase().indexOf(q) >= 0); });
     $('#lead-board').innerHTML = COLS.map(function (c) {
       var list = c === 'Enrolled' ? enr : by[c];
-      var n = list.length, red = c === 'Enrolled' ? 0 : list.filter(stale).length;
-      var body = c === 'Enrolled' ? list.map(function (e) {
-        return '<a class="kcard card done" href="#p/' + encodeURIComponent(e.id) + '"><div class="line1"><span class="name">' + esc(e.name) + '</span></div>' +
-          '<div class="sub">' + esc(e.programs.join(', ') || e.instruments.join(', ')) + '</div><div class="meta">' + esc(when(e.at)) + '</div></a>';
-      }).join('') : list.map(card).join('');
-      return '<section class="kcol" data-col="' + esc(c) + '"><header class="kh"><span class="kt">' + esc(c) + '</span>' +
-        (n ? '<button type="button" class="kmail" data-colmail="' + esc(c) + '" title="Email everyone in this column">Email</button>' : '') + '<span class="kn">' + n +
-        (red ? ' · <em>' + red + ' stalled</em>' : '') + '</span>' + (c === 'Enrolled' ? '<span class="kx">last 30 days</span>' : c === 'Committed' ? '<span class="kx">deposit, package or registration</span>' : '') + '</header>' +
+      var total = c === 'Enrolled' ? list.reduce(function (n, e) { var v = (e.programs || []).map(programValue).filter(Boolean)[0]; return n + (v ? v.price : 0); }, 0)
+        : list.reduce(function (n, l) { var v = leadValue(l); return n + (v ? v.price : 0); }, 0);
+      var lessonsN = c === 'Enrolled' ? 0 : list.filter(function (l) { return (l.tracks || []).indexOf('Private lessons') >= 0; }).length;
+      var note = c === 'Enrolled' ? 'won in ' + monShort : c === 'Closed' ? 'lost in ' + monShort : lessonsN ? '+ ' + lessonsN + ' lesson lead' + (lessonsN === 1 ? '' : 's') : '';
+      var body = c === 'Enrolled' ? list.map(enrolledCard).join('') : list.map(card).join('');
+      return '<section class="kcol" data-col="' + esc(c) + '" aria-label="' + esc(c) + '"><header class="kh">' +
+        '<div class="kh1"><span class="kdot" style="background:' + STAGE_DOT[c] + '"></span><h2>' + esc(c) + '</h2>' +
+        (list.length && c !== 'Enrolled' && c !== 'Closed' ? '<button type="button" class="kmail" data-colmail="' + esc(c) + '" title="Email everyone in this column">Email</button>' : '') +
+        '<span class="kn">' + list.length + '</span></div>' +
+        '<div class="ktot">Total <b>' + (total ? money0(total) + '/mo' : '$0') + '</b> ' + esc(note) + '</div></header>' +
         '<div class="kbody">' + (body || '<div class="kempty">Nothing here</div>') + '</div></section>';
     }).join('');
-    var nur = all.filter(function (l) { return l.stage === 'Nurture'; }).length, lost = all.filter(function (l) { return l.stage === 'Closed'; }).length;
+    var nur = base.filter(function (l) { return l.stage === 'Nurture'; }).length, lost = base.filter(function (l) { return l.stage === 'Closed'; }).length;
     $('#board-foot').innerHTML = 'Not on the board: <button type="button" class="linkish" data-goto="older">' + older.length + ' older first contacts</button> (no activity in ' + leadsState.boardDays + ' days), ' +
-      '<button type="button" class="linkish" data-goto="Nurture">' + nur + ' in Nurture</button>, <button type="button" class="linkish" data-goto="Closed">' + lost + ' lost</button>.';
+      '<button type="button" class="linkish" data-goto="Nurture">' + nur + ' in Nurture</button>, <button type="button" class="linkish" data-goto="Closed">' + lost + ' closed in all</button>.';
   }
-  $('#board-tracks').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-trk]'); if (!b) return;
-    leadsState.track = b.dataset.trk; store('nsjw_ltrack', leadsState.track); renderBoard();
-  });
+  function fillLeadFilters() {
+    var tr = [['', 'All'], ['Ensemble', 'Ensemble'], ['Private lessons', 'Private lessons'], ['Classes', 'Classes'], ['Undecided', 'Undecided']];
+    $('#lf-prog').innerHTML = tr.map(function (t) { return '<option value="' + esc(t[0]) + '"' + (leadsState.track === t[0] ? ' selected' : '') + '>Program: ' + esc(t[1]) + '</option>'; }).join('');
+    $('#lf-who').value = leadsState.who || ''; $('#lf-due').value = leadsState.due || '';
+    ['#lf-prog', '#lf-who', '#lf-due'].forEach(function (id) { $(id).classList.toggle('on', !!$(id).value); });
+  }
+  $('#lf-prog').addEventListener('change', function () { leadsState.track = this.value; store('nsjw_ltrack', this.value); fillLeadFilters(); renderLeads(); });
+  $('#lf-who').addEventListener('change', function () { leadsState.who = this.value; store('nsjw_lwho', this.value); fillLeadFilters(); renderLeads(); });
+  $('#lf-due').addEventListener('change', function () { leadsState.due = this.value; fillLeadFilters(); renderLeads(); });
+
   $('#lead-mode').addEventListener('click', function (e) {
     var b = e.target.closest('[data-mode]'); if (!b) return;
     leadsState.mode = b.dataset.mode; store('nsjw_lmode', leadsState.mode); renderLeads();
@@ -1746,15 +1844,140 @@
   // Moving a card: drag on a computer, tap and pick on a phone.
   var fine = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches, dragId = null, moving = null;
   function leadById(id) { return (leadsState.rows || []).filter(function (l) { return l.id === id; })[0]; }
-  function moveLead(l, to, reason) {
+  // A toast with an Undo button. Stays up a little longer so there is time to use it.
+  function toastUndo(html, undo) {
+    var t = $('#toast'); t.innerHTML = '<span>' + html + '</span>' + (undo ? '<button type="button" class="btn sm" id="toast-undo">Undo</button>' : '');
+    t.classList.add('wide'); t.hidden = false;
+    clearTimeout(toast._t); toast._t = setTimeout(function () { t.hidden = true; t.classList.remove('wide'); }, undo ? 9000 : 4000);
+    if (undo) $('#toast-undo').onclick = function () { t.hidden = true; undo(); };
+  }
+
+  function moveLead(l, to, reason, opts) {
     if (!l || l.stage === to) return;
     if (to === 'Enrolled') { pendingPlace = l.id; location.hash = '#p/' + encodeURIComponent(l.id); return; }
-    var was = { stage: l.stage, stageAt: l.stageAt };
+    if (to === 'Closed' && !reason) { openClose(l); return; }
+    var was = { stage: l.stage, stageAt: l.stageAt, next: l.next };
     l.stage = to; l.stageAt = new Date().toISOString().slice(0, 10); renderLeads();
-    api('leadtag', { sid: l.id, email: l.email, field: 'stage', value: to, on: true, reason: reason || '' })
-      .then(function () { toast(l.name + ' moved to ' + (to === 'Closed' ? 'Lost' : to)); todayState.data = null; })
+    api('leadtag', Object.assign({ sid: l.id, email: l.email, field: 'stage', value: to, on: true, reason: reason || '' }, opts || {}))
+      .then(function (r) {
+        todayState.data = null; tasksState.rows = null;
+        if (r && r.task) { l.next = { text: r.task.text, due: r.task.due, owner: r.task.owner, row: r.task.row }; renderLeads(); }
+        if (to === 'Closed') { l.lost = (reason || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 1); renderLeads(); }
+        var msg = '<b>' + esc(l.name) + '</b> moved to ' + esc(to) + '.' +
+          (r && r.task ? ' Task created: <b>' + esc(r.task.text) + '</b>, due ' + esc(parse(r.task.due).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })) + ', assigned to ' + esc(ownerName(r.task.owner)) + '.' : '') +
+          (r && r.inactive ? ' Set to Inactive in MMS.' : '');
+        toastUndo(msg, function () {
+          var back = { sid: l.id, email: l.email, field: 'stage', value: was.stage, on: true, norule: true, reason: '' };
+          if (r && r.inactive && r.was) back.restoreStatus = r.was;
+          api('leadtag', back).then(function () {
+            if (r && r.task && r.task.row) return api('taskdone', { row: r.task.row, sid: l.id, email: l.email });
+          }).then(function () {
+            l.stage = was.stage; l.stageAt = was.stageAt; l.next = was.next; renderLeads(); toast('Moved ' + l.name + ' back to ' + was.stage);
+          }).catch(function (err) { toast(err.message); });
+        });
+      })
       .catch(function (err) { l.stage = was.stage; l.stageAt = was.stageAt; renderLeads(); toast(err.message); });
   }
+
+  // Moving to Closed asks why (canvas board 2).
+  var closing = null;
+  function openClose(l) {
+    loadSettings(function (s) {
+      closing = l;
+      $('#close-title').textContent = 'Move ' + l.name + ' to Closed';
+      $('#close-reasons').innerHTML = s.reasons.map(function (r, i) {
+        return '<label class="opt"><input type="radio" name="why" value="' + esc(r) + '"><span class="dotr" aria-hidden="true"></span><span>' + esc(r) + '</span></label>';
+      }).join('');
+      var nur = s.stages.filter(function (x) { return x.stage === 'Nurture'; })[0];
+      $('#close-also').innerHTML =
+        (l.next ? '<label class="checkline"><input type="checkbox" id="close-task" checked> Complete their open task: <b>' + esc(l.next.text) + '</b></label>' : '') +
+        '<label class="checkline"><input type="checkbox" id="close-nurture"> Check back in ' + esc(String(nur && nur.due || 'in 3 months').replace(/^in /i, '')) + ' (moves to Nurture instead)</label>';
+      $('#close-note').value = ''; $('#close-go').disabled = true; $('#close-go').textContent = 'Move to Closed';
+      $('#close-sheet').hidden = false;
+    });
+  }
+  function shutClose() { $('#close-sheet').hidden = true; closing = null; }
+  $('#close-x').addEventListener('click', shutClose);
+  $('#close-cancel').addEventListener('click', shutClose);
+  $('#close-sheet').addEventListener('click', function (e) { if (e.target === this) shutClose(); });
+  $('#close-reasons').addEventListener('change', function () {
+    $('#close-go').disabled = false;
+    $$('#close-reasons .opt').forEach(function (o) { o.classList.toggle('on', o.querySelector('input').checked); });
+  });
+  $('#close-also').addEventListener('change', function () { var n = $('#close-nurture'); $('#close-go').textContent = n && n.checked ? 'Move to Nurture' : 'Move to Closed'; });
+  $('#close-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var pick = $('#close-reasons input:checked'); if (!pick || !closing) return;
+    var l = closing, note = $('#close-note').value.trim();
+    var why = pick.value + (note ? ', ' + note.replace(/,/g, ';') : '');
+    var doneTask = $('#close-task') && $('#close-task').checked, nurture = $('#close-nurture').checked;
+    shutClose();
+    var step = doneTask && l.next ? api('nextdone', { sid: l.id, email: l.email }).then(function () { l.next = null; }) : Promise.resolve();
+    step.then(function () {
+      if (nurture) moveLead(l, 'Nurture', why); else moveLead(l, 'Closed', why);
+    }).catch(function (err) { toast(err.message); });
+  });
+
+  // ---------- Pipeline settings (canvas board 3) ----------
+  var DUE_CHOICES = ['Today', 'Tomorrow', 'In 1 business day', 'In 2 business days', 'In 3 business days', 'In 1 week', 'In 2 weeks', 'In 1 month', 'In 3 months', 'In 6 months'];
+  var OWNER_CHOICES = ['Ben', 'Admin', 'Joe', 'Chris'];
+  var PER_CHOICES = ['per month', 'per course', 'one time'];
+  var pipeDraft = null;
+  function loadPipeline() {
+    $('#pipeline').innerHTML = '<div class="loading">Loading</div>';
+    settings = null;
+    loadSettings(function (s) { pipeDraft = JSON.parse(JSON.stringify(s)); renderPipeline(); });
+  }
+  function renderPipeline() {
+    var s = pipeDraft, use = s.reasonUse || {};
+    function sel(name, i, val, choices) {
+      if (val && choices.indexOf(val) < 0) choices = [val].concat(choices);
+      return '<select data-pf="' + name + '" data-i="' + i + '">' + choices.map(function (c) { return '<option' + (c === val ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>';
+    }
+    $('#pipeline').innerHTML =
+      '<section class="rcard"><h2 class="cardh">When someone enters a stage</h2><p class="muted small">The app creates the follow-up for you. Due dates skip weekends. From SOP-007 Responding to a New Inquiry.</p>' +
+      '<div class="tbl"><div class="tr th pipe"><span class="lbl">Stage</span><span class="lbl">Create a task</span><span class="lbl">Due</span><span class="lbl">Assigned to</span><span class="lbl">Requires</span></div>' +
+      s.stages.map(function (r, i) {
+        return '<div class="tr pipe"><span class="stg"><span class="kdot" style="background:' + (STAGE_DOT[r.stage] || '#8C8B80') + '"></span>' + esc(r.stage) + '</span>' +
+          '<input data-pf="task" data-i="' + i + '" value="' + esc(r.task) + '" placeholder="No task">' +
+          sel('due', i, r.due || 'Today', DUE_CHOICES.slice()) + sel('owner', i, r.owner || 'Admin', OWNER_CHOICES.slice()) +
+          '<span>' + (r.requires ? '<span class="tag warn">' + esc(r.requires) + '</span>' : '<span class="faint">None</span>') + '</span></div>';
+      }).join('') + '</div></section>' +
+      '<section class="rcard"><h2 class="cardh">Program values</h2><p class="muted small">Only for the totals on the board. Billing stays in MyMusicStaff. From REF-PRICING Pricing and What We Charge.</p>' +
+      s.values.map(function (v, i) {
+        return '<div class="tr pvals"><span><b>' + esc(v.program) + '</b>' + (v.note ? '<span class="muted small"> · ' + esc(v.note) + '</span>' : '') + '</span>' +
+          '<label class="money"><span>$</span><input data-pf="price" data-i="' + i + '" inputmode="decimal" value="' + (v.price == null ? '' : esc(v.price)) + '" placeholder="Not set"></label>' + sel('per', i, v.per || 'per month', PER_CHOICES.slice()) + '</div>';
+      }).join('') + '</section>' +
+      '<section class="rcard"><h2 class="cardh">Lost reasons</h2><p class="muted small">The choices shown when someone moves to Closed. Saved on them in MMS as a "Lost: ..." tag.</p>' +
+      s.reasons.map(function (r, i) {
+        return '<div class="tr reasons"><input data-pf="reason" data-i="' + i + '" value="' + esc(r) + '"><span class="muted small">' + (use[r] ? 'Used ' + use[r] + 'x' : 'Not used') + '</span>' +
+          '<button type="button" class="btn sm" data-rmreason="' + i + '">Remove</button></div>';
+      }).join('') + '<button type="button" class="btn sm" id="add-reason">Add a reason</button></section>';
+  }
+  $('#pipeline').addEventListener('input', function (e) {
+    var f = e.target.dataset.pf; if (!f || !pipeDraft) return;
+    var i = +e.target.dataset.i;
+    if (f === 'task' || f === 'due' || f === 'owner') pipeDraft.stages[i][f] = e.target.value;
+    if (f === 'price') pipeDraft.values[i].price = e.target.value === '' ? null : Number(e.target.value);
+    if (f === 'per') pipeDraft.values[i].per = e.target.value;
+    if (f === 'reason') pipeDraft.reasons[i] = e.target.value;
+  });
+  $('#pipeline').addEventListener('change', function (e) { $('#pipeline').dispatchEvent(new Event('input', { bubbles: true })); var f = e.target.dataset.pf; if (f) { var ev = new Event('input', { bubbles: true }); e.target.dispatchEvent(ev); } });
+  $('#pipeline').addEventListener('click', function (e) {
+    if (!pipeDraft) return;
+    var rm = e.target.closest('[data-rmreason]');
+    if (rm) { pipeDraft.reasons.splice(+rm.dataset.rmreason, 1); renderPipeline(); return; }
+    if (e.target.closest('#add-reason')) { pipeDraft.reasons.push(''); renderPipeline(); var ins = $$('#pipeline [data-pf="reason"]'); ins[ins.length - 1].focus(); }
+  });
+  $('#pipe-save').addEventListener('click', function () {
+    if (!pipeDraft) return;
+    var b = this; b.disabled = true; b.textContent = 'Saving';
+    api('settingssave', { settings: { stages: pipeDraft.stages, values: pipeDraft.values, reasons: pipeDraft.reasons.filter(function (r) { return String(r).trim(); }) } })
+      .then(function (s) { settings = s; try { localStorage.removeItem(ckey('settings', null)); } catch (x) {} toast('Pipeline settings saved'); location.hash = '#leads'; })
+      .catch(function (err) { toast(/unknown action/i.test(err.message) ? 'Settings need the newest backend.' : err.message); })
+      .then(function () { b.disabled = false; b.textContent = 'Save'; });
+  });
+
   var board = $('#lead-board');
   board.addEventListener('dragstart', function (e) {
     var c = e.target.closest('.kcard[data-id]'); if (!c) return;
@@ -1798,7 +2021,7 @@
   function closeMove() { $('#move-sheet').hidden = true; moving = null; }
   $('#move-opts').addEventListener('click', function (e) {
     var b = e.target.closest('[data-to]'); if (!b || !moving) return;
-    if (b.dataset.to === 'Closed') { $('#lost-box').hidden = false; $('#move-go').hidden = false; return; }
+    if (b.dataset.to === 'Closed') { var lc = moving; closeMove(); openClose(lc); return; }
     var l = moving; closeMove(); moveLead(l, b.dataset.to);
   });
   $('#move-tracks').addEventListener('click', function (e) {
@@ -2398,7 +2621,8 @@
     if (h.indexOf('p/') === 0) { nav(null); $('#v-person .back').href = backTo; $('#v-person .back').innerHTML = '&#8249; ' + (backTo === '#tasks' ? 'Tasks' : backTo === '#lessons' ? 'Lessons' : backTo === '#groups' ? 'Groups' : backTo === '#leads' ? 'Leads' : backTo === '#today' ? 'Today' : backTo.indexOf('#g/') === 0 ? decodeURIComponent(backTo.slice(3)) : 'People'); show('v-person'); renderRun(); loadPerson(decodeURIComponent(h.slice(2))); return; }
     if (h === 'tasks') { backTo = '#tasks'; nav('tasks'); show('v-tasks'); loadTasks(); renderRun(); return; }
     if (h === 'lessons') { backTo = '#lessons'; nav('lessons'); show('v-lessons'); loadLessons(); return; }
-    if (h === 'leads') { backTo = '#leads'; nav('leads'); show('v-leads'); loadLeads(); return; }
+    if (h === 'leads') { backTo = '#leads'; nav('leads'); show('v-leads'); fillLeadFilters(); loadSettings(function () { if (leadsState.rows) renderLeads(); }); loadLeads(); return; }
+    if (h === 'pipeline') { nav('leads'); show('v-pipeline'); loadPipeline(); return; }
     if (h === 'groups') { backTo = '#groups'; nav('groups'); show('v-groups'); loadGroups(); return; }
     if (h.indexOf('g/') === 0) { backTo = location.hash; nav(null); show('v-group'); loadGroup(decodeURIComponent(h.slice(2))); return; }
     if (h === '' || h === 'today') { backTo = '#today'; nav('today'); show('v-today'); loadToday(); return; }

@@ -26,12 +26,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/css/tabulator.min.css">
-<link rel="stylesheet" href="css/nsjw.css?v=57">
-<link rel="stylesheet" href="css/app.css?v=57">
-<link rel="stylesheet" href="css/sgraffito.css?v=57">
-<link rel="stylesheet" href="css/natural.css?v=57">
-<link rel="stylesheet" href="css/record.css?v=57">
-<link rel="stylesheet" href="css/hq.css?v=57">
+<link rel="stylesheet" href="css/nsjw.css?v=58">
+<link rel="stylesheet" href="css/app.css?v=58">
+<link rel="stylesheet" href="css/sgraffito.css?v=58">
+<link rel="stylesheet" href="css/natural.css?v=58">
+<link rel="stylesheet" href="css/record.css?v=58">
+<link rel="stylesheet" href="css/hq.css?v=58">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -145,22 +145,27 @@
 
   <!-- Leads -->
   <section id="v-leads" class="view" hidden>
-    <header class="art">
-      <div class="eyebrow" id="leads-eyebrow">The funnel</div>
-      <h1>Leads</h1>
-    </header>
-    <main>
-      <div class="tabs modebar" id="lead-mode" role="tablist">
-        <button type="button" class="tab" data-mode="board">Board</button>
-        <button type="button" class="tab" data-mode="list">List</button>
+    <main class="pagewrap">
+     <div class="page-card">
+      <div class="ph"><h1>Leads</h1>
+        <div class="ph-act">
+          <div class="seg" id="lead-mode" role="group" aria-label="View">
+            <button type="button" class="tab" data-mode="board">Board</button><button type="button" class="tab" data-mode="list">List</button>
+          </div>
+          <a class="btn" href="#pipeline">Pipeline settings</a>
+          <a class="btn primary" href="https://app.mymusicstaff.com/Teacher/v2/en/students" target="_blank" rel="noopener" title="New leads are added in MyMusicStaff, then show up here">Add lead</a>
+        </div>
       </div>
-      <input id="lq" class="search" type="search" placeholder="Search name, email, instrument" autocomplete="off">
-      <div class="filterline">
-        <button class="btn" type="button" id="lead-filter-btn">Filter</button>
+      <div class="fbar">
+        <label class="fsearch"><span class="sr">Search leads</span><input id="lq" type="search" placeholder="Search leads" autocomplete="off"></label>
+        <select class="btn filter" id="lf-prog" aria-label="Program"></select>
+        <select class="btn filter" id="lf-who" aria-label="Assigned to"><option value="">Assigned to: Anyone</option><option value="me">Assigned to: Me</option></select>
+        <select class="btn filter" id="lf-due" aria-label="Task due"><option value="">Task due: Any</option><option value="overdue">Task due: Overdue</option><option value="today">Task due: Today</option><option value="week">Task due: This week</option><option value="none">Task due: No task</option></select>
+        <button class="btn ghost" type="button" id="lead-filter-btn">More filters</button>
         <div class="chips" id="lead-active"></div>
       </div>
+      <section class="statstrip" id="lead-stats" aria-label="Pipeline summary"></section>
       <div id="lead-board-wrap">
-        <div class="chips" id="board-tracks"></div>
         <div class="board" id="lead-board"></div>
         <div class="board-foot muted small" id="board-foot"></div>
       </div>
@@ -175,6 +180,18 @@
         <div class="sub-h"><div class="groups-sum muted" id="leads-sum"></div><button type="button" class="btn small" id="lcols">Columns</button></div>
         <div id="lead-list" class="list"></div>
         <button class="btn" type="button" id="lead-more" hidden style="width:100%;margin-bottom:24px">Show more</button>
+      </div>
+     </div>
+    </main>
+  </section>
+
+  <!-- Pipeline settings -->
+  <section id="v-pipeline" class="view" hidden>
+    <main class="pagewrap">
+      <div class="page-card">
+        <a class="btn ghost back-l" href="#leads"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M9 2L4 7l5 5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Leads</a>
+        <div class="ph"><h1>Pipeline settings</h1><div class="ph-act"><a class="btn" href="#leads">Cancel</a><button type="button" class="btn primary" id="pipe-save">Save</button></div></div>
+        <div id="pipeline"><div class="loading">Loading</div></div>
       </div>
     </main>
   </section>
@@ -380,6 +397,16 @@
   </div>
 </div>
 
+<div id="close-sheet" class="sheet" hidden>
+  <form class="sheet-body scroll dlg" id="close-form">
+    <div class="dlg-h"><div class="sheet-title" id="close-title">Move to Closed</div><button type="button" class="ib" id="close-x" aria-label="Close"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.6"/></svg></button></div>
+    <fieldset class="opts"><legend>Why aren't they joining? <span aria-hidden="true">*</span></legend><div id="close-reasons"></div></fieldset>
+    <label class="fl"><span class="lbl">Note (optional)</span><textarea id="close-note" rows="3" placeholder="Anything worth knowing if they come back"></textarea></label>
+    <div class="also"><div class="lbl">Also</div><div id="close-also"></div></div>
+    <div class="row end"><button type="button" class="btn" id="close-cancel">Cancel</button><button type="submit" class="btn primary" id="close-go" disabled>Move to Closed</button></div>
+  </form>
+</div>
+
 <div id="pf-sheet" class="sheet" hidden>
   <div class="sheet-body scroll">
     <div class="sheet-title">Filter people</div>
@@ -484,7 +511,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
-<script src="js/grid.js?v=57"></script>
-<script src="js/app.js?v=57"></script>
+<script src="js/grid.js?v=58"></script>
+<script src="js/app.js?v=58"></script>
 </body>
 </html>
