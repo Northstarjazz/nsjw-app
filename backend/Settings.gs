@@ -1,7 +1,7 @@
 /**
  * Pipeline settings: what happens when a lead enters a stage, what each program is worth
  * (for the totals on the Leads board only; billing stays in MyMusicStaff), and the reasons
- * offered when a lead is closed. Kept in the "Settings" tab so anyone can read it there.
+ * offered when a lead is closed. Kept in the "Pipeline settings" tab so anyone can read it there.
  *
  * Defaults come from the SOPs in the Admin Knowledge Base (Oct 2026):
  *   SOP-007 Responding to a New Inquiry: reply within one business day; Qualified sends the
