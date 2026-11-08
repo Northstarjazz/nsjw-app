@@ -26,12 +26,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/css/tabulator.min.css">
-<link rel="stylesheet" href="css/nsjw.css?v=60">
-<link rel="stylesheet" href="css/app.css?v=60">
-<link rel="stylesheet" href="css/sgraffito.css?v=60">
-<link rel="stylesheet" href="css/natural.css?v=60">
-<link rel="stylesheet" href="css/record.css?v=60">
-<link rel="stylesheet" href="css/hq.css?v=60">
+<link rel="stylesheet" href="css/nsjw.css?v=64">
+<link rel="stylesheet" href="css/app.css?v=64">
+<link rel="stylesheet" href="css/sgraffito.css?v=64">
+<link rel="stylesheet" href="css/natural.css?v=64">
+<link rel="stylesheet" href="css/record.css?v=64">
+<link rel="stylesheet" href="css/hq.css?v=64">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -52,39 +52,37 @@
 
   <!-- People -->
   <section id="v-people" class="view" hidden>
-    <header class="art">
-      <div class="eyebrow">Everyone in MyMusicStaff</div>
-      <h1>People</h1>
-    </header>
-    <main>
-      <div class="viewtabs" id="pview-tabs" role="tablist"></div>
-      <div class="ptools">
-        <input id="q" class="search" type="search" placeholder="Search name, email, group, instrument" autocomplete="off">
-        <button type="button" class="btn" id="pfilter-btn">Filter</button>
+    <main class="pagewrap">
+     <div class="page-card" id="people-card">
+      <div class="ph"><h1>People</h1>
+        <div class="ph-act">
+          <a class="btn primary" href="https://app.mymusicstaff.com/Teacher/v2/en/students" target="_blank" rel="noopener" title="People are added in MyMusicStaff, then show up here">Add person</a>
+        </div>
+      </div>
+      <nav class="vtabs" id="pview-tabs" aria-label="People views"></nav>
+      <div class="fbar">
+        <label class="fsearch"><span class="sr">Search people</span><input id="q" type="search" placeholder="Search people" autocomplete="off"></label>
+        <div class="fgroup" id="pquick">
+          <select class="btn filter" data-q="status" aria-label="Status"><option value="">Status</option><option>Lead</option><option>Trial</option><option>Waiting</option><option>Active</option><option>Inactive</option></select>
+          <select class="btn filter" data-q="program" aria-label="Program"><option value="">Program</option></select>
+          <select class="btn filter" data-q="track" aria-label="Interested in"><option value="">Interest</option><option>Ensemble</option><option>Private lessons</option><option value="Classes">Class</option><option value="none">Undecided</option></select>
+        </div>
+        <button type="button" class="btn" id="pfilter-btn">More filters</button>
+        <span class="grow"></span>
+        <select class="btn filter" id="psort" aria-label="Sort by" hidden>
+          <option value="lastActivity:desc">Sort: Last activity</option>
+          <option value="created:desc">Sort: Newest</option>
+          <option value="created:asc">Sort: Oldest</option>
+          <option value="name:asc">Sort: Name, A to Z</option>
+          <option value="name:desc">Sort: Name, Z to A</option>
+          <option value="status:asc">Sort: Status</option>
+        </select>
         <button type="button" class="btn" id="pcols">Columns</button>
-        <label class="sortby">Sort by
-          <select id="psort">
-            <option value="lastActivity:desc">Last activity, newest</option>
-            <option value="created:desc">Create date, newest</option>
-            <option value="created:asc">Create date, oldest</option>
-            <option value="name:asc">Name, A to Z</option>
-            <option value="name:desc">Name, Z to A</option>
-            <option value="status:asc">Status</option>
-          </select>
-        </label>
       </div>
-      <div class="quickf" id="pquick">
-        <select data-q="status" aria-label="Status"><option value="">Status</option><option>Lead</option><option>Trial</option><option>Waiting</option><option>Active</option><option>Inactive</option></select>
-        <select data-q="program" aria-label="Program"><option value="">Program</option></select>
-        <select data-q="track" aria-label="Interested in"><option value="">Interested in</option><option>Ensemble</option><option>Private lessons</option><option value="Classes">Class</option><option value="none">Undecided</option></select>
-        <select data-q="created" aria-label="Create date"><option value="">Create date</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last year</option></select>
-        <select data-q="activity" aria-label="Last activity"><option value="">Last activity</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="none">No activity yet</option></select>
-        <button type="button" class="linkish small" id="pclear" hidden>Clear filters</button>
-        <button type="button" class="linkish small" id="psave">Save as view</button>
-      </div>
-      <div class="groups-sum muted" id="pcount"></div>
+      <div class="fnote"><span class="muted" id="pcount"></span><button type="button" class="linkish" id="pclear" hidden>Clear filters</button><button type="button" class="linkish" id="psave">Save as view</button></div>
       <div id="people-list" class="list ptable"></div>
       <div class="pager" id="ppager"></div>
+     </div>
     </main>
   </section>
 
@@ -165,10 +163,10 @@
         <select class="btn filter lonly" id="lf-int" aria-label="Interested in"></select>
         <select class="btn filter lonly" id="lf-plays" aria-label="Plays"></select>
         <select class="btn filter lonly" id="lf-nights" aria-label="Nights"></select>
-        <select class="btn filter" id="lf-who" aria-label="Owner"><option value="">Owner: Anyone</option><option value="me">Owner: Me</option></select>
-        <select class="btn filter bonly" id="lf-due" aria-label="Task due"><option value="">Task due: Any</option><option value="overdue">Task due: Overdue</option><option value="today">Task due: Today</option><option value="week">Task due: This week</option><option value="none">Task due: No task</option></select>
-        <button class="btn ghost bonly" type="button" id="lead-filter-btn">More filters</button>
-        <span class="grow lonly"></span>
+        <select class="btn filter" id="lf-who" aria-label="Owner"><option value="">Owner</option><option value="me">Owner: Me</option></select>
+        <select class="btn filter bonly" id="lf-due" aria-label="Task due"><option value="">Task due</option><option value="overdue">Task due: Overdue</option><option value="today">Task due: Today</option><option value="week">Task due: This week</option><option value="none">Task due: No task</option></select>
+        <button class="btn bonly" type="button" id="lead-filter-btn">More filters</button>
+        <span class="grow"></span>
         <button type="button" class="btn lonly" id="lcols">Columns</button>
         <div class="chips bonly" id="lead-active"></div>
       </div>
@@ -179,6 +177,7 @@
       <div id="lead-list-wrap">
         <div class="bulkbar" id="lead-bulk" hidden>
           <b id="lb-count">0 selected</b>
+          <button type="button" class="btn sm" data-bulk="convert" hidden>Convert to member</button>
           <button type="button" class="btn sm" data-bulk="email">Email</button>
           <button type="button" class="btn sm" data-bulk="task">Add task</button>
           <button type="button" class="btn sm" data-bulk="stage">Change stage</button>
@@ -446,6 +445,10 @@
 <div id="pf-sheet" class="sheet" hidden>
   <div class="sheet-body scroll">
     <div class="sheet-title">Filter people</div>
+    <div class="row2" id="pf-dates">
+      <label class="fl"><span class="lbl">Created</span><select class="field" data-q="created" aria-label="Create date"><option value="">Created</option><option value="7">Created: last 7 days</option><option value="30">Created: last 30 days</option><option value="90">Created: last 90 days</option><option value="365">Created: last year</option></select></label>
+      <label class="fl"><span class="lbl">Last activity</span><select class="field" data-q="activity" aria-label="Last activity"><option value="">Last activity</option><option value="7">Active: last 7 days</option><option value="30">Active: last 30 days</option><option value="90">Active: last 90 days</option><option value="none">No activity yet</option></select></label>
+    </div>
     <div id="pf-groups"></div>
     <div class="row end">
       <button type="button" class="btn" id="pf-clear">Clear all</button>
@@ -547,7 +550,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
-<script src="js/grid.js?v=60"></script>
-<script src="js/app.js?v=60"></script>
+<script src="js/grid.js?v=64"></script>
+<script src="js/app.js?v=64"></script>
 </body>
 </html>

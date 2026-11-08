@@ -40,7 +40,8 @@
   function stageFormatter(cell) {
     var d = cell.getRow().getData();
     if (d.status === 'Active' || d.status === 'Inactive') return pill(d.status);
-    return '<span class="g-stage">' + esc(d.stage || 'First Contact') + '</span>' +
+    var v = d.stage || 'First Contact';
+    return '<span class="g-dd"><span class="kdot" style="background:' + (STAGE_DOT[v] || '#8C8B80') + '"></span>' + esc(v) + '<svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>' +
       (d.status === 'Waiting' || d.status === 'Trial' ? '<span class="g-note">' + esc(d.status) + '</span>' : '');
   }
   function listFormatter(fallbackField) {
@@ -79,6 +80,7 @@
       if (!v || v === cell.getOldValue()) return;
       // Closed needs a reason: put the old stage back and let the app ask why first.
       if (v === 'Closed' && hooks.askClose) { cell.restoreOldValue(); hooks.askClose(row); return; }
+      if (v === 'Enrolled' && hooks.askEnroll) { cell.restoreOldValue(); hooks.askEnroll(row); return; }
       cell.getElement().classList.add('g-saving');
       hooks.save(row, 'stage', v, true)
         .then(function () { cell.getElement().classList.remove('g-saving'); hooks.saved(row, 'stage', v); })
@@ -214,8 +216,8 @@
           { title: 'Name', field: 'name', minWidth: 160, widthGrow: 2, formatter: function (cell) { return '<span class="g-name b">' + esc(cell.getValue()) + '</span>'; },
             cellClick: function (e, cell) { location.hash = '#p/' + encodeURIComponent(cell.getRow().getData().id); } },
           { title: 'Stage', field: 'stage', minWidth: 170, widthGrow: 1, editor: 'list', editable: editingStage,
-            editorParams: { values: L.stages, itemFormatter: function (label, value) {
-              var note = value === 'Closed' ? 'Asks why' : h.stageNote ? h.stageNote(value) : '';
+            editorParams: { values: ['First Contact', 'Qualified', 'Committed', 'Enrolled', 'Nurture', 'Closed'], itemFormatter: function (label, value) {
+              var note = value === 'Closed' ? 'Asks why' : value === 'Enrolled' ? 'Convert to member' : h.stageNote ? h.stageNote(value) : '';
               return '<span class="g-opt"><span class="kdot" style="background:' + (STAGE_DOT[value] || '#8C8B80') + '"></span>' + esc(label) + (note ? '<span class="g-optnote">' + esc(note) + '</span>' : '') + '</span>';
             } },
             formatter: function (cell) { var v = cell.getValue() || 'First Contact'; return '<span class="g-dd"><span class="kdot" style="background:' + (STAGE_DOT[v] || '#8C8B80') + '"></span>' + esc(v) + '<svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>'; },
@@ -223,7 +225,7 @@
           { title: 'Interested in', field: 'interests', minWidth: 150, widthGrow: 2, editor: 'list', editorParams: multi(L.interests),
             formatter: function (cell) {
               var d = cell.getRow().getData(), v = d.interests && d.interests.length ? d.interests : d.formInterests || [];
-              return v.length ? '<span class="g-tags">' + v.slice(0, 3).map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') + '</span>' : '<span class="g-add">Add</span>';
+              return v.length ? '<span class="g-tags" title="' + esc(v.join(', ')) + '">' + v.slice(0, 2).map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') + (v.length > 2 ? '<span class="g-more">+' + (v.length - 2) + '</span>' : '') + '</span>' : '<span class="g-add">Add</span>';
             }, cellEdited: tagEdits(h, 'interest') },
           { title: 'Plays', field: 'instruments', minWidth: 110, widthGrow: 1, editor: 'list', editorParams: multi(L.instruments),
             formatter: listFormatter('formInstruments'), cellEdited: tagEdits(h, 'instrument') },

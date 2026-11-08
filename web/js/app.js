@@ -241,7 +241,7 @@
     // tabs
     var vs = allViews();
     $('#pview-tabs').innerHTML = vs.map(function (v) {
-      return '<button type="button" class="vtab' + (v.id === peopleState.view ? ' on' : '') + '" data-v="' + esc(v.id) + '">' + esc(v.name) +
+      return '<button type="button" class="vt' + (v.id === peopleState.view ? ' on' : '') + '" data-v="' + esc(v.id) + '">' + esc(v.name) +
         (v.saved ? '<span class="vx" data-del="' + esc(v.id) + '" title="Remove view">&times;</span>' : '') + '</button>';
     }).join('');
     // program options
@@ -249,15 +249,18 @@
     var ps = $('#pquick [data-q="program"]');
     if (ps.options.length < 2) ps.innerHTML = '<option value="">Program</option>' + Object.keys(progs).sort(function (a, b) { return a.localeCompare(b, 'en', { numeric: true }); })
       .map(function (p) { return '<option>' + esc(p) + '</option>'; }).join('');
-    $$('#pquick select').forEach(function (s) { s.value = peopleState.f[s.dataset.q] || ''; s.classList.toggle('on', !!s.value); });
+    $$('select[data-q]').forEach(function (s) { s.value = peopleState.f[s.dataset.q] || ''; s.classList.toggle('on', !!s.value); });
     $('#psort').value = peopleState.sort;
     var nAdv = Object.keys(peopleState.adv).reduce(function (n, k) { return n + (peopleState.adv[k] || []).length; }, 0);
-    $('#pfilter-btn').textContent = nAdv ? 'Filter · ' + nAdv : 'Filter';
+    var nMore = nAdv + (peopleState.f.created ? 1 : 0) + (peopleState.f.activity ? 1 : 0);
+    $('#pfilter-btn').textContent = nMore ? 'More filters · ' + nMore : 'More filters';
+    $('#pfilter-btn').classList.toggle('on', !!nMore);
     $('#pclear').hidden = !(Object.keys(peopleState.f).some(function (k) { return peopleState.f[k]; }) || nAdv);
     var list = pSorted(rows.filter(pMatch)), per = peopleState.per, pages = Math.max(1, Math.ceil(list.length / per));
     if (peopleState.page > pages) peopleState.page = pages;
     var pg = list.slice((peopleState.page - 1) * per, peopleState.page * per);
     $('#pcount').textContent = list.length + (list.length === 1 ? ' person' : ' people');
+    $('#psort').hidden = useGrid(); // the grid sorts from its column headers
     if (useGrid()) {
       $('#ppager').innerHTML = ''; $('#people-list').classList.remove('list', 'ptable'); $('#people-list').classList.add('g-host');
       var gsp = peopleState.sort.split(':');
@@ -299,6 +302,10 @@
     if (d) { e.stopPropagation(); store('nsjw_pviews', JSON.stringify(savedViews().filter(function (v) { return v.id !== d.dataset.del; }))); setView('all'); renderPeople(); return; }
     var b = e.target.closest('[data-v]'); if (!b) return; setView(b.dataset.v); renderPeople();
   });
+  $('#pf-dates').addEventListener('change', function (e) {
+    var s = e.target.closest('select[data-q]'); if (!s) return;
+    peopleState.f[s.dataset.q] = s.value; peopleState.page = 1; renderPeople();
+  });
   $('#pquick').addEventListener('change', function (e) {
     var s = e.target.closest('select[data-q]'); if (!s) return;
     peopleState.f[s.dataset.q] = s.value; peopleState.page = 1; renderPeople();
@@ -310,6 +317,10 @@
     return Object.assign({
       LEAD: LEAD, picked: picked, actText: actText,
       stageNote: function (st) { var r = settings && settings.stages.filter(function (x) { return x.stage === st; })[0]; return r && r.task ? 'Adds a task' : ''; },
+      askEnroll: function (row) {
+        var l = (leadsState.rows || []).filter(function (x) { return x.id === row.id; })[0] || { id: row.id, name: row.name, email: row.email };
+        convertLead(l);
+      },
       askClose: function (row) {
         var l = (o.source && o.source(row.id)) || (leadsState.rows || []).filter(function (x) { return x.id === row.id; })[0] ||
           { id: row.id, name: row.name, email: row.email, stage: row.stage, next: null };
@@ -430,7 +441,7 @@
     var bits = [];
     Object.keys(peopleState.f).forEach(function (k) {
       var v = peopleState.f[k]; if (!v) return;
-      var sel = $('#pquick [data-q="' + k + '"]'), opt = sel && Array.prototype.filter.call(sel.options, function (o) { return o.value === v; })[0];
+      var sel = $('select[data-q="' + k + '"]'), opt = sel && Array.prototype.filter.call(sel.options, function (o) { return o.value === v; })[0];
       bits.push(k === 'status' || k === 'program' || k === 'track' ? (opt ? opt.textContent : v) : (opt ? (k === 'created' ? 'created ' : 'active ') + opt.textContent.toLowerCase() : v));
     });
     Object.keys(peopleState.adv).forEach(function (k) { if ((peopleState.adv[k] || []).length) bits.push(peopleState.adv[k].join('/')); });
@@ -1497,7 +1508,7 @@
   function todayRow(l, line) {
     var bits = [l.instruments.join(', '), l.interests.join(', ')].filter(Boolean).join(' · ');
     return '<a class="card lead-row" href="#p/' + encodeURIComponent(l.id) + '"><span class="lz ' + (l.next ? urgency(l) : 'none') + '"></span>' +
-      '<div class="who"><div class="line1"><span class="name">' + esc(l.name) + '</span>' + statusPill(l.stage) + '</div>' +
+      '<div class="who"><div class="line1"><span class="name">' + esc(l.name) + '</span>' + statusPill(LEGACY[l.stage] || l.stage || 'First Contact') + '</div>' +
       (bits ? '<div class="sub">' + esc(bits) + '</div>' : '') + line + '</div></a>';
   }
   function section(title, count, link, body) {
@@ -1846,13 +1857,13 @@
       var total = c === 'Enrolled' ? list.reduce(function (n, e) { var v = (e.programs || []).map(programValue).filter(Boolean)[0]; return n + (v ? v.price : 0); }, 0)
         : list.reduce(function (n, l) { var v = leadValue(l); return n + (v ? v.price : 0); }, 0);
       var lessonsN = c === 'Enrolled' ? 0 : list.filter(function (l) { return (l.tracks || []).indexOf('Private lessons') >= 0; }).length;
-      var note = c === 'Enrolled' ? 'won in ' + monShort : c === 'Closed' ? 'lost in ' + monShort : lessonsN ? '+ ' + lessonsN + ' lesson lead' + (lessonsN === 1 ? '' : 's') : '';
+      var note = c === 'Enrolled' ? 'won in ' + monShort : c === 'Closed' ? 'lost in ' + monShort : lessonsN ? lessonsN + ' lesson lead' + (lessonsN === 1 ? '' : 's') : '';
       var body = c === 'Enrolled' ? list.map(enrolledCard).join('') : list.map(card).join('');
       return '<section class="kcol" data-col="' + esc(c) + '" aria-label="' + esc(c) + '"><header class="kh">' +
         '<div class="kh1"><span class="kdot" style="background:' + STAGE_DOT[c] + '"></span><h2>' + esc(c) + '</h2>' +
         (list.length && c !== 'Enrolled' && c !== 'Closed' ? '<button type="button" class="kmail" data-colmail="' + esc(c) + '" title="Email everyone in this column">Email</button>' : '') +
         '<span class="kn">' + list.length + '</span></div>' +
-        '<div class="ktot">Total <b>' + (total ? money0(total) + '/mo' : '$0') + '</b> ' + esc(note) + '</div></header>' +
+        '<div class="ktot"><b>' + (total ? money0(total) + '/mo' : '$0') + '</b>' + (note ? ' · ' + esc(note) : '') + '</div></header>' +
         '<div class="kbody">' + (body || '<div class="kempty">Nothing here</div>') + '</div></section>';
     }).join('');
     var nur = base.filter(function (l) { return l.stage === 'Nurture'; }).length, lost = base.filter(function (l) { return l.stage === 'Closed'; }).length;
@@ -1861,13 +1872,13 @@
   }
   function fillLeadFilters() {
     var tr = [['', 'All'], ['Ensemble', 'Ensemble'], ['Private lessons', 'Private lessons'], ['Classes', 'Classes'], ['Undecided', 'Undecided']];
-    $('#lf-prog').innerHTML = tr.map(function (t) { return '<option value="' + esc(t[0]) + '"' + (leadsState.track === t[0] ? ' selected' : '') + '>Program: ' + esc(t[1]) + '</option>'; }).join('');
+    $('#lf-prog').innerHTML = tr.map(function (t) { return '<option value="' + esc(t[0]) + '"' + (leadsState.track === t[0] ? ' selected' : '') + '>' + (t[0] ? 'Program: ' + esc(t[1]) : 'Program') + '</option>'; }).join('');
     function opts(label, list, cur) {
-      return '<option value="">' + esc(label) + ': Any</option>' + list.map(function (x) { return '<option value="' + esc(x) + '"' + (x === cur ? ' selected' : '') + '>' + esc(label) + ': ' + esc(x) + '</option>'; }).join('');
+      return '<option value="">' + esc(label) + '</option>' + list.map(function (x) { return '<option value="' + esc(x) + '"' + (x === cur ? ' selected' : '') + '>' + esc(label) + ': ' + esc(x) + '</option>'; }).join('');
     }
     var f = leadsState.f;
     $('#lf-stage').innerHTML = opts('Stage', LEAD.stages, leadsState.stage);
-    $('#lf-int').innerHTML = opts('Interested in', LEAD.interests, (f.Interest || [])[0]);
+    $('#lf-int').innerHTML = opts('Interest', LEAD.interests, (f.Interest || [])[0]);
     $('#lf-plays').innerHTML = opts('Plays', LEAD.instruments, (f.Instrument || [])[0]);
     $('#lf-nights').innerHTML = opts('Nights', LEAD.nights, (f.Nights || [])[0]);
     $('#lf-who').value = leadsState.who || ''; $('#lf-due').value = leadsState.due || '';
@@ -1908,7 +1919,7 @@
 
   function moveLead(l, to, reason, opts) {
     if (!l || l.stage === to) return;
-    if (to === 'Enrolled') { pendingPlace = l.id; location.hash = '#p/' + encodeURIComponent(l.id); return; }
+    if (to === 'Enrolled') { convertLead(l); return; }
     if (to === 'Closed' && !reason) { openClose(l); return; }
     var was = { stage: l.stage, stageAt: l.stageAt, next: l.next };
     l.stage = to; l.stageAt = new Date().toISOString().slice(0, 10); renderLeads();
@@ -2383,6 +2394,14 @@
         (g.open.length ? ' · open: ' + esc(openText(g.open)) : '') + (fit ? ' · fits' : '') + '</option>';
     }).join('');
   }
+  // Convert to a member without leaving the Leads page: load their record, then the same dialog.
+  var placeFrom = '';
+  function convertLead(l) {
+    if (location.hash.indexOf('#p/') === 0) { if (current && current.id === l.id) openPlace(); else { pendingPlace = l.id; location.hash = '#p/' + encodeURIComponent(l.id); } return; }
+    toast('Opening ' + l.name);
+    api('person', { sid: l.id }).then(function (p) { current = p; placeFrom = location.hash; openPlace(); })
+      .catch(function (e) { toast(e.message); });
+  }
   function openPlace() {
     if (!current || !current.id) return;
     $('#place-title').textContent = 'Convert ' + current.name + ' to a member';
@@ -2460,7 +2479,8 @@
       $('#place-sheet').hidden = true;
       toast(current.name + ' is a member. Your to-do list is on their timeline.');
       leadsState.rows = null; groupsState.rows = null; todayState.data = null; lessonsState.rows = null;
-      loadPerson(current.id, true);
+      if (placeFrom && location.hash === placeFrom) { placeFrom = ''; if (location.hash === '#leads') loadLeads(true); }
+      else loadPerson(current.id, true);
       var ens = c.groups.filter(function (g) { return /^Group \d+$/.test(g); })[0];
       if (ens) openCal(ens);
     }).catch(function (err) { toast(err.message); })
@@ -2709,6 +2729,7 @@
     var n = Object.keys(picked).length;
     $('#lead-bulk').hidden = !n || !onLeadList();
     $('#lb-count').textContent = n + ' selected';
+    $('#lead-bulk [data-bulk="convert"]').hidden = n !== 1;
     if (onLeadList()) $('#selbar').hidden = true;
   }
 
@@ -2810,6 +2831,7 @@
     var m = b.dataset.bulk;
     if (m === 'clear') { picked = {}; $$('.pick.on').forEach(function (x) { x.classList.remove('on'); }); var g = $('#lead-list')._grid; if (g) g.deselectRow(); selBar(); return; }
     if (m === 'email') { openCompose(Object.keys(picked).map(function (id) { return { id: id, name: picked[id] }; }), ''); return; }
+    if (m === 'convert') { var one = pickedLeads()[0]; if (one) convertLead(one); return; }
     loadSettings(function () { openBulk(m); });
   });
   document.addEventListener('click', function (e) {
@@ -2831,7 +2853,24 @@
   $('#sel-mail').addEventListener('click', function () {
     openCompose(Object.keys(picked).map(function (id) { return { id: id, name: picked[id] }; }), '');
   });
+  // One person: open the sender's own Gmail, so it goes from them and replies come back to them.
+  // hello@ is copied (BCC) so the email shows on the person's record for everyone.
+  var HELLO = 'hello@northstarjazzworkshops.com';
+  function emailOf(id) {
+    if (current && current.id === id && current.email) return current.email;
+    var hit = (leadsState.rows || []).concat(peopleState.rows || []).filter(function (x) { return x.id === id && x.email; })[0];
+    return hit ? hit.email : '';
+  }
+  function gmailTo(email) {
+    var acct = me && me.email ? me.email : HELLO;
+    var url = 'https://mail.google.com/mail/u/' + encodeURIComponent(acct) + '/?view=cm&fs=1&to=' + encodeURIComponent(email) +
+      (acct.toLowerCase() === HELLO ? '' : '&bcc=' + encodeURIComponent(HELLO));
+    window.open(url, '_blank', 'noopener');
+    toast(acct.toLowerCase() === HELLO ? 'Opened in Gmail' : 'Opened in your Gmail. hello@ is copied so it shows on their record.');
+  }
   function openCompose(list, label) {
+    var one = list.filter(function (p) { return p.id; });
+    if (one.length === 1) { var em = emailOf(one[0].id); if (em) { gmailTo(em); return; } }
     composeTo = list.filter(function (p) { return p.id; });
     $('#mail-title').textContent = 'Email ' + (label || (composeTo.length === 1 ? composeTo[0].name : composeTo.length + ' people'));
     renderTo(); $('#mail-err').textContent = '';
