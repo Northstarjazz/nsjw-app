@@ -243,3 +243,115 @@ main h2, .view h2, #group h2, #today h2, .sec-h h2 { font: 600 18px/1.3 var(--fo
 .kcard { border: 1px solid var(--line) !important; border-radius: var(--r-item) !important; }
 .section-title { font: 600 18px/1.3 var(--font) !important; color: var(--ink); margin: 24px 0 8px; }
 select.search, select.select { border-radius: var(--r-item) !important; width: auto; min-width: 220px; max-width: 100%; }
+
+/* ===================== Person record (Contact record + phone record mockups) ===================== */
+#v-person > header.top { display: none; }
+#person { padding: 24px; box-sizing: border-box; }
+.rec { display: grid; grid-template-columns: 320px minmax(0, 1fr) 300px; gap: 16px; align-items: start; max-width: 1400px; }
+.rec-about, .rec-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; border: 0 !important; padding: 0 !important; }
+.sr { position: absolute; left: -9999px; }
+.grow { flex: 1; }
+
+/* Contact card */
+.rid-card { padding: 0 !important; }
+.rid-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.rid-bar .btn.ghost { color: var(--ink); padding: 0 8px; }
+.rid-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.rid { display: flex; gap: 12px; align-items: center; }
+.avatar.lg { flex: none; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font: 600 18px var(--font); background: #ECD7FC; }
+.rname { margin: 0; font: 600 22px/1.2 var(--font); }
+.remail { display: flex; align-items: center; gap: 6px; margin-top: 2px; font: 600 13px var(--font); color: var(--accent); min-width: 0; }
+.remail .sel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.copy { border: 0; background: none; padding: 2px; color: var(--muted); cursor: pointer; }
+.rid-body .pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.racts { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+.racts.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.rconv { width: 100%; }
+.rmenu-wrap { position: relative; }
+.rmenu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; min-width: 260px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-item); padding: 4px; display: flex; flex-direction: column; }
+.rmenu > * { text-align: left; border: 0; background: none; padding: 10px 12px; border-radius: 6px; font: 500 14px var(--font); color: var(--ink); text-decoration: none; cursor: pointer; }
+.rmenu > *:hover { background: var(--ground); }
+.ib { width: 40px; height: 40px; display: grid; place-items: center; border: 0; background: none; color: var(--ink); border-radius: 50%; cursor: pointer; }
+
+/* About card */
+.rabout-card .rcard-h { display: flex; justify-content: space-between; align-items: center; margin: 0 0 8px; }
+.rprop { padding: 0 !important; margin: 0 -8px; }
+.rprop-h { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 10px 8px; text-align: left; background: none; border: 0; font: inherit; color: inherit; cursor: default; }
+.rprop.editable .rprop-h { cursor: pointer; }
+.rprop .rl { display: flex; justify-content: space-between; }
+.rprop .pen { visibility: hidden; }
+.rprop.editable:hover .pen, .rprop.show-edit .pen, .rprop.open .pen { visibility: visible; }
+.rprop .rv { font: 400 14px/1.4 var(--font); color: var(--ink); }
+.rprop-ed { padding: 4px 8px 12px; }
+
+/* Middle: tabs joined to the panel */
+.rec-main { min-width: 0; display: flex; flex-direction: column; }
+.rec-tabs { display: flex; gap: 0 !important; border: 0 !important; margin: 0; }
+.rec-tabs .tab { flex: 1; min-height: 48px; display: grid; place-items: center; }
+.rec-panel { background: var(--surface); border: 1px solid var(--line); border-top: 0; border-radius: 0 0 var(--r-card) var(--r-card); padding: 4px 20px 20px; display: flex; flex-direction: column; gap: 16px; }
+.rec-panel > .rcard { border-width: 0 0 1px 0 !important; border-radius: 0; padding: 16px 0; }
+.rec-panel > .rcard:last-child { border-bottom: 0 !important; }
+.rcard-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; }
+.subtabs { display: flex; gap: 24px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.subtabs .sub { flex: none; min-height: 40px; display: flex; align-items: center; border: 0; background: none; padding: 0; border-bottom: 3px solid transparent; font: 500 14px var(--font); color: var(--ink-2); cursor: pointer; }
+.subtabs .sub.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+.act-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.act-search { flex: 0 1 260px; }
+.act-search input { width: 100%; }
+.act-tools .btn.ghost { color: var(--ink); }
+.act-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lbl { font: 600 12px/1.3 var(--font); color: var(--muted); }
+.mon { font: 600 16px var(--font); margin: 8px 0 0; }
+.acts { display: flex; flex-direction: column; gap: 8px; }
+#act-list { display: flex; flex-direction: column; gap: 8px; }
+.act { box-sizing: border-box; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 14px 16px; display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 4px 10px; }
+.act.warn { border-color: #E8C690; background: #FFFBF3; }
+.act.upcoming { border-color: #C9DCD3; background: #F6FAF8; align-items: center; }
+.act-fold { border: 0; background: none; padding: 0; margin-top: 2px; color: var(--muted); cursor: pointer; width: 16px; height: 16px; }
+.act-h { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.act-h .when, .act-h .due { font-size: 13px; color: var(--muted); }
+.act-h .due { color: var(--accent); font-weight: 600; }
+.act-h .due.overdue { color: var(--bad); }
+.act-meta { font-size: 13px; color: var(--muted); }
+.act-body { line-height: 1.5; color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.act-body.clip { max-height: 7.5em; overflow: hidden; }
+.act-link { font-size: 13px; font-weight: 600; }
+.act .tchk { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--accent); background: none; padding: 0; cursor: pointer; }
+
+/* Side cards */
+.sidecard .rcard-h { margin: 0; }
+.sidecard:not(.shut) .rcard-h { margin-bottom: 8px; }
+.side-fold { display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 0; font: 600 16px var(--font); color: var(--ink); cursor: pointer; text-align: left; }
+.side-fold .cnt { color: var(--muted); font-weight: 500; background: none; padding: 0; min-width: 0; }
+.srow { padding: 10px 0; border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 2px; }
+.srow .sa { font-weight: 600; color: var(--ink); text-decoration: none; }
+.srow .sa.link { color: var(--accent); }
+.srow .sb { font-size: 13px; color: var(--muted); }
+.srow .waiting { color: var(--accent); }
+
+/* Phone: contact card centered, then Activity / About / Groups tabs */
+@media (max-width: 999px) {
+  #person { padding: 0 0 24px; }
+  .rec { display: block; }
+  .rec-phone .rid-card { border: 0 !important; border-radius: 0; background: var(--surface); }
+  .rec-phone .rid-bar { border-bottom: 0; padding: 4px 8px; }
+  .rec-phone .rid-body { padding: 0 16px 16px; align-items: center; text-align: center; gap: 12px; }
+  .rec-phone .rid { flex-direction: column; gap: 8px; }
+  .rec-phone .avatar.lg { width: 64px; height: 64px; font-size: 22px; }
+  .rec-phone .rid-body .pills { justify-content: center; }
+  .rec-phone .racts { width: 100%; }
+  .rec-phone .ract .ri { width: 44px; height: 44px; }
+  .pill.pickable { border: 1px solid var(--line-strong) !important; cursor: pointer; }
+  .ptabs { display: flex; gap: 0 !important; background: var(--surface); border-bottom: 1px solid var(--line) !important; padding: 0 16px; position: sticky; top: 0; z-index: 5; }
+  .ptabs .tab { flex: 1; min-height: 48px; display: grid; place-items: center; }
+  .ptab-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .ptab-body .rcard { padding: 16px; }
+  .padd { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .act { padding: 12px 14px; }
+  .rmenu { min-width: 240px; }
+}
+/* Buttons inside the record keep their own width; only Convert, billing and the phone pair fill */
+.rec .btn { width: auto; flex: none; margin: 0; }
+.rec .rconv, .rec #bill-card a.btn, .rec .padd .btn, .rec .tasks-add { width: 100%; }
+.rec .rcard > .btn[data-open="next_step"] { width: 100%; margin-top: 12px; }
+.side-fold { flex: 1; min-width: 0; }

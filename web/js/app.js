@@ -473,7 +473,7 @@
   var personSeq = 0; // a load that finishes after a newer load or a local change is ignored
   function loadPerson(sid, fresh) {
     var main = $('#person'), mine = ++personSeq;
-    if (!current || current.id !== sid) { propOpen = ''; aboutKeep = false; actF = { kind: 'all', q: '' }; }
+    if (!current || current.id !== sid) { propOpen = ''; aboutKeep = false; aboutEdit = false; actionsOpen = false; actCollapsed = false; actShut = {}; actRange = 'all'; ptab = 'activity'; actF = { kind: 'all', q: '' }; }
     if (fresh) { delete billCache[sid]; try { localStorage.removeItem(ckey('person', { sid: sid })); } catch (e) {} }
     if (!fresh || !current || current.id !== sid) main.innerHTML = '<div class="loading">Loading</div>';
     $('#mms-link').hidden = true;
@@ -524,29 +524,59 @@
     text: '<path d="M3 4h14v9H8l-4 3v-3H3z"/>',
     call: '<path d="M6 3l3 3-2 2c1 2 3 4 5 5l2-2 3 3-2 2C9 16 4 11 4 5z"/>',
     note: '<path d="M5 3h8l3 3v11H5z"/><path d="M8 9h6M8 12h6"/>',
-    next: '<circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/>',
-    mms: '<path d="M8 4H4v12h12v-4"/><path d="M11 3h6v6M17 3l-8 8"/>'
+    next: '<path d="M4 5l1.5 1.5L8 4M4 10l1.5 1.5L8 9M10.5 5.5H17M10.5 10.5H17M4 15l1.5 1.5L8 14M10.5 15.5H17"/>',
+    mms: '<path d="M8 4H4v12h12v-4"/><path d="M11 3h6v6M17 3l-8 8"/>',
+    more: '<path d="M5 10h.01M10 10h.01M15 10h.01" stroke-width="2.4" stroke-linecap="round"/>'
   };
   function ico(k) { return '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">' + ICON[k] + '</svg>'; }
+
+  // Person record, laid out like the "Contact record" and phone record mockups (Nov 2026 canvas).
+  // Desktop: contact card and About on the left, Overview and Activities in the middle, collapsible
+  // cards on the right. Phone: the contact card, then Activity, About and Groups as tabs.
+  var aboutEdit = false;        // "Edit fields": every editable field shows its Edit link
+  var actionsOpen = false;      // the Actions menu
+  var actCollapsed = false;     // "Collapse all" on Activities
+  var actShut = {};             // single activity cards collapsed by hand
+  var actRange = 'all';         // Filters: any time, 30 or 90 days
+  var actFilters = false;
+  var ptab = 'activity';        // phone tab: activity, about, side
+  var sideShut = (function () { try { return JSON.parse(localStorage.getItem('nsjw_side') || '{}'); } catch (e) { return {}; } })();
+  function isPhone() { return window.innerWidth < 1000; }
 
   function renderPerson(p, tab) {
     var main = $('#person');
     if (tab !== 'activity') tab = 'overview';
-    main.innerHTML = '<div class="rec">' +
-      '<aside class="rec-about">' + aboutHtml(p) + '</aside>' +
-      '<section class="rec-main"><div class="tabs rec-tabs" role="tablist">' +
-        '<button class="tab' + (tab === 'overview' ? ' on' : '') + '" data-tab="overview">Overview</button>' +
-        '<button class="tab' + (tab === 'activity' ? ' on' : '') + '" data-tab="activity">Activity</button></div>' +
-        (tab === 'activity' ? activityHtml(p) : overviewHtml(p)) + '</section>' +
-      '<aside class="rec-side">' + sideHtml(p) + '</aside></div>';
+    if (isPhone()) {
+      main.innerHTML = '<div class="rec rec-phone">' + idCardHtml(p, true) +
+        '<div class="tabs ptabs" role="tablist">' +
+          [['activity', 'Activity'], ['about', 'About'], ['side', 'Groups']].map(function (t) {
+            return '<button class="tab' + (ptab === t[0] ? ' on' : '') + '" data-ptab="' + t[0] + '" role="tab" aria-selected="' + (ptab === t[0]) + '">' + t[1] + '</button>';
+          }).join('') + '</div>' +
+        '<div class="ptab-body">' + (ptab === 'about' ? aboutCardHtml(p) : ptab === 'side' ? sideHtml(p) : phoneActivityHtml(p)) + '</div></div>';
+    } else {
+      main.innerHTML = '<div class="rec">' +
+        '<aside class="rec-about">' + idCardHtml(p, false) + aboutCardHtml(p) + '</aside>' +
+        '<section class="rec-main"><div class="tabs rec-tabs" role="tablist">' +
+          '<button class="tab' + (tab === 'overview' ? ' on' : '') + '" data-tab="overview" role="tab">Overview</button>' +
+          '<button class="tab' + (tab === 'activity' ? ' on' : '') + '" data-tab="activity" role="tab">Activities</button></div>' +
+          '<div class="rec-panel">' + (tab === 'activity' ? activityHtml(p) : overviewHtml(p)) + '</div></section>' +
+        '<aside class="rec-side">' + sideHtml(p) + '</aside></div>';
+    }
     var link = $('#mms-link');
     if (p.mmsUrl) { link.href = p.mmsUrl; link.hidden = false; } else link.hidden = true;
   }
+  var resizeT = null, wasPhone = isPhone();
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(function () {
+      if (isPhone() !== wasPhone) { wasPhone = isPhone(); if (current && !$('#v-person').hidden) renderPerson(current, curTab()); }
+    }, 150);
+  });
 
   function fmtPhone(v) {
     var d = String(v || '').replace(/\D/g, '');
     if (d.length === 11 && d[0] === '1') d = d.slice(1);
-    return d.length === 10 ? d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6) : String(v || '');
+    return d.length === 10 ? '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6) : String(v || '');
   }
   // One field, edited in place, saved straight to MMS (Mms.gs studentPut_ checks it took).
   function fieldEd(field, value, type, hint) {
@@ -556,31 +586,67 @@
   }
 
   function pickTags(p, pre) { return (p.tags || []).filter(function (t) { return t.indexOf(pre) === 0; }).map(function (t) { return t.slice(pre.length); }); }
+  function pillCls(s) { return String(s || '').toLowerCase().replace(/\s+/g, '-'); }
+  function firstName(p) { return p.first || String(p.name || '').split(' ')[0]; }
+  function openTaskOwner(p) {
+    var t = personTasks(p).sort(function (a, b) { return (a.due || '9').localeCompare(b.due || '9'); })[0];
+    return t && t.owner ? ownerName(t.owner) : '';
+  }
 
-  function aboutHtml(p) {
+  // Name, email, status, the six actions in mockup order (Note, Email, Call, Task, Text, More), Convert.
+  function idCardHtml(p, phone) {
     var lead = p.id && p.status !== 'Active';
     var stage = tagStage(p.tags, p.status);
-    var plays = p.instruments.length ? p.instruments : (p.formInstruments || []);
     var sms = p.phone ? 'sms:' + String(p.phone).replace(/[^\d+]/g, '') : '';
     function act(k, label, attrs) {
       return '<button type="button" class="ract" ' + attrs + '><span class="ri">' + ico(k) + '</span><span>' + label + '</span></button>';
     }
-    var acts = '<div class="racts">' +
-      act('email', 'Email', 'data-mailone' + (p.email && p.id ? '' : ' disabled')) +
-      (sms ? '<a class="ract" href="' + esc(sms) + '"><span class="ri">' + ico('text') + '</span><span>Text</span></a>' : act('text', 'Text', 'disabled')) +
-      act('call', 'Log call', p.id ? 'data-logcall' : 'disabled') +
+    var acts = '<div class="racts' + (phone ? ' five' : '') + '">' +
       act('note', 'Note', 'data-open="note"') +
+      act('email', 'Email', 'data-mailone' + (p.email && p.id ? '' : ' disabled')) +
+      act('call', 'Call', p.id ? 'data-logcall' : 'disabled') +
       act('next', 'Task', 'data-open="next_step"') +
-      (p.mmsUrl ? '<a class="ract" target="_blank" rel="noopener" href="' + esc(p.mmsUrl) + '"><span class="ri">' + ico('mms') + '</span><span>MMS</span></a>' : '') +
-      '</div>';
+      (sms ? '<a class="ract" href="' + esc(sms) + '"><span class="ri">' + ico('text') + '</span><span>Text</span></a>' : act('text', 'Text', 'disabled')) +
+      (phone ? '' : act('more', 'More', 'data-actions')) + '</div>';
+    var back = !p.id || p.status === 'Active' ? ['#people', 'People'] : ['#leads', 'Leads'];
+    var progs = (p.programs || []).filter(function (g) { return /^Group \d+$/.test(g); });
+    var items = [];
+    if (p.id) items.push(lead ? ['data-place', 'Convert to member'] : ['data-place', 'Add to another group or lessons']);
+    progs.forEach(function (g) { items.push(['data-cal="' + esc(g) + '"', 'Add to ' + g + ' rehearsals in MMS']); });
+    if (p.id && ((p.programs || []).length || p.status === 'Active')) items.push(['data-leave', 'Take out of a group or end membership']);
+    if (p.id) items.push(['data-open-lesson', p.lesson ? 'Edit private lessons' : 'Set up private lessons']);
+    if (p.id) items.push(['data-logcall', 'Log a call or text']);
+    var menu = actionsOpen ? '<div class="rmenu" role="menu">' + items.map(function (i) {
+      return '<button type="button" role="menuitem" ' + i[0] + '>' + esc(i[1]) + '</button>';
+    }).join('') + (p.mmsUrl ? '<a role="menuitem" target="_blank" rel="noopener" href="' + esc(p.mmsUrl) + '">Open in MMS</a>' : '') + '</div>' : '';
+    var chev = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+    var bar = phone
+      ? '<div class="rid-bar"><a class="ib" href="' + back[0] + '" aria-label="Back to ' + back[1] + '"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M11 3L5 9l6 6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></a>' +
+        '<div class="rmenu-wrap"><button type="button" class="ib" data-actions aria-label="More actions" aria-expanded="' + actionsOpen + '"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="3.5" r="1.5" fill="currentColor"/><circle cx="9" cy="9" r="1.5" fill="currentColor"/><circle cx="9" cy="14.5" r="1.5" fill="currentColor"/></svg></button>' + menu + '</div></div>'
+      : '<div class="rid-bar"><a class="btn ghost" href="' + back[0] + '"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M9 2L4 7l5 5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>' + back[1] + '</a>' +
+        '<div class="rmenu-wrap"><button type="button" class="btn ghost" data-actions aria-expanded="' + actionsOpen + '">Actions ' + chev + '</button>' + menu + '</div></div>';
+    var copy = '<button type="button" class="copy" data-copy="' + esc(p.email) + '" aria-label="Copy email"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2 9V3a1 1 0 011-1h6" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>';
+    var pills = '<div class="pills">' + statusPill(p.status) +
+      (lead ? (phone ? '<button type="button" class="pill ' + pillCls(stage) + ' pickable" data-stagepick>' + esc(stage) + ' ' + chev + '</button>'
+        : '<span class="pill ' + pillCls(stage) + '">' + esc(stage) + '</span>') : '') + '</div>';
+    return '<div class="rcard rid-card">' + bar + '<div class="rid-body">' +
+      '<div class="rid"><div class="avatar lg" aria-hidden="true">' + esc(initials(p.name)) + '</div><div style="min-width:0"><h1 class="rname">' + esc(p.name) + '</h1>' +
+      (p.email && !phone ? '<div class="remail"><span class="sel">' + esc(p.email) + '</span>' + copy + '</div>' : '') + '</div></div>' +
+      pills + acts +
+      (lead ? '<button type="button" class="btn rconv" data-place>Convert to member</button>' : '') + '</div></div>';
+  }
 
-    // Each property: label, value, and (for MMS tags) an editor that opens in place.
+  // About {first}: the properties, each editable in place where MMS takes the change.
+  function aboutCardHtml(p) {
+    var lead = p.id && p.status !== 'Active';
+    var stage = tagStage(p.tags, p.status);
+    var plays = p.instruments.length ? p.instruments : (p.formInstruments || []);
     function prop(key, label, value, editor) {
       var open = editor && propOpen === key;
-      return '<div class="rprop' + (editor ? ' editable' : '') + (open ? ' open' : '') + '">' +
+      return '<div class="rprop' + (editor ? ' editable' : '') + (open ? ' open' : '') + (aboutEdit && editor ? ' show-edit' : '') + '">' +
         (editor ? '<button type="button" class="rprop-h" data-prop="' + key + '" aria-expanded="' + open + '">' : '<div class="rprop-h">') +
-        '<span class="rl">' + esc(label) + '</span><span class="rv">' + (value || '<span class="faint">--</span>') + '</span>' +
-        (editor ? '<span class="pen" aria-hidden="true">Edit</span></button>' : '</div>') +
+        '<span class="rl">' + esc(label) + (editor ? '<span class="pen" aria-hidden="true">' + (open ? 'Close' : 'Edit') + '</span>' : '') + '</span><span class="rv">' + (value || '<span class="faint">--</span>') + '</span>' +
+        (editor ? '</button>' : '</div>') +
         (open ? '<div class="rprop-ed">' + editor + '</div>' : '') + '</div>';
     }
     function chips(field, opts, have) {
@@ -593,26 +659,21 @@
       return '<button type="button" class="chip' + (s === stage ? ' on' : '') + '" data-stage="' + esc(s) + '">' + esc(s) + '</button>';
     }).join('') + '</div>';
     var other = (p.tags || []).filter(function (t) { return !/^(Stage|Interest|Nights): /.test(t); });
-
-    return '<div class="rid"><div class="avatar">' + esc(initials(p.name)) + '</div><div style="min-width:0"><h2>' + esc(p.name) + '</h2>' +
-      '<div class="sub">' + statusPill(p.status) + (lead ? ' <span class="pill accent">' + esc(stage) + '</span>' : '') + '</div></div></div>' +
-      acts +
-      (lead ? '<button type="button" class="btn rconv' + (stage === 'Committed' ? ' primary' : '') + '" data-place>Convert to member</button>' : '') +
-      '<details class="rabout"' + (propOpen || aboutKeep || window.innerWidth >= 1000 ? ' open' : '') + '><summary class="rsec">About this person</summary>' +
+    return '<section class="rcard rabout-card"><h2 class="rcard-h">About ' + esc(firstName(p)) +
+      (p.id ? '<button type="button" class="btn sm" data-aboutedit>' + (aboutEdit ? 'Done' : 'Edit fields') + '</button>' : '') + '</h2>' +
       (lead ? prop('stage', 'Stage', esc(stage), stageEd) : '') +
-      prop('email', 'Email', (p.email ? '<span class="sel">' + esc(p.email) + '</span>' : '') +
-        (p.mmsUrl ? ' <a class="faint small" target="_blank" rel="noopener" href="' + esc(p.mmsUrl) + '">Change in MMS</a>' : '')) +
-      prop('phone', 'Phone', p.phone ? '<a href="tel:' + esc(String(p.phone).replace(/[^\d+]/g, '')) + '">' + esc(fmtPhone(p.phone)) + '</a>' : '',
-        p.id ? fieldEd('phone', p.phone, 'tel', '612 555 0123') : '') +
+      (isPhone() && p.email ? prop('email', 'Email', '<span class="sel">' + esc(p.email) + '</span>' + (p.mmsUrl ? ' <a class="faint small" target="_blank" rel="noopener" href="' + esc(p.mmsUrl) + '">Change in MMS</a>' : '')) : '') +
+      prop('phone', 'Phone', p.phone ? '<a href="tel:' + esc(String(p.phone).replace(/[^\d+]/g, '')) + '">' + esc(fmtPhone(p.phone)) + '</a>' : '', p.id ? fieldEd('phone', p.phone, 'tel', '612 555 0123') : '') +
       (p.id ? prop('interest', 'Interested in', esc(interests.join(', ')), chips('interest', LEAD.interests, interests)) : '') +
       (p.id ? prop('instrument', 'Plays', esc(plays.join(', ')) + (p.instruments.length || !plays.length ? '' : ' <span class="faint">(form)</span>'), chips('instrument', LEAD.instruments, p.instruments || [])) : '') +
       (p.id ? prop('nights', 'Nights they can do', esc(nights.join(', ')), chips('nights', LEAD.nights, nights)) : '') +
       prop('skill', 'Skill', esc(p.skill), p.id ? fieldEd('skill', p.skill, 'text', 'Beginner, Intermediate, Advanced') : '') +
       prop('started', 'Signed up', esc(dayOnly(p.started))) +
+      prop('source', 'Heard about us', esc(p.source || '')) +
       (p.id ? prop('referrer', 'Referred by', esc(p.referrer || ''), fieldEd('referrer', p.referrer, 'text', 'Who sent them our way')) : '') +
-      prop('programs', 'Groups and programs', esc((p.programs || []).join(', '))) +
+      prop('owner', 'Owner', esc(openTaskOwner(p))) +
       (p.lastEvent || p.nextEvent ? prop('last', 'Last lesson', esc(dayOnly(p.lastEvent))) + prop('next', 'Next lesson', esc(dayOnly(p.nextEvent))) : '') +
-      (other.length ? prop('tags', 'Other tags', esc(other.join(', '))) : '') + '</details>';
+      (other.length ? prop('tags', 'Other tags', esc(other.join(', '))) : '') + '</section>';
   }
 
   function lastActivity(p) {
@@ -637,15 +698,15 @@
     return '<div class="rcard"><div class="rcard-h">Highlights</div><div class="rhi">' +
       hi.map(function (h) { return '<div><div class="rl">' + h[0] + '</div><div class="rhv">' + h[1] + '</div></div>'; }).join('') + '</div></div>' +
       tasksCardHtml(p) +
-      '<div class="rcard"><div class="rcard-h">Recent activity<button type="button" class="link" data-tab="activity">See all ' + items.length + '</button></div>' +
+      '<div class="rcard"><div class="rcard-h">Recent activity<button type="button" class="btn ghost" data-tab="activity">See all ' + items.length + '</button></div>' +
       (p.mailError ? '<p class="muted small mail-note">Emails could not load right now (Gmail limit). Notes and calls are all here.</p>' : '') +
-      tlList(items.slice(0, 5), false) + '</div>';
+      '<div class="acts">' + items.slice(0, 5).map(function (t) { return actCard(t, p); }).join('') + '</div>' + (items.length ? '' : '<p class="muted small">Nothing here yet.</p>') + '</div>';
   }
 
-  // Activity: one kind per filter chip, newest first, grouped by month like HubSpot.
-  var ACT_KINDS = [['all', 'All'], ['email', 'Emails'], ['seq', 'Sequences'], ['note', 'Notes'], ['call', 'Calls and texts'], ['next', 'Tasks'], ['signup', 'Sign-up']];
+  // Activities: sub-tabs in mockup order, search, Filters, Collapse all; Upcoming tasks; months.
+  var ACT_KINDS = [['all', 'All'], ['note', 'Notes'], ['email', 'Emails'], ['call', 'Calls and texts'], ['next', 'Tasks'], ['seq', 'Sequences']];
   function actKind(t) {
-    return { 'mail-in': 'email', 'mail-out': 'email', 'email-reply': 'email', 'email-sent': 'seq', note: 'note', call: 'call', next_step: 'next', signup: 'signup' }[t.kind] || 'note';
+    return { 'mail-in': 'email', 'mail-out': 'email', 'email-reply': 'email', 'email-sent': 'seq', note: 'note', call: 'call', next_step: 'next', signup: 'note', change: 'note', mms: 'note' }[t.kind] || 'note';
   }
   function actItems(p) {
     var stats = {};
@@ -656,41 +717,124 @@
       }
     });
     return p.timeline.filter(function (t) { return t.kind !== 'email-open' && t.kind !== 'email-click'; })
-      .map(function (t) { var o = Object.assign({}, t); o.stats = stats[t.sequence + '|' + t.step]; o.cat = actKind(t); return o; });
+      .map(function (t, i) { var o = Object.assign({}, t); o.stats = stats[t.sequence + '|' + t.step]; o.cat = actKind(t); o.key = i + ':' + t.kind + ':' + t.at; return o; });
   }
   function activityHtml(p) {
-    var items = actItems(p), n = {};
-    items.forEach(function (t) { n[t.cat] = (n[t.cat] || 0) + 1; });
-    return '<div class="ract-tools"><input type="search" id="act-q" placeholder="Search activity" value="' + esc(actF.q) + '" aria-label="Search activity">' +
-      '<div class="ract-add"><button type="button" class="btn" data-logcall' + (p.id ? '' : ' disabled') + '>Log call</button>' +
-      '<button type="button" class="btn" data-open="note">Note</button>' +
-      '<button type="button" class="btn" data-mailone' + (p.email && p.id ? '' : ' disabled') + '>Email</button></div></div>' +
-      '<div class="chips act-kinds">' + ACT_KINDS.filter(function (k) { return k[0] === 'all' || n[k[0]]; }).map(function (k) {
-        return '<button type="button" class="chip' + (actF.kind === k[0] ? ' on' : '') + '" data-actk="' + k[0] + '">' + k[1] + ' <span class="cnt">' + (k[0] === 'all' ? items.length : n[k[0]]) + '</span></button>';
+    var chev = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+    return '<div class="subtabs" role="tablist">' + ACT_KINDS.map(function (k) {
+        return '<button type="button" class="sub' + (actF.kind === k[0] ? ' on' : '') + '" data-actk="' + k[0] + '">' + k[1] + '</button>';
       }).join('') + '</div>' +
+      '<div class="act-tools"><label class="act-search"><span class="sr">Search activity</span><input type="search" id="act-q" placeholder="Search activity" value="' + esc(actF.q) + '"></label>' +
+      '<button type="button" class="btn" data-actfilters aria-expanded="' + actFilters + '">Filters ' + chev + '</button>' +
+      '<span class="grow"></span><button type="button" class="btn ghost" data-collapseall>' + (actCollapsed ? 'Expand all' : 'Collapse all') + '</button></div>' +
+      (actFilters ? '<div class="act-filters"><span class="lbl">When</span>' + [['all', 'Any time'], ['30', 'Last 30 days'], ['90', 'Last 90 days']].map(function (r) {
+        return '<button type="button" class="chip' + (actRange === r[0] ? ' on' : '') + '" data-actrange="' + r[0] + '">' + r[1] + '</button>';
+      }).join('') + '</div>' : '') +
       (p.mailError ? '<p class="muted small mail-note">Emails could not load right now (Gmail limit). Notes and calls are all here.</p>' : '') +
-      '<div id="act-list">' + actList(items) + '</div>';
+      '<div id="act-list">' + actList(actItems(p), p) + '</div>';
   }
-  function actList(items) {
-    var q = actF.q.toLowerCase();
+  function upcomingHtml(p) {
+    var list = personTasks(p).sort(function (a, b) { return (a.due || '9').localeCompare(b.due || '9'); });
+    if (!list.length) return '';
+    return '<div class="mon">Upcoming</div>' + list.map(function (t) {
+      var st = dueState(t);
+      return '<div class="act upcoming"><button type="button" class="tchk" data-tdone="' + t.row + '" aria-label="Mark done"></button>' +
+        '<div class="act-h"><b>Task · ' + esc(t.text) + '</b><span class="due ' + st + '">Due ' + esc(dueLabel(t)) + (t.owner ? ' · ' + esc(ownerName(t.owner)) : '') + '</span></div></div>';
+    }).join('');
+  }
+  function actList(items, p, noUpcoming) {
+    var q = actF.q.toLowerCase(), cut = actRange === 'all' ? null : new Date(Date.now() - Number(actRange) * 864e5);
     var f = items.filter(function (t) {
-      return (actF.kind === 'all' || t.cat === actF.kind) &&
-        (!q || [t.text, t.snippet, t.sequence, t.author].join(' ').toLowerCase().indexOf(q) >= 0);
+      if (actF.kind !== 'all' && t.cat !== actF.kind) return false;
+      if (cut) { var d = parse(t.at); if (isNaN(d) || d < cut) return false; }
+      return !q || [t.text, t.snippet, t.sequence, t.author].join(' ').toLowerCase().indexOf(q) >= 0;
     });
-    return tlList(f, true);
-  }
-  function tlList(items, months) {
-    if (!items.length) return '<div class="empty">Nothing here yet.</div>';
-    var out = '', lastM = '';
-    items.forEach(function (t) {
-      if (months) {
-        var d = parse(t.at), m = isNaN(d) ? '' : d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-        if (m !== lastM) { out += (out ? '</ul>' : '') + '<div class="tl-month">' + esc(m) + '</div><ul class="tl">'; lastM = m; }
-      }
-      out += tlItem(t);
+    var out = (actF.kind === 'all' || actF.kind === 'next') && p && !noUpcoming ? upcomingHtml(p) : '', lastM = '';
+    f.forEach(function (t) {
+      var d = parse(t.at), m = isNaN(d) ? 'Earlier' : d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      if (m !== lastM) { out += '<div class="mon">' + esc(m) + '</div>'; lastM = m; }
+      out += actCard(t, p);
     });
-    return (months ? '' : '<ul class="tl">') + out + '</ul>';
+    return out || '<div class="empty">Nothing here yet.</div>';
   }
+  function tlList(items) { return '<div class="acts">' + items.map(function (t) { return actCard(t, current); }).join('') + '</div>'; }
+
+  // One activity: kind and title, when, a meta line, and the body. Click the chevron to fold it.
+  function actWhen(v) {
+    var d = parse(v);
+    if (isNaN(d)) return esc(v || '');
+    var s = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    if (/T\d|:\d\d/.test(String(v)) && (d.getHours() || d.getMinutes())) s += ', ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    return esc(s);
+  }
+  function actCard(t, p) {
+    var first = p ? firstName(p) : '', s = t.stats, kind, title = '', meta = '', body = t.text || '', url = t.url || '';
+    var lines = String(t.text || '').split('\n');
+    switch (t.kind) {
+      case 'note': kind = 'Note'; meta = t.author ? 'By ' + ownerName(t.author) : ''; break;
+      case 'call': kind = 'Call'; meta = t.author ? 'Logged by ' + ownerName(t.author) : ''; break;
+      case 'next_step': kind = 'Task'; title = lines[0]; body = ''; meta = [t.due ? 'Due ' + dayOnly(t.due) : '', t.owner ? ownerName(t.owner) : ''].filter(Boolean).join(' · '); break;
+      case 'email-sent': kind = 'Sequence'; title = (t.sequence || '') + (t.step ? ', step ' + t.step : '');
+        meta = [s && s.o ? 'Opened' + (s.o > 1 ? ' ' + s.o + 'x' : '') : '', s && s.c ? 'Clicked' : ''].filter(Boolean).join(' · '); break;
+      case 'email-reply': kind = 'Reply'; title = t.sequence || ''; meta = 'Replied to a sequence email'; break;
+      case 'mail-in': kind = 'Email from ' + (first || 'them'); title = t.text || ''; body = t.snippet || ''; meta = 'To North Star'; break;
+      case 'mail-out': kind = 'Email'; title = t.text || ''; body = t.snippet || ''; meta = 'From North Star'; break;
+      case 'signup': kind = 'Sign-up form'; break;
+      case 'change': kind = 'Change'; meta = t.author ? ownerName(t.author) : ''; break;
+      case 'mms': kind = 'Check in MMS'; meta = t.author ? ownerName(t.author) : ''; break;
+      default: kind = t.kind;
+    }
+    var shut = actCollapsed ? !actShut['o' + t.key] : !!actShut['c' + t.key];
+    var chev = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="' + (shut ? 'M6 4l4 4-4 4' : 'M4 6l4 4 4-4') + '" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+    return '<article class="act' + (t.kind === 'mms' ? ' warn' : '') + (shut ? ' shut' : '') + '">' +
+      '<button type="button" class="act-fold" data-fold="' + esc(t.key) + '" aria-expanded="' + !shut + '" aria-label="Show or hide">' + chev + '</button>' +
+      '<div class="act-h"><span><b>' + esc(kind) + '</b>' + (title ? ' · ' + esc(title) : '') + '</span><span class="when">' + actWhen(t.at) + '</span></div>' +
+      (shut ? '' : (meta ? '<span></span><div class="act-meta">' + esc(meta) + '</div>' : '') +
+        (body ? '<span></span><div class="act-body' + (t.kind === 'signup' ? ' clip' : '') + '">' + esc(body) + '</div>' : '') +
+        (url ? '<span></span><a class="act-link" href="' + esc(url) + '" target="_blank" rel="noopener">Open in Gmail</a>' : '')) + '</article>';
+  }
+
+  // Phone Activity tab: upcoming task, Add note and Add task, then the activity.
+  function phoneActivityHtml(p) {
+    var items = actItems(p);
+    return (upcomingHtml(p).replace('<div class="mon">Upcoming</div>', '')) +
+      '<div class="row2 padd"><button type="button" class="btn" data-open="note">Add note</button><button type="button" class="btn" data-open="next_step">Add task</button></div>' +
+      (p.mailError ? '<p class="muted small mail-note">Emails could not load right now (Gmail limit).</p>' : '') +
+      '<div id="act-list">' + (function () { var f = actF.kind; actF.kind = 'all'; var h = actList(items, p, true); actF.kind = f; return h; })() + '</div>';
+  }
+
+  // Right side: collapsible cards with a count and Add, as in the mockup.
+  function sideCard(key, title, n, addAttr, inner) {
+    var shut = !!sideShut[key];
+    var chev = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="' + (shut ? 'M4 2l4 4-4 4' : 'M2 4l4 4 4-4') + '" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+    return '<section class="rcard sidecard' + (shut ? ' shut' : '') + '"><h2 class="rcard-h"><button type="button" class="side-fold" data-sidefold="' + key + '" aria-expanded="' + !shut + '">' +
+      chev + esc(title) + ' <span class="cnt">(' + n + ')</span></button>' +
+      (addAttr ? '<button type="button" class="btn sm" ' + addAttr + '>Add</button>' : '') + '</h2>' + (shut ? '' : inner) + '</section>';
+  }
+  function sideRow(a, b, href, tone) {
+    return '<div class="srow">' + (href ? '<a class="sa' + (tone ? ' ' + tone : '') + '" href="' + esc(href) + '">' + esc(a) + '</a>' : '<span class="sa' + (tone ? ' ' + tone : '') + '">' + esc(a) + '</span>') +
+      (b ? '<span class="sb">' + b + '</span>' : '') + '</div>';
+  }
+  function sideHtml(p) {
+    var progs = p.programs || [];
+    var groups = sideCard('groups', 'Groups and programs', progs.length, p.id ? 'data-place' : '',
+      progs.length ? progs.map(function (g) { return sideRow(g, '', /^Group \d+$/.test(g) ? '#g/' + encodeURIComponent(g) : '', 'link'); }).join('')
+        : '<p class="muted small">' + (p.status === 'Active' ? 'Not in a group or class.' : 'Not in a group yet. Convert to member adds one.') + '</p>');
+    var l = p.lesson;
+    var lesson = sideCard('lessons', 'Private lessons', l ? 1 : 0, p.id ? 'data-open-lesson' : '',
+      l ? sideRow([l.Teacher, l.Instrument].filter(Boolean).join(' · ') || 'Lessons', esc([l.Stage, l['Day and time'], l.Frequency, money(l['Monthly cost'])].filter(Boolean).join(' · '))) + setupPills(l)
+        : '<p class="muted small">No lessons set up.</p>');
+    var th = sideCard('threads', 'Email threads', p.threads.length, '',
+      p.threads.length ? p.threads.slice(0, 6).map(function (t) {
+        return sideRow(t.subject || '(no subject)', esc(when(t.last)) + ' · ' + esc(t.count) + ' message' + (t.count === 1 ? '' : 's') + (t.theyWroteLast ? ' · <b class="waiting">Waiting on us</b>' : ''), '', 'link');
+      }).join('') : '<p class="muted small">No email with them yet.</p>');
+    var seq = sideCard('seq', 'Sequences', p.sequences.length, '',
+      p.sequences.length ? p.sequences.map(function (s) {
+        return sideRow(s.sequence, esc([s.status, (s.opens || 0) + ' opens', (s.clicks || 0) + ' clicks', s.repliedAt ? 'replied ' + dayOnly(s.repliedAt) : ''].filter(Boolean).join(' · ')));
+      }).join('') : '<p class="muted small">Not in a sequence.</p>');
+    return groups + billCard(p) + lesson + th + seq;
+  }
+
   function tlItem(t) {
     var head, body = t.text || '', extra = '', s = t.stats;
     switch (t.kind) {
@@ -713,40 +857,6 @@
       '<div class="body' + (t.kind === 'signup' || t.kind === 'mail-in' ? ' clip' : '') + '">' + esc(body) + '</div>';
     if (t.url) inner = '<a href="' + esc(t.url) + '" target="_blank" rel="noopener" style="color:inherit">' + inner + '</a>';
     return '<li><span class="dot ' + esc(t.kind) + '"></span><div style="min-width:0;flex:1">' + inner + '</div></li>';
-  }
-
-  function sideHtml(p) {
-    var progs = p.programs || [];
-    var groups = '<div class="rcard"><div class="rcard-h">Groups and programs <span class="cnt">' + progs.length + '</span></div>' +
-      (progs.length ? '<div class="pills">' + progs.map(function (g) {
-        return /^Group \d+$/.test(g) ? '<a class="pill accent" href="#g/' + encodeURIComponent(g) + '">' + esc(g) + '</a>' : '<span class="pill accent">' + esc(g) + '</span>';
-      }).join('') + '</div>' : '<p class="muted small">Not in a group or class.</p>') +
-      (p.status === 'Active' ? '<button type="button" class="btn primary" data-place>Add to another group or lessons</button>' : '') +
-      progs.filter(function (g) { return /^Group \d+$/.test(g); }).map(function (g) {
-        return '<button type="button" class="btn" data-cal="' + esc(g) + '">Add to ' + esc(g) + ' rehearsals in MMS</button>';
-      }).join('') +
-      (progs.length || p.status === 'Active' ? '<button type="button" class="btn" data-leave>Take out of a group or end membership</button>' : '') + '</div>';
-
-    var l = p.lesson;
-    var lesson = '<div class="rcard"><div class="rcard-h">Private lessons' + (l ? '<button class="link" type="button" data-open-lesson>Edit</button>' : '') + '</div>' +
-      (l ? '<div class="muted small">' + esc(l.Stage || '') + '</div><div><b>' + esc([l.Teacher, l.Instrument].filter(Boolean).join(' · ')) + '</b></div>' +
-        '<div class="muted">' + esc([l['Day and time'], l.Frequency, money(l['Monthly cost'])].filter(Boolean).join(' · ')) + '</div>' +
-        (l['Schedule notes'] ? '<div class="muted" style="margin-top:4px">' + esc(l['Schedule notes']) + '</div>' : '') + setupPills(l)
-        : (p.id ? '<button class="btn" type="button" data-open-lesson>Set up private lessons</button>' : '<p class="muted small">None.</p>')) + '</div>';
-
-    var seq = p.sequences.length ? '<div class="rcard"><div class="rcard-h">Sequences <span class="cnt">' + p.sequences.length + '</span></div>' +
-      p.sequences.map(function (s) {
-        return '<div class="rmini"><b>' + esc(s.sequence) + '</b> <span class="pill">' + esc(s.status) + '</span><div class="muted small">Opens ' + esc(s.opens || 0) +
-          ' · Clicks ' + esc(s.clicks || 0) + (s.repliedAt ? ' · Replied ' + esc(dayOnly(s.repliedAt)) : '') + '</div></div>';
-      }).join('') + '</div>' : '';
-
-    var th = '<div class="rcard"><div class="rcard-h">Email threads <span class="cnt">' + p.threads.length + '</span></div>' +
-      (p.threads.length ? p.threads.slice(0, 6).map(function (t) {
-        return '<div class="rmini"><div>' + esc(t.subject || '(no subject)') + '</div><div class="muted small">' + esc(when(t.last)) + ' · ' + esc(t.count) + ' message' + (t.count === 1 ? '' : 's') +
-          (t.theyWroteLast ? ' · <span class="pill accent">Waiting on us</span>' : '') + '</div></div>';
-      }).join('') : '<p class="muted small">No email with them yet.</p>') + '</div>';
-
-    return groups + billCard(p) + lesson + seq + th;
   }
 
   // Billing, read live from MMS: who bills them, at what rate, recent charges, and anything that looks off.
@@ -904,7 +1014,7 @@
       .then(function () { btn.disabled = false; btn.textContent = 'Save'; });
   });
 
-  function curTab() { var t = document.querySelector('#person .tab.on'); return t ? t.dataset.tab : 'overview'; }
+  function curTab() { var t = document.querySelector('#person .rec-tabs .tab.on'); return t ? t.dataset.tab : 'overview'; }
   $('#person').addEventListener('submit', function (e) {
     var f = e.target.closest('[data-sedit]');
     if (!f || !current) return;
@@ -920,7 +1030,7 @@
     }).catch(function (err) { toast(err.message); btn.disabled = false; btn.textContent = 'Save'; });
   });
   $('#person').addEventListener('input', function (e) {
-    if (e.target.id === 'act-q' && current) { actF.q = e.target.value; $('#act-list').innerHTML = actList(actItems(current)); }
+    if (e.target.id === 'act-q' && current) { actF.q = e.target.value; $('#act-list').innerHTML = actList(actItems(current), current); }
   });
   $('#person').addEventListener('click', function (e) {
     var tab = e.target.closest('[data-tab]');
@@ -929,6 +1039,23 @@
     if (pr && current) { propOpen = propOpen === pr.dataset.prop ? '' : pr.dataset.prop; aboutKeep = true; renderPerson(current, curTab()); return; }
     var ak = e.target.closest('[data-actk]');
     if (ak && current) { actF.kind = ak.dataset.actk; renderPerson(current, 'activity'); return; }
+    var pt = e.target.closest('[data-ptab]');
+    if (pt && current) { ptab = pt.dataset.ptab; renderPerson(current, curTab()); return; }
+    if (e.target.closest('[data-stagepick]') && current) { ptab = 'about'; propOpen = 'stage'; renderPerson(current, curTab()); return; }
+    if (e.target.closest('[data-actions]') && current) { actionsOpen = !actionsOpen; renderPerson(current, curTab()); return; }
+    if (actionsOpen && current && !e.target.closest('.rmenu')) { actionsOpen = false; renderPerson(current, curTab()); }
+    if (actionsOpen && e.target.closest('.rmenu [role=menuitem]')) { actionsOpen = false; setTimeout(function () { if (current) renderPerson(current, curTab()); }, 0); }
+    if (e.target.closest('[data-aboutedit]') && current) { aboutEdit = !aboutEdit; if (!aboutEdit) propOpen = ''; renderPerson(current, curTab()); return; }
+    var cp = e.target.closest('[data-copy]');
+    if (cp) { try { navigator.clipboard.writeText(cp.dataset.copy); toast('Email copied'); } catch (x) {} return; }
+    var sf = e.target.closest('[data-sidefold]');
+    if (sf && current) { var k = sf.dataset.sidefold; sideShut[k] = !sideShut[k]; try { localStorage.setItem('nsjw_side', JSON.stringify(sideShut)); } catch (x) {} renderPerson(current, curTab()); return; }
+    var fo = e.target.closest('[data-fold]');
+    if (fo && current) { var key = fo.dataset.fold; if (actCollapsed) actShut['o' + key] = !actShut['o' + key]; else actShut['c' + key] = !actShut['c' + key]; renderPerson(current, curTab()); return; }
+    if (e.target.closest('[data-collapseall]') && current) { actCollapsed = !actCollapsed; actShut = {}; renderPerson(current, 'activity'); return; }
+    if (e.target.closest('[data-actfilters]') && current) { actFilters = !actFilters; renderPerson(current, 'activity'); return; }
+    var ar = e.target.closest('[data-actrange]');
+    if (ar && current) { actRange = ar.dataset.actrange; renderPerson(current, 'activity'); return; }
     var open = e.target.closest('[data-open]');
     if (open) openSheet(open.dataset.open);
   });

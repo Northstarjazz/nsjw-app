@@ -373,7 +373,7 @@ function getPerson_(sid, email) {
 
   return {
     id: sid, name: r ? r.Name : email, first: r ? r.First : '', status: r ? r.Status : 'Not in MMS',
-    email: email, phone: r ? r.Phone : '', started: r ? r.Started : '', skill: r ? r['Skill level'] : '', referrer: r ? r.Referrer || '' : '',
+    email: email, phone: r ? r.Phone : '', started: r ? r.Started : '', skill: r ? r['Skill level'] : '', referrer: r ? r.Referrer || '' : '', source: r ? signup_(r.Note).source || '' : '',
     lastEvent: r ? r['Last event'] : '', nextEvent: r ? r['Next event'] : '',
     programs: r ? split_(r.Programs) : [], instruments: r ? split_(r.Instruments) : [],
     formInstruments: r ? formInstruments_(signup_(r.Note).instrument) : [],
