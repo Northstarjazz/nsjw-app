@@ -26,12 +26,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/css/tabulator.min.css">
-<link rel="stylesheet" href="css/nsjw.css?v=66">
-<link rel="stylesheet" href="css/app.css?v=66">
-<link rel="stylesheet" href="css/sgraffito.css?v=66">
-<link rel="stylesheet" href="css/natural.css?v=66">
-<link rel="stylesheet" href="css/record.css?v=66">
-<link rel="stylesheet" href="css/hq.css?v=66">
+<link rel="stylesheet" href="css/nsjw.css?v=67">
+<link rel="stylesheet" href="css/app.css?v=67">
+<link rel="stylesheet" href="css/sgraffito.css?v=67">
+<link rel="stylesheet" href="css/natural.css?v=67">
+<link rel="stylesheet" href="css/record.css?v=67">
+<link rel="stylesheet" href="css/hq.css?v=67">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -39,14 +39,15 @@
 
   <!-- Sign in -->
   <section id="v-signin" class="view" hidden>
-    <header class="art photo">
-      <div class="signin-name">North Star Jazz Workshops</div>
-      <h1>North Star HQ</h1>
-    </header>
-    <main class="signin">
-      <p class="muted">Sign in with your North Star Google account.</p>
-      <div id="gsi-button"></div>
-      <p id="signin-error" class="error" hidden></p>
+    <main class="signin-wrap">
+      <div class="signin-card">
+        <img class="signin-mark" src="img/icon-192.png" alt="" width="56" height="56">
+        <h1>North Star HQ</h1>
+        <p class="muted">Sign in with your North Star Google account.</p>
+        <div id="gsi-button"></div>
+        <p id="signin-error" class="error" hidden></p>
+      </div>
+      <p class="signin-foot">North Star Jazz Workshops</p>
     </main>
   </section>
 
@@ -88,57 +89,57 @@
 
   <!-- Lessons -->
   <section id="v-tasks" class="view" hidden>
-    <header class="art black">
-      <div class="eyebrow">Follow-ups</div>
-      <h1>Tasks</h1>
-    </header>
-    <main>
-      <div class="task-bar">
-        <div class="chips" id="task-tabs">
-          <button class="chip on" data-tt="today">Due today</button>
-          <button class="chip" data-tt="overdue">Overdue</button>
-          <button class="chip" data-tt="upcoming">Upcoming</button>
-          <button class="chip" data-tt="open">All open</button>
-          <button class="chip" data-tt="done">Completed</button>
-        </div>
-        <div class="task-tools">
-          <select id="task-who" aria-label="Assigned to"><option value="me">Assigned to me</option><option value="">Everyone</option></select>
-          <button type="button" class="btn primary" id="task-start" disabled>Start tasks</button>
-        </div>
+    <main class="pagewrap">
+     <div class="page-card">
+      <div class="ph"><h1>Tasks</h1>
+        <div class="ph-act"><button type="button" class="btn primary" id="task-start" disabled>Start tasks</button></div>
+      </div>
+      <nav class="vtabs" id="task-tabs" aria-label="Task views">
+        <button type="button" class="vt on" data-tt="today">Due today</button>
+        <button type="button" class="vt" data-tt="overdue">Overdue</button>
+        <button type="button" class="vt" data-tt="upcoming">Upcoming</button>
+        <button type="button" class="vt" data-tt="open">All open</button>
+        <button type="button" class="vt" data-tt="done">Completed</button>
+      </nav>
+      <div class="fbar">
+        <select class="btn filter" id="task-who" aria-label="Assigned to"><option value="me">Owner: Me</option><option value="">Owner: Anyone</option></select>
       </div>
       <div id="tasks"></div>
+     </div>
     </main>
   </section>
 
+  <!-- Lessons -->
   <section id="v-lessons" class="view" hidden>
-    <header class="art black">
-      <div class="eyebrow">Private lessons</div>
-      <h1>Lessons</h1>
-    </header>
-    <main>
-      <div class="stats" id="lesson-stats"></div>
-      <div class="chips" id="stage-chips">
-        <button class="chip on" data-stage="Active">Active</button>
-        <button class="chip" data-stage="Scheduling">Scheduling</button>
-        <button class="chip" data-stage="Cancelling">Cancelling</button>
-        <button class="chip" data-stage="Ended">Ended</button>
-        <button class="chip" data-stage="">All</button>
+    <main class="pagewrap">
+     <div class="page-card">
+      <div class="ph"><h1>Lessons</h1></div>
+      <section class="statstrip" id="lesson-stats" aria-label="Lessons summary"></section>
+      <nav class="vtabs" id="stage-chips" aria-label="Lesson stage">
+        <button type="button" class="vt on" data-stage="Active">Active</button>
+        <button type="button" class="vt" data-stage="Scheduling">Scheduling</button>
+        <button type="button" class="vt" data-stage="Cancelling">Cancelling</button>
+        <button type="button" class="vt" data-stage="Ended">Ended</button>
+        <button type="button" class="vt" data-stage="">All</button>
+      </nav>
+      <div class="fbar">
+        <label class="fsearch"><span class="sr">Search lessons</span><input id="lesson-q" type="search" placeholder="Search students" autocomplete="off"></label>
+        <select id="teacher-filter" class="btn filter" aria-label="Teacher"><option value="">Teacher</option></select>
       </div>
-      <select id="teacher-filter" class="search select"><option value="">All teachers</option></select>
-      <div id="lesson-list" class="list"></div>
+      <div id="lesson-list"></div>
+     </div>
     </main>
   </section>
 
   <!-- Today -->
   <section id="v-today" class="view" hidden>
-    <header class="art photo">
-      <div class="row-top">
-        <div class="eyebrow" id="today-date"></div>
-        <button class="link" id="signout" type="button">Sign out</button>
-      </div>
-      <h1 id="today-hello">Good morning</h1>
-    </header>
-    <main id="today"></main>
+    <main class="pagewrap">
+     <div class="page-card">
+      <div class="ph"><div><div class="ph-sub" id="today-date"></div><h1 id="today-hello">Good morning</h1></div></div>
+      <div id="today"></div>
+      <button class="linkish signout-m" type="button" data-signout>Sign out</button>
+     </div>
+    </main>
   </section>
 
   <!-- Leads -->
@@ -253,15 +254,13 @@
 
   <!-- Group -->
   <section id="v-group" class="view" hidden>
-    <header class="art">
-      <div class="row-top"><a class="back" href="#groups">&#8249; Groups</a></div>
-      <div>
-        <div class="eyebrow" id="group-eyebrow"></div>
-        <h1 id="group-name"></h1>
-        <div class="group-sched" id="group-sched"></div>
-      </div>
-    </header>
-    <main id="group"></main>
+    <main class="pagewrap">
+     <div class="page-card">
+      <a class="btn ghost back-l" href="#groups"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M9 2L4 7l5 5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Groups</a>
+      <div class="ph"><div><h1 id="group-name"></h1><div class="ph-sub"><span id="group-eyebrow"></span><span id="group-sched"></span></div></div></div>
+      <div id="group"></div>
+     </div>
+    </main>
   </section>
 
   <!-- Person -->
@@ -281,6 +280,7 @@
     <a href="#leads" data-nav="leads" title="Leads"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 4h14l-5 6v5l-4 2v-7z"/></svg><span>Leads</span></a>
     <a href="#groups" data-nav="groups" title="Groups"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="7" cy="7" r="3"/><circle cx="14" cy="8" r="2.5"/><path d="M2 17c0-3 2.5-5 5-5s5 2 5 5M12 17c0-2 1.5-4 4-4"/></svg><span>Groups</span></a>
     <a href="#lessons" data-nav="lessons" title="Lessons"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 15V4l9-2v11"/><circle cx="5.5" cy="15" r="2.5"/><circle cx="14.5" cy="13" r="2.5"/></svg><span>Lessons</span></a>
+    <button type="button" class="nav-out" data-signout title="Sign out"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 4H4v12h4M12 6l4 4-4 4M16 10H8"/></svg><span>Sign out</span></button>
     <button type="button" class="nav-toggle" id="navtoggle" aria-label="Collapse menu" title="Collapse menu"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 5l-5 5 5 5"/></svg><span>Collapse</span></button>
   </nav>
 
@@ -555,7 +555,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
-<script src="js/grid.js?v=66"></script>
-<script src="js/app.js?v=66"></script>
+<script src="js/grid.js?v=67"></script>
+<script src="js/app.js?v=67"></script>
 </body>
 </html>

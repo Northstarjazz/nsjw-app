@@ -157,7 +157,9 @@
   function dayOnly(v) {
     if (!v) return '';
     var d = parse(v);
-    return isNaN(d) ? String(v) : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    if (isNaN(d)) return String(v);
+    var o = { month: 'short', day: 'numeric' }; if (d.getFullYear() !== new Date().getFullYear()) o.year = 'numeric';
+    return d.toLocaleDateString(undefined, o);
   }
   function toast(msg) {
     var t = $('#toast'); t.textContent = msg; t.hidden = false;
@@ -262,7 +264,7 @@
     $('#pcount').textContent = list.length + (list.length === 1 ? ' person' : ' people');
     $('#psort').hidden = useGrid(); // the grid sorts from its column headers
     if (useGrid()) {
-      $('#ppager').innerHTML = ''; $('#people-list').classList.remove('list', 'ptable'); $('#people-list').classList.add('g-host');
+      $('#ppager').innerHTML = ''; $('#people-list').classList.remove('list', 'ptable', 'rlist'); $('#people-list').classList.add('g-host');
       var gsp = peopleState.sort.split(':');
       NSJWGrid.people($('#people-list'), list.map(function (r) {
         return { id: r.id, name: r.name, email: r.email, phone: r.phone, status: r.status, stage: r.stage,
@@ -272,22 +274,16 @@
         source: function (id) { return rowById(id); } }));
       return;
     }
-    var sp = peopleState.sort.split(':');
-    var head = '<div class="prow phead"><span class="pick" data-pickpage role="checkbox" aria-label="Select everyone on this page"></span>' + PCOLS.map(function (c) {
-      var on = sp[0] === c[0], sortable = c[0] !== 'programs' && c[0] !== 'tracks';
-      return '<span class="pc pc-' + c[0] + (sortable ? ' sortable' : '') + (on ? ' on' : '') + '"' + (sortable ? ' data-sort="' + c[0] + '"' : '') + '>' + c[1] +
-        (on ? (sp[1] === 'desc' ? ' &darr;' : ' &uarr;') : '') + '</span>';
-    }).join('') + '</div>';
-    $('#people-list').innerHTML = pg.length ? head + pg.map(function (r) {
-      return '<div class="card prow" data-href="#p/' + encodeURIComponent(r.id) + '" tabindex="0">' + pickBox(r.id, r.name) +
-        '<a class="pc pc-name" href="#p/' + encodeURIComponent(r.id) + '"><span class="avatar sm">' + esc(initials(r.name)) + '</span><span class="nm">' + esc(r.name) + '</span></a>' +
-        '<span class="pc pc-email"><span class="ln">' + esc(r.email) + '</span>' + (r.phone ? '<span class="ln sub">' + esc(r.phone) + '</span>' : '') + '</span>' +
-        '<span class="pc pc-status">' + stageCell(r) + '</span>' +
-        '<span class="pc pc-programs">' + esc(r.programs.join(', ')) + '</span>' +
-        '<span class="pc pc-tracks">' + listCell(r, 'interest') + '</span>' +
-        '<span class="pc pc-instruments">' + listCell(r, 'instrument') + '</span>' +
-        '<span class="pc pc-created">' + esc(r.created ? dayOnly(r.created) : '') + '</span>' +
-        '<span class="pc pc-lastActivity">' + esc(actText(r.lastActivity) || 'None yet') + '</span></div>';
+    $('#people-list').className = 'rlist';
+    $('#people-list').innerHTML = pg.length ? pg.map(function (r) {
+      var isLead = /^(Lead|Trial|Waiting)$/.test(r.status);
+      var what = r.programs.length ? r.programs.join(', ') : (r.interests && r.interests.length ? r.interests : r.tracks || []).join(', ');
+      var plays = (r.instruments.length ? r.instruments : r.formInstruments || []).join(', ');
+      var act = actText(r.lastActivity);
+      return '<a class="rl-r" href="#p/' + encodeURIComponent(r.id) + '"><div class="line1"><span class="name">' + esc(r.name) + '</span>' +
+        (isLead && r.stage ? stageMark(r.stage) : statusPill(r.status)) + '</div>' +
+        ([what, plays].filter(Boolean).length ? '<div class="sub">' + esc([what, plays].filter(Boolean).join(' · ')) + '</div>' : '') +
+        (act ? '<div class="sub">Last activity: ' + esc(act) + '</div>' : '') + '</a>';
     }).join('') : '<div class="empty">No one matches. Try another view or clear a filter.</div>';
     // pager
     var nums = [], p = peopleState.page;
@@ -311,7 +307,7 @@
     peopleState.f[s.dataset.q] = s.value; peopleState.page = 1; renderPeople();
   });
   $('#psort').addEventListener('change', function () { peopleState.sort = this.value; peopleState.page = 1; renderPeople(); });
-  function useGrid() { return !!(window.Tabulator && window.NSJWGrid); }
+  function useGrid() { return !!(window.Tabulator && window.NSJWGrid) && window.innerWidth >= 700; }
   // What the grid needs from the app: the option lists, how to save a tag, and where selections go.
   function gridHooks(o) {
     return Object.assign({
@@ -489,7 +485,7 @@
   $('#pf-done').addEventListener('click', closePf);
   $('#pf-clear').addEventListener('click', function () { peopleState.adv = {}; renderPf(); });
   $('#pf-sheet').addEventListener('click', function (e) { if (e.target === this) closePf(); });
-  $('#signout').addEventListener('click', signOut);
+  $$('[data-signout]').forEach(function (b) { b.addEventListener('click', signOut); });
 
 
   // ---------- Person ----------
@@ -843,7 +839,7 @@
   }
   function sideHtml(p) {
     var progs = p.programs || [];
-    var groups = sideCard('groups', 'Groups and programs', progs.length, p.id ? 'data-place' : '',
+    var groups = sideCard('groups', 'Groups', progs.length, p.id ? 'data-place' : '',
       progs.length ? progs.map(function (g) { return sideRow(g, '', /^Group \d+$/.test(g) ? '#g/' + encodeURIComponent(g) : '', 'link'); }).join('')
         : '<p class="muted small">' + (p.status === 'Active' ? 'Not in a group or class.' : 'Not in a group yet. Convert to member adds one.') + '</p>');
     var l = p.lesson;
@@ -949,53 +945,74 @@
       lessonsState.rows = rows;
       var teachers = rows.map(function (r) { return r.Teacher; }).filter(Boolean)
         .filter(function (t, i, a) { return a.indexOf(t) === i; }).sort();
-      $('#teacher-filter').innerHTML = '<option value="">All teachers</option>' +
-        teachers.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
+      $('#teacher-filter').innerHTML = '<option value="">Teacher</option>' +
+        teachers.map(function (t) { return '<option value="' + esc(t) + '">Teacher: ' + esc(t) + '</option>'; }).join('');
       $('#teacher-filter').value = lessonsState.teacher;
       $('#teacher-names').innerHTML = teachers.map(function (t) { return '<option value="' + esc(t) + '">'; }).join('');
       renderLessons();
     }).catch(function (e) { $('#lesson-list').innerHTML = '<div class="empty err">' + esc(e.message) + '</div>'; });
   }
 
+  lessonsState.q = '';
   function renderLessons() {
     var all = lessonsState.rows || [];
-    var byTeacher = all.filter(function (r) { return !lessonsState.teacher || r.Teacher === lessonsState.teacher; });
+    var q = lessonsState.q.toLowerCase();
+    var byTeacher = all.filter(function (r) {
+      if (lessonsState.teacher && r.Teacher !== lessonsState.teacher) return false;
+      return !q || [r.Name, r.Teacher, r.Instrument].join(' ').toLowerCase().indexOf(q) >= 0;
+    });
     var active = byTeacher.filter(function (r) { return r.Stage === 'Active'; });
-    var monthly = active.reduce(function (s, r) { return s + (parseFloat(r['Monthly cost']) || 0); }, 0);
-    var sched = byTeacher.filter(function (r) { return r.Stage === 'Scheduling'; }).length;
-    $('#lesson-stats').innerHTML =
-      '<div class="stat"><div class="n">' + active.length + '</div><div class="l">Active</div></div>' +
-      '<div class="stat"><div class="n">$' + Math.round(monthly).toLocaleString() + '</div><div class="l">Per month</div></div>' +
-      '<div class="stat"><div class="n">' + sched + '</div><div class="l">Scheduling</div></div>' +
-      '<div class="stat"><div class="n">' + byTeacher.filter(function (r) { return (r.check || []).length; }).length + '</div><div class="l">To check</div></div>';
+    var monthly = active.reduce(function (n, r) { return n + (parseFloat(r['Monthly cost']) || 0); }, 0);
+    var sched = byTeacher.filter(function (r) { return r.Stage === 'Scheduling'; });
+    var looks = byTeacher.filter(function (r) { return (r.check || []).length; });
+    function firsts(list) { return list.length ? list.slice(0, 3).map(function (r) { return String(r.Name).split(' ')[0]; }).join(', ') + (list.length > 3 ? ' and ' + (list.length - 3) + ' more' : '') : 'None'; }
+    $('#lesson-stats').innerHTML = statStrip([
+      ['Active students', String(active.length), lessonsState.teacher ? 'With ' + lessonsState.teacher : 'Across all teachers'],
+      ['Monthly lesson revenue', '$' + Math.round(monthly).toLocaleString(), 'From the lessons list'],
+      ['Scheduling', String(sched.length), firsts(sched), sched.length ? 'amber' : ''],
+      ['Needs a look', String(looks.length), looks.length ? 'Where the list and MMS disagree' : 'All match MMS', looks.length ? 'red' : '']
+    ]);
+    $$('#stage-chips .vt').forEach(function (b) {
+      var st = b.dataset.stage, n = byTeacher.filter(function (r) { return !st || r.Stage === st; }).length;
+      b.classList.toggle('on', st === lessonsState.stage);
+      b.innerHTML = esc(st || 'All') + ' <span class="cnt">' + n + '</span>';
+    });
+    $('#teacher-filter').classList.toggle('on', !!lessonsState.teacher);
     var rows = byTeacher.filter(function (r) { return !lessonsState.stage || r.Stage === lessonsState.stage; });
-    if (!rows.length) { $('#lesson-list').innerHTML = '<div class="empty">No one here.</div>'; return; }
-    $('#lesson-list').innerHTML = rows.map(function (r) {
+    if (!rows.length) { $('#lesson-list').innerHTML = '<div class="empty">No lessons match.</div>'; return; }
+    var wide = window.innerWidth >= 900;
+    var body = rows.map(function (r) {
       var href = r['MMS ID'] ? '#p/' + encodeURIComponent(r['MMS ID']) : '';
       var m = r.mms || null;
-      var when = [r['Day and time'], r.Frequency, m && m.location].filter(Boolean).join(' · ');
-      var cost = m && m.rate && m.mode === 'PerLesson' ? money(m.rate) + '/lesson' : m && m.rate && m.mode === 'Hourly' ? money(m.rate) + '/hour' : money(r['Monthly cost']);
-      return '<' + (href ? 'a href="' + href + '"' : 'div') + ' class="card lesson-row">' +
-        '<div class="line1"><span class="name">' + esc(r.Name) + '</span><span class="cost">' + esc(cost) + '</span></div>' +
-        '<div class="sub">' + esc([r.Teacher || 'No teacher yet', r.Instrument].filter(Boolean).join(' · ')) + '</div>' +
-        (when ? '<div class="sub">' + esc(when) + '</div>' : '') +
-        (m && (m.next || m.last) ? '<div class="sub faint">' + (m.next ? 'Next lesson ' + esc(dayOnly(m.next)) : 'Last lesson ' + esc(dayOnly(m.last))) + '</div>' : '') +
-        ((r.check || []).length ? '<div class="pills">' + r.check.map(function (c) { return '<span class="pill warn">' + esc(c) + '</span>'; }).join('') + '</div>' : '') +
-        (r['Schedule notes'] ? '<div class="note">' + esc(r['Schedule notes']) + '</div>' : '') +
-        (lessonsState.stage === '' ? '<div class="pills">' + statusPill(r.Stage) + '</div>' : '') +
-        setupPills(r) + (href ? '</a>' : '</div>');
+      var cost = m && m.rate && m.mode === 'PerLesson' ? money(m.rate) + '/lesson' : m && m.rate && m.mode === 'Hourly' ? money(m.rate) + '/hour' : r['Monthly cost'] ? money(r['Monthly cost']) + '/mo' : '';
+      var next = m && m.next ? dayOnly(m.next) : m && m.last ? 'Last ' + dayOnly(m.last) : '';
+      var checks = (r.check || []);
+      var chk = checks.length ? '<span class="g-chk" title="' + esc(checks.join('. ')) + '">' + esc(checks[0]) + (checks.length > 1 ? ' +' + (checks.length - 1) : '') + '</span>' : '';
+      var tag = href ? 'a href="' + href + '"' : 'div';
+      if (wide) return '<' + tag + ' class="rt-r lesson-row">' +
+        '<span class="rt-name">' + esc(r.Name) + '</span><span>' + (esc(r.Teacher) || '<span class="faint">No teacher yet</span>') + '</span><span>' + esc(r.Instrument || '') + '</span>' +
+        '<span class="rt-2"><span>' + esc(r['Day and time'] || '') + '</span>' + (r.Frequency ? '<span class="g-note">' + esc(r.Frequency) + '</span>' : '') + '</span>' +
+        '<span>' + esc(next) + '</span><span class="num b">' + esc(cost) + '</span>' +
+        (lessonsState.stage === '' ? '<span>' + statusPill(r.Stage) + '</span>' : '') + '<span>' + chk + setupPills(r) + '</span></' + (href ? 'a' : 'div') + '>';
+      return '<' + tag + ' class="rl-r lesson-row"><div class="line1"><span class="name">' + esc(r.Name) + '</span><span class="num b">' + esc(cost) + '</span></div>' +
+        '<div class="sub">' + esc([r.Teacher || 'No teacher yet', r.Instrument, r['Day and time'], r.Frequency].filter(Boolean).join(' · ')) + '</div>' +
+        (next ? '<div class="sub">Next lesson ' + esc(next) + '</div>' : '') + (chk ? '<div class="sub">' + chk + '</div>' : '') + setupPills(r) + '</' + (href ? 'a' : 'div') + '>';
     }).join('');
+    var all5 = lessonsState.stage === '';
+    $('#lesson-list').innerHTML = wide
+      ? '<div class="rt" style="--rt:minmax(150px,1.3fr) minmax(120px,1fr) 100px minmax(140px,1fr) 110px 110px ' + (all5 ? '110px ' : '') + 'minmax(160px,1.4fr)"><div class="rt-r rt-h"><span>Student</span><span>Teacher</span><span>Plays</span><span>When</span><span>Next lesson</span><span>Rate</span>' + (all5 ? '<span>Stage</span>' : '') + '<span>Needs a look</span></div>' + body + '</div>'
+      : '<div class="rlist">' + body + '</div>';
   }
 
   $('#stage-chips').addEventListener('click', function (e) {
-    var b = e.target.closest('.chip'); if (!b) return;
-    $$('.chip', this).forEach(function (c) { c.classList.toggle('on', c === b); });
+    var b = e.target.closest('.vt'); if (!b) return;
     lessonsState.stage = b.dataset.stage; store('nsjw_stage', lessonsState.stage);
     renderLessons();
   });
   $('#teacher-filter').addEventListener('change', function () {
     lessonsState.teacher = this.value; store('nsjw_teacher', this.value); renderLessons();
   });
+  $('#lesson-q').addEventListener('input', function () { lessonsState.q = this.value.trim(); renderLessons(); });
 
   // ---------- Lesson sheet ----------
   function toDateInput(v) {
@@ -1514,60 +1531,57 @@
     }).catch(function (err) { $('#sub-err').textContent = err.message; })
       .then(function () { btn.disabled = false; btn.textContent = 'Send request'; });
   });
-  function todayRow(l, line) {
+  function todayRow(l, line, right) {
     var bits = [l.instruments.join(', '), l.interests.join(', ')].filter(Boolean).join(' · ');
-    return '<a class="card lead-row" href="#p/' + encodeURIComponent(l.id) + '"><span class="lz ' + (l.next ? urgency(l) : 'none') + '"></span>' +
-      '<div class="who"><div class="line1"><span class="name">' + esc(l.name) + '</span>' + statusPill(LEGACY[l.stage] || l.stage || 'First Contact') + '</div>' +
-      (bits ? '<div class="sub">' + esc(bits) + '</div>' : '') + line + '</div></a>';
+    return '<a class="rl-r" href="#p/' + encodeURIComponent(l.id) + '">' +
+      '<div class="line1"><span class="name">' + esc(l.name) + '</span>' + (right || '') + '</div>' +
+      (bits ? '<div class="sub">' + esc(bits) + '</div>' : '') + line + '</a>';
   }
+  function stageMark(st) { st = LEGACY[st] || st || 'First Contact'; return '<span class="stg"><span class="kdot" style="background:' + (STAGE_DOT[st] || '#8C8B80') + '"></span>' + esc(st) + '</span>'; }
   function section(title, count, link, body) {
-    return '<div class="sec-h"><h3>' + esc(title) + (count ? ' · ' + count : '') + '</h3>' + (link ? '<a href="' + link + '">All</a>' : '') + '</div>' + body;
+    return '<section class="tsec"><div class="sec-h"><h2>' + esc(title) + (count ? ' <span class="cnt">' + count + '</span>' : '') + '</h2>' + (link ? '<a href="' + link + '">See all</a>' : '') + '</div>' + body + '</section>';
   }
   function numbersHtml(n) {
     if (!n) return '';
     var p = n.programs, ago = n.monthAgo;
-    function tile(label, v, was) {
-      var delta = '';
-      if (ago && was != null && was !== '') { var x = v - was; delta = '<div class="dl">' + (x > 0 ? '+' : '') + x + ' in a month</div>'; }
-      return '<div class="stat"><div class="n">' + v + '</div><div class="l">' + label + '</div>' + delta + '</div>';
+    function cell(label, v, was) {
+      var sub = '';
+      if (ago && was != null && was !== '') { var x = v - was; sub = (x > 0 ? 'Up ' + x : x < 0 ? 'Down ' + -x : 'Same') + ' in a month'; }
+      return [label, String(v), sub];
     }
     var tracking = n.historyFrom && (Date.now() - parse(n.historyFrom)) < 31 * 864e5;
-    return '<div class="sec-h"><h3>Active students · ' + n.active + '</h3></div>' +
-      '<div class="stats">' +
-        tile('Ensembles', p.ensembles, ago && ago.ensembles) + tile('Private lessons', p.lessons, ago && ago.lessons) +
-        tile('Classes', p.classes, ago && ago.classes) + tile('Clinics', p.clinics, ago && ago.clinics) +
-      '</div>' +
-      '<div class="stats inout">' +
-        '<div class="stat"><div class="n">+' + n.month.joined + '</div><div class="l">Joined this month</div></div>' +
-        '<div class="stat"><div class="n">' + (n.month.left ? '&minus;' : '') + n.month.left + '</div><div class="l">Left this month</div>' +
-          (tracking ? '<div class="dl">Counting from ' + esc(dayOnly(n.historyFrom)) + '</div>' : '') + '</div>' +
-      '</div>';
+    return '<section class="statstrip six" aria-label="Active students">' + statStrip([
+      ['Active students', String(n.active), 'In at least one program'],
+      cell('Ensembles', p.ensembles, ago && ago.ensembles), cell('Private lessons', p.lessons, ago && ago.lessons),
+      cell('Classes', p.classes, ago && ago.classes), cell('Clinics', p.clinics, ago && ago.clinics),
+      ['This month', '+' + n.month.joined + ' / ' + (n.month.left ? '−' + n.month.left : '0'), 'Joined / left' + (tracking ? ', since ' + dayOnly(n.historyFrom) : '')]
+    ]) + '</section>';
   }
 
   function renderToday() {
     var d = todayState.data, html = '';
     html += numbersHtml(d.numbers);
-    html += section('Follow up today', d.followCount, '#leads', d.follow.length ? '<div class="list">' + d.follow.map(function (l) {
-      return todayRow(l, '<div class="nx ' + urgency(l) + '">' + esc(l.next.text) + ' · ' + (urgency(l) === 'overdue' ? 'was due ' : 'due ') + esc(dayOnly(l.next.due)) + (l.next.owner ? ' · ' + esc(l.next.owner) : '') + '</div>');
-    }).join('') + '</div>' : '<div class="empty small-empty">Nothing due. Set next steps on leads and they show up here.</div>');
-    html += section('New sign-ups, not contacted yet', d.freshCount, '', d.fresh.length ? '<div class="list">' + d.fresh.map(function (l) {
-      return todayRow(l, '<div class="meta">Signed up ' + esc(when(l.started)) + (l.source ? ' · via ' + esc(l.source) : '') + '</div>');
-    }).join('') + '</div>' : '<div class="empty small-empty">No new sign-ups waiting.</div>');
+    html += section('Follow up today', d.followCount, '#tasks', d.follow.length ? '<div class="rlist">' + d.follow.map(function (l) {
+      var late = urgency(l) === 'overdue';
+      return todayRow(l, '<div class="sub' + (late ? ' late' : '') + '">' + esc(l.next.text) + ' · ' + (late ? 'was due ' : 'due ') + esc(dayOnly(l.next.due)) + (l.next.owner ? ' · ' + esc(ownerName(l.next.owner)) : '') + '</div>', stageMark(l.stage));
+    }).join('') + '</div>' : '<div class="empty">Nothing due. Set a task on a lead and it shows up here.</div>');
+    html += section('New sign-ups, not contacted yet', d.freshCount, '#leads', d.fresh.length ? '<div class="rlist">' + d.fresh.map(function (l) {
+      return todayRow(l, l.source ? '<div class="sub">Heard about us: ' + esc(l.source) + '</div>' : '', '<span class="muted small">Signed up ' + esc(when(l.started)) + '</span>');
+    }).join('') + '</div>' : '<div class="empty">No new sign-ups waiting.</div>');
     if (d.deposits.length) {
-      html += section('Deposits to place', d.deposits.length, '', '<div class="list">' + d.deposits.map(function (l) {
-        return todayRow(l, '<div class="meta">Paid a deposit. Find them a group.</div>');
+      html += section('Deposits to place', d.deposits.length, '', '<div class="rlist">' + d.deposits.map(function (l) {
+        return todayRow(l, '<div class="sub">Paid a deposit. Find them a group.</div>', stageMark(l.stage));
       }).join('') + '</div>');
     }
-    html += section('Open seats with people who could fill them', '', '#groups', d.seats.length ? '<div class="list">' + d.seats.map(function (g) {
-      return '<a class="card group-row" href="#g/' + encodeURIComponent(g.name) + '"><div class="line1"><span class="name">' + esc(g.name) + '</span>' +
-        '<span class="count">' + g.matches + (g.matches === 1 ? ' match' : ' matches') + '</span></div>' +
-        '<div class="sub">' + esc([g.schedule, g.teacher].filter(Boolean).join(' · ')) + '</div>' +
-        '<div class="pills"><span class="pill open">Open: ' + esc(openText(g.open)) + '</span></div>' +
-        (g.bySeat ? '<div class="meta">' + esc('Could fill it: ' + Object.keys(g.bySeat).map(function (k) { return k + ' ' + g.bySeat[k]; }).join(' · ')) + '</div>' : '') + '</a>';
-    }).join('') + '</div>' : '<div class="empty small-empty">Every group is full.</div>');
+    html += section('Open seats with people who could fill them', '', '#groups', d.seats.length ? '<div class="rlist">' + d.seats.map(function (g) {
+      return '<a class="rl-r" href="#g/' + encodeURIComponent(g.name) + '"><div class="line1"><span class="name">' + esc(g.name) + '</span>' +
+        '<span class="muted small">' + g.matches + (g.matches === 1 ? ' match' : ' matches') + '</span></div>' +
+        ([g.schedule, g.teacher].filter(Boolean).length ? '<div class="sub">' + esc([g.schedule, g.teacher].filter(Boolean).join(' · ')) + '</div>' : '') +
+        '<div class="kc-tags">' + openSummary(g.open).map(function (o) { return '<span class="tag open">' + esc(o) + '</span>'; }).join('') + '</div></a>';
+    }).join('') + '</div>' : '<div class="empty">Every group is full.</div>');
     if (d.billing && d.billing.length) {
-      html += section('Billing to check', d.billing.length, '', '<p class="muted small">From last night\'s check of MMS. Nothing was changed.</p><div class="list">' + d.billing.slice(0, 12).map(function (b) {
-        return '<a class="card" href="#p/' + encodeURIComponent(b.id) + '"><div class="line1"><span class="name">' + esc(b.name) + '</span><span class="pill warn">' + esc(b.problem) + '</span></div><div class="meta">' + esc(b.detail) + '</div></a>';
+      html += section('Billing to check', d.billing.length, '', '<p class="muted small">From last night\'s check of MMS. Nothing was changed.</p><div class="rlist">' + d.billing.slice(0, 12).map(function (b) {
+        return '<a class="rl-r" href="#p/' + encodeURIComponent(b.id) + '"><div class="line1"><span class="name">' + esc(b.name) + '</span><span class="g-chk">' + esc(b.problem) + '</span></div><div class="sub">' + esc(b.detail) + '</div></a>';
       }).join('') + '</div>');
     }
     $('#today').innerHTML = '<div id="teaching"></div>' + html;
@@ -2750,9 +2764,9 @@
     $('#groups-hint').textContent = mode === 'seats' ? 'Click an instrument to see only groups with that seat open.' : 'Click a group to see its seats and who could fill them.';
     var host = $('#group-list');
     if (mode === 'seats') { host.classList.remove('g-host'); if (host._grid) { host._grid.destroy(); host._grid = null; host._ready = null; host.className = ''; } host.innerHTML = seatMap(rows); return; }
-    if (!useGrid()) { host.innerHTML = rows.map(groupCard).join('') || '<div class="empty">No groups match.</div>'; return; }
+    if (!useGrid()) { if (host._grid) { host._grid.destroy(); host._grid = null; host._ready = null; } host.className = rows.length ? 'list' : ''; host.innerHTML = rows.map(groupCard).join('') || '<div class="empty">No groups match.</div>'; return; }
     if (!host._grid) host.innerHTML = '';
-    host.classList.add('g-host');
+    host.classList.remove('list'); host.classList.add('g-host');
     var n = 0;
     NSJWGrid.groups(host, rows.map(function (g) {
       var num = (/(\d+)/.exec(g.name) || [])[1];

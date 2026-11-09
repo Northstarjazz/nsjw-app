@@ -40,6 +40,13 @@ app: Scope" (Claude Docs, Nov 2026).
   (28px small), 44px on touch screens. Tags (interests, groups) are square-ish green tints;
   status is a rounded pill and color only ever means status. No shadows, no all-caps,
   no diamonds. The older sgraffito/natural sheets stay underneath until screens are rebuilt.
+  Screen rules (design review, Nov 9): every screen is `.pagewrap > .page-card > .ph` (title),
+  then stat strip, underline tabs, filter bar, content. Underline tabs (`.vtabs`) pick which
+  records; the segmented toggle (`.seg`) picks the layout. Lists are one bordered box with
+  hairline rows (`.rlist` / `.rl-r`); tables are the same box with a header (Tabulator, or
+  `.rt`). Stage is a dot and a word; MMS status is a pill; open seats are amber tags; red only
+  means late or wrong. Dates drop the year when it is this year. Under 700px, tables become
+  row lists and the filter bar scrolls sideways.
 
 ## Rules (do not loosen these)
 

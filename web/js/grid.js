@@ -165,6 +165,7 @@
     return el._ready.then(function () {
       var y = window.scrollY;
       return grid.replaceData(rows).then(function () {
+        try { el.classList.toggle('g-onepage', !grid.getPageMax || grid.getPageMax() <= 1); } catch (e) {}
         if (sort && el._sortKey !== sort.column + sort.dir) { el._sortKey = sort.column + sort.dir; grid.setSort(sort.column, sort.dir); }
         var ids = Object.keys(picked || {}).filter(function (id) { return grid.getRow(id); });
         el._quiet = true; if (ids.length) grid.selectRow(ids); el._quiet = false;
@@ -263,12 +264,12 @@
           { title: 'Next task', field: 'nextDue', minWidth: 220, widthGrow: 3, sorter: function (a, b, ra, rb) { var x = ra.getData(), y = rb.getData(); return String(x.nextDue || '9999').localeCompare(String(y.nextDue || '9999')); },
             formatter: function (cell) {
               var d = cell.getRow().getData(), late = d.urgency === 'overdue' || (!d.nextText && d.stale);
-              if (!d.nextText) return '<span class="g-task"><span class="ring' + (late ? ' late' : '') + '"></span><span class="g-none' + (late ? ' late' : '') + '">No task set</span></span>';
+              if (!d.nextText) return '<span class="g-task"><span class="ring"></span><span class="g-none">No task set</span></span>';
               return '<span class="g-task"><span class="ring' + (late ? ' late' : '') + '"></span><span class="g-tt">' + esc(d.nextText) + '</span>' + (d.dueText ? '<b class="' + (late ? 'late' : '') + '">' + esc(d.dueText) + '</b>' : '') + '</span>';
             } },
           { title: 'Last heard', field: 'lastContact', minWidth: 100, widthGrow: 1, formatter: function (c) { return esc(c.getRow().getData().heard); } },
           { title: 'In stage', field: 'inStage', minWidth: 80, widthGrow: 1, sorter: 'number', formatter: function (c) {
-            var n = c.getValue(), d = c.getRow().getData(); return n == null ? '' : '<span class="num' + (d.stale ? ' late' : '') + '">' + n + 'd</span>'; } },
+            var n = c.getValue(); return n == null ? '' : '<span class="num">' + (n === 0 ? 'Today' : n + 'd') + '</span>'; } },
           { title: 'Nights', field: 'nights', minWidth: 110, widthGrow: 1, visible: false, editor: 'list', editorParams: multi(L.nights),
             formatter: listFormatter(), cellEdited: tagEdits(h, 'nights') },
           { title: 'Signed up', field: 'started', minWidth: 105, widthGrow: 1, visible: false, formatter: function (c) { return esc(day(c.getValue())); } },
