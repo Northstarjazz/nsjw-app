@@ -1537,7 +1537,7 @@
       '<div class="line1"><span class="name">' + esc(l.name) + '</span>' + (right || '') + '</div>' +
       (bits ? '<div class="sub">' + esc(bits) + '</div>' : '') + line + '</a>';
   }
-  function stageMark(st) { st = LEGACY[st] || st || 'First Contact'; return '<span class="stg"><span class="kdot" style="background:' + (STAGE_DOT[st] || '#8C8B80') + '"></span>' + esc(st) + '</span>'; }
+  function stageMark(st) { st = LEGACY[st] || st || 'First Contact'; return '<span class="stg"><span class="kdot" style="background:' + (STAGE_DOT[st] || '#B8AE97') + '"></span>' + esc(st) + '</span>'; }
   function section(title, count, link, body) {
     return '<section class="tsec"><div class="sec-h"><h2>' + esc(title) + (count ? ' <span class="cnt">' + count + '</span>' : '') + '</h2>' + (link ? '<a href="' + link + '">See all</a>' : '') + '</div>' + body + '</section>';
   }
@@ -1725,7 +1725,7 @@
       var tags = allInterests(l).slice(0, 3).map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('');
       var tc = u === 'overdue' ? 'var(--bad)' : 'var(--accent)';
       return '<a class="card lead-row" href="#p/' + encodeURIComponent(l.id) + '">' + pickBox(l.id, l.name) +
-        '<div class="who"><div class="line1"><span class="name">' + esc(l.name) + '</span><span class="stg"><span class="kdot" style="background:' + (STAGE_DOT[l.stage] || '#8C8B80') + '"></span>' + esc(l.stage) + '</span></div>' +
+        '<div class="who"><div class="line1"><span class="name">' + esc(l.name) + '</span><span class="stg"><span class="kdot" style="background:' + (STAGE_DOT[l.stage] || '#B8AE97') + '"></span>' + esc(l.stage) + '</span></div>' +
         (tags ? '<div class="kc-tags">' + tags + '</div>' : '') +
         '<div class="sub">' + esc([allInstruments(l).join(', '), v ? money(v.price) + '/mo' : ''].filter(Boolean).join(' · ')) + '</div>' +
         (l.next ? '<div class="kc-task"><span class="ring" style="border-color:' + tc + '"></span><span>' + esc(l.next.text) + (l.next.due ? ' <b style="color:' + tc + '">· ' + esc(dueText(l)) + '</b>' : '') + '</span></div>'
@@ -1755,7 +1755,7 @@
     return since.length && Math.min.apply(null, since) > lim;
   }
   // ---------- Leads board (canvas board 1): totals, five columns, stage tasks ----------
-  var STAGE_DOT = { 'First Contact': '#5B7A99', 'Qualified': '#C8913F', 'Committed': '#204E46', 'Enrolled': '#2F5B3E', 'Closed': '#8C8B80', 'Nurture': '#9A86B8' };
+  var STAGE_DOT = { 'First Contact': '#6FAED6', 'Qualified': '#F2B233', 'Committed': '#143A2B', 'Enrolled': '#0B231A', 'Closed': '#B8AE97', 'Nurture': '#9DB37E' };
   var settings = null;
   function loadSettings(cb) {
     if (settings) { if (cb) cb(settings); return; }
@@ -2130,7 +2130,7 @@
           list.map(function (x) {
             var late = x.lead && urgency(x.lead) === 'overdue';
             return '<div class="tr"><a href="#p/' + encodeURIComponent(x.id) + '" class="b">' + esc(x.name) + '</a><span>' + esc(dayOnly(x.started)) + '</span>' +
-              '<span class="stg"><span class="kdot" style="background:' + (STAGE_DOT[x.stage] || '#8C8B80') + '"></span>' + esc(x.stage || 'First Contact') + '</span>' +
+              '<span class="stg"><span class="kdot" style="background:' + (STAGE_DOT[x.stage] || '#B8AE97') + '"></span>' + esc(x.stage || 'First Contact') + '</span>' +
               '<span class="kc-tags">' + x.tags.slice(0, 3).map(function (t) { return '<span class="tag">' + esc(t) + '</span>'; }).join('') + '</span>' +
               '<span' + (late ? ' class="late"' : '') + '>' + (x.next ? esc(x.next.text) + (x.next.due ? ' · ' + esc(dueText(x.lead)) : '') : '<span class="faint">--</span>') + '</span>' +
               '<span>' + (esc((x.nights || []).join(', ')) || '<span class="faint">--</span>') + '</span></div>';
@@ -2199,7 +2199,7 @@
       '<section class="rcard"><h2 class="cardh">When someone enters a stage</h2><p class="muted small">The app creates the follow-up for you. Due dates skip weekends. From SOP-007 Responding to a New Inquiry.</p>' +
       '<div class="tbl"><div class="tr th pipe"><span class="lbl">Stage</span><span class="lbl">Create a task</span><span class="lbl">Due</span><span class="lbl">Assigned to</span><span class="lbl">Requires</span></div>' +
       s.stages.map(function (r, i) {
-        return '<div class="tr pipe"><span class="stg"><span class="kdot" style="background:' + (STAGE_DOT[r.stage] || '#8C8B80') + '"></span>' + esc(r.stage) + '</span>' +
+        return '<div class="tr pipe"><span class="stg"><span class="kdot" style="background:' + (STAGE_DOT[r.stage] || '#B8AE97') + '"></span>' + esc(r.stage) + '</span>' +
           '<input data-pf="task" data-i="' + i + '" value="' + esc(r.task) + '" placeholder="No task">' +
           sel('due', i, r.due || 'Today', DUE_CHOICES.slice()) + sel('owner', i, r.owner || 'Admin', OWNER_CHOICES.slice()) +
           '<span>' + (r.requires ? '<span class="tag warn">' + esc(r.requires) + '</span>' : '<span class="faint">None</span>') + '</span></div>';
@@ -3123,9 +3123,63 @@
   });
 
   // ---------- routing ----------
+  // ---------- Find bar: jump to any person, group or screen from anywhere ----------
+  var findState = { people: null, groups: null, sel: 0, hits: [] };
+  var FIND_PAGES = [['Today', '#today'], ['People', '#people'], ['Tasks', '#tasks'], ['Leads', '#leads'], ['Groups', '#groups'], ['Lessons', '#lessons'], ['Pipeline settings', '#pipeline'], ['New leads by instrument', '#instruments']];
+  function findLoad() {
+    if (!findState.people) { if (peopleState.rows) findState.people = peopleState.rows; else swr('contacts', null, function (rows) { findState.people = peopleState.rows = rows; findRender(); }).catch(function () {}); }
+    if (!findState.groups) { if (groupsState.rows) findState.groups = groupsState.rows; else swr('groups', null, function (rows) { findState.groups = groupsState.rows = rows; findRender(); }).catch(function () {}); }
+  }
+  function findRender() {
+    var q = $('#find').value.trim().toLowerCase(), pop = $('#find-pop');
+    if (!q) { pop.hidden = true; return; }
+    function rank(name) { var n = String(name).toLowerCase(), i = n.indexOf(q); return i < 0 ? -1 : i === 0 ? 0 : n.charAt(i - 1) === ' ' ? 1 : 2; }
+    function top(list, key, n) {
+      return list.map(function (x) { return [rank(key(x)), x]; }).filter(function (x) { return x[0] >= 0; })
+        .sort(function (a, b) { return a[0] - b[0] || String(key(a[1])).localeCompare(String(key(b[1]))); }).slice(0, n).map(function (x) { return x[1]; });
+    }
+    var people = top(findState.people || [], function (p) { return p.name; }, 6);
+    var groups = top((findState.groups || []).filter(function (g) { return g.when !== 'Past'; }), function (g) { return g.name; }, 4);
+    var pages = top(FIND_PAGES, function (p) { return p[0]; }, 3);
+    var hits = [], html = '';
+    function sec(title, rows) { if (rows.length) html += '<div class="find-h">' + title + '</div>' + rows.join(''); }
+    function row(href, main, sub, right) {
+      var i = hits.push(href) - 1;
+      return '<a class="find-r' + (i === findState.sel ? ' on' : '') + '" href="' + href + '" data-i="' + i + '"><span class="find-m"><b>' + esc(main) + '</b>' + (sub ? '<span>' + esc(sub) + '</span>' : '') + '</span>' + (right || '') + '</a>';
+    }
+    sec('People', people.map(function (p) {
+      var lead = /^(Lead|Trial|Waiting)$/.test(p.status);
+      return row('#p/' + encodeURIComponent(p.id), p.name, [(p.programs || []).join(', '), ((p.instruments || []).length ? p.instruments : p.formInstruments || []).join(', ')].filter(Boolean).join(' · '),
+        lead && p.stage ? stageMark(p.stage) : statusPill(p.status));
+    }));
+    sec('Groups', groups.map(function (g) {
+      return row('#g/' + encodeURIComponent(g.name), g.name, [gWhen(g), g.teacher].filter(Boolean).join(' · '), g.open && g.open.length ? '<span class="tag open">' + g.open.length + ' open</span>' : '');
+    }));
+    sec('Go to', pages.map(function (p) { return row(p[1], p[0], '', ''); }));
+    if (!hits.length) html = '<div class="find-none">' + (findState.people ? 'Nothing matches "' + esc($('#find').value.trim()) + '".' : 'Loading…') + '</div>';
+    if (findState.sel >= hits.length) findState.sel = 0;
+    findState.hits = hits; pop.innerHTML = html; pop.hidden = false;
+  }
+  function findClose() { $('#find-pop').hidden = true; $('#find').value = ''; $('#find').blur(); findState.sel = 0; }
+  $('#find').addEventListener('focus', function () { findLoad(); findRender(); });
+  $('#find').addEventListener('input', function () { findState.sel = 0; findRender(); });
+  $('#find').addEventListener('keydown', function (e) {
+    var n = findState.hits.length;
+    if (e.key === 'ArrowDown' && n) { e.preventDefault(); findState.sel = (findState.sel + 1) % n; findRender(); }
+    else if (e.key === 'ArrowUp' && n) { e.preventDefault(); findState.sel = (findState.sel + n - 1) % n; findRender(); }
+    else if (e.key === 'Enter' && n) { e.preventDefault(); location.hash = findState.hits[findState.sel]; findClose(); }
+    else if (e.key === 'Escape') findClose();
+  });
+  $('#find-pop').addEventListener('click', function (e) { if (e.target.closest('.find-r')) setTimeout(findClose, 0); });
+  document.addEventListener('click', function (e) { if (!e.target.closest('#topbar')) $('#find-pop').hidden = true; });
+  document.addEventListener('keydown', function (e) {
+    var typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName || '')) || e.target.isContentEditable;
+    if ((e.key === '/' && !typing) || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k')) { e.preventDefault(); $('#find').focus(); $('#find').select(); }
+  });
+
   function nav(which) {
     // Detail screens (a person, a group) hide the tab bar on phones; wide screens keep it as a sidebar.
-    $('#tabbar').hidden = !token;
+    $('#tabbar').hidden = !token; $('#topbar').hidden = !token;
     $('#tabbar').classList.toggle('detail', !which);
     $$('#tabbar a').forEach(function (a) { a.classList.toggle('active', a.dataset.nav === which); });
   }

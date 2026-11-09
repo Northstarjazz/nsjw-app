@@ -30,7 +30,7 @@
   }
   function joinList(v) { return (v || []).map(function (t) { return t === 'Classes' ? 'Class' : t; }).join(', '); }
 
-  var STAGE_DOT = { 'First Contact': '#5B7A99', 'Qualified': '#C8913F', 'Committed': '#204E46', 'Enrolled': '#2F5B3E', 'Closed': '#8C8B80', 'Nurture': '#9A86B8' };
+  var STAGE_DOT = { 'First Contact': '#6FAED6', 'Qualified': '#F2B233', 'Committed': '#143A2B', 'Enrolled': '#0B231A', 'Closed': '#B8AE97', 'Nurture': '#9DB37E' };
 
   // ---- editors ----
   var editingStage = function (cell) {
@@ -41,7 +41,7 @@
     var d = cell.getRow().getData();
     if (d.status === 'Active' || d.status === 'Inactive') return pill(d.status);
     var v = d.stage || 'First Contact';
-    return '<span class="g-dd"><span class="kdot" style="background:' + (STAGE_DOT[v] || '#8C8B80') + '"></span>' + esc(v) + '<svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>' +
+    return '<span class="g-dd"><span class="kdot" style="background:' + (STAGE_DOT[v] || '#B8AE97') + '"></span>' + esc(v) + '<svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>' +
       (d.status === 'Waiting' || d.status === 'Trial' ? '<span class="g-note">' + esc(d.status) + '</span>' : '');
   }
   function listFormatter(fallbackField) {
@@ -249,9 +249,9 @@
           { title: 'Stage', field: 'stage', minWidth: 170, widthGrow: 1, editor: 'list', editable: editingStage,
             editorParams: { values: ['First Contact', 'Qualified', 'Committed', 'Enrolled', 'Nurture', 'Closed'], itemFormatter: function (label, value) {
               var note = value === 'Closed' ? 'Asks why' : value === 'Enrolled' ? 'Convert to member' : h.stageNote ? h.stageNote(value) : '';
-              return '<span class="g-opt"><span class="kdot" style="background:' + (STAGE_DOT[value] || '#8C8B80') + '"></span>' + esc(label) + (note ? '<span class="g-optnote">' + esc(note) + '</span>' : '') + '</span>';
+              return '<span class="g-opt"><span class="kdot" style="background:' + (STAGE_DOT[value] || '#B8AE97') + '"></span>' + esc(label) + (note ? '<span class="g-optnote">' + esc(note) + '</span>' : '') + '</span>';
             } },
-            formatter: function (cell) { var v = cell.getValue() || 'First Contact'; return '<span class="g-dd"><span class="kdot" style="background:' + (STAGE_DOT[v] || '#8C8B80') + '"></span>' + esc(v) + '<svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>'; },
+            formatter: function (cell) { var v = cell.getValue() || 'First Contact'; return '<span class="g-dd"><span class="kdot" style="background:' + (STAGE_DOT[v] || '#B8AE97') + '"></span>' + esc(v) + '<svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>'; },
             cellEdited: stageEdited(h) },
           { title: 'Interested in', field: 'interests', minWidth: 150, widthGrow: 2, editor: 'list', editorParams: multi(L.interests),
             formatter: function (cell) {

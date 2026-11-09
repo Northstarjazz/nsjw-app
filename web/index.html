@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#204E46">
+<meta name="theme-color" content="#143A2B">
 <title>North Star HQ</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
 <meta name="description" content="North Star Jazz Workshops: students, leads, groups and teaching in one place.">
@@ -24,18 +24,25 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-title" content="North Star HQ">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600..800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/css/tabulator.min.css">
-<link rel="stylesheet" href="css/nsjw.css?v=67">
-<link rel="stylesheet" href="css/app.css?v=67">
-<link rel="stylesheet" href="css/sgraffito.css?v=67">
-<link rel="stylesheet" href="css/natural.css?v=67">
-<link rel="stylesheet" href="css/record.css?v=67">
-<link rel="stylesheet" href="css/hq.css?v=67">
+<link rel="stylesheet" href="css/nsjw.css?v=68">
+<link rel="stylesheet" href="css/app.css?v=68">
+<link rel="stylesheet" href="css/sgraffito.css?v=68">
+<link rel="stylesheet" href="css/natural.css?v=68">
+<link rel="stylesheet" href="css/record.css?v=68">
+<link rel="stylesheet" href="css/hq.css?v=68">
+<link rel="stylesheet" href="css/verdara.css?v=68">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <div class="screen">
+
+  <div class="topbar" id="topbar" hidden>
+    <label class="find"><span class="sr">Find a person, group or screen</span>
+      <input id="find" type="search" placeholder="Find a person, group or screen" autocomplete="off" spellcheck="false"><kbd>/</kbd></label>
+    <div class="find-pop" id="find-pop" hidden></div>
+  </div>
 
   <!-- Sign in -->
   <section id="v-signin" class="view" hidden>
@@ -274,14 +281,14 @@
   </section>
 
   <nav class="tabbar" id="tabbar" hidden>
-    <a href="#today" data-nav="today" title="Today"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 10l7-6 7 6v7H3z"/></svg><span>Today</span></a>
-    <a href="#people" data-nav="people" title="People"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l4 4"/></svg><span>People</span></a>
-    <a href="#tasks" data-nav="tasks" title="Tasks"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 5l1.5 1.5L8 4M4 10l1.5 1.5L8 9M4 15l1.5 1.5L8 14M10.5 5.5H17M10.5 10.5H17M10.5 15.5H17"/></svg><span>Tasks</span><b class="nbadge" id="task-badge" hidden></b></a>
-    <a href="#leads" data-nav="leads" title="Leads"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 4h14l-5 6v5l-4 2v-7z"/></svg><span>Leads</span></a>
-    <a href="#groups" data-nav="groups" title="Groups"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="7" cy="7" r="3"/><circle cx="14" cy="8" r="2.5"/><path d="M2 17c0-3 2.5-5 5-5s5 2 5 5M12 17c0-2 1.5-4 4-4"/></svg><span>Groups</span></a>
-    <a href="#lessons" data-nav="lessons" title="Lessons"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 15V4l9-2v11"/><circle cx="5.5" cy="15" r="2.5"/><circle cx="14.5" cy="13" r="2.5"/></svg><span>Lessons</span></a>
-    <button type="button" class="nav-out" data-signout title="Sign out"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 4H4v12h4M12 6l4 4-4 4M16 10H8"/></svg><span>Sign out</span></button>
-    <button type="button" class="nav-toggle" id="navtoggle" aria-label="Collapse menu" title="Collapse menu"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 5l-5 5 5 5"/></svg><span>Collapse</span></button>
+    <a href="#today" data-nav="today" title="Today"><svg class="ph" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z"/></svg><span>Today</span></a>
+    <a href="#people" data-nav="people" title="People"><svg class="ph" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M117.25,157.92a60,60,0,1,0-66.5,0A95.83,95.83,0,0,0,3.53,195.63a8,8,0,1,0,13.4,8.74,80,80,0,0,1,134.14,0,8,8,0,0,0,13.4-8.74A95.83,95.83,0,0,0,117.25,157.92ZM40,108a44,44,0,1,1,44,44A44.05,44.05,0,0,1,40,108Zm210.14,98.7a8,8,0,0,1-11.07-2.33A79.83,79.83,0,0,0,172,168a8,8,0,0,1,0-16,44,44,0,1,0-16.34-84.87,8,8,0,1,1-5.94-14.85,60,60,0,0,1,55.53,105.64,95.83,95.83,0,0,1,47.22,37.71A8,8,0,0,1,250.14,206.7Z"/></svg><span>People</span></a>
+    <a href="#tasks" data-nav="tasks" title="Tasks"><svg class="ph" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a8,8,0,0,1-8,8H128a8,8,0,0,1,0-16h88A8,8,0,0,1,224,128ZM128,72h88a8,8,0,0,0,0-16H128a8,8,0,0,0,0,16Zm88,112H128a8,8,0,0,0,0,16h88a8,8,0,0,0,0-16ZM82.34,42.34,56,68.69,45.66,58.34A8,8,0,0,0,34.34,69.66l16,16a8,8,0,0,0,11.32,0l32-32A8,8,0,0,0,82.34,42.34Zm0,64L56,132.69,45.66,122.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Zm0,64L56,196.69,45.66,186.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Z"/></svg><span>Tasks</span><b class="nbadge" id="task-badge" hidden></b></a>
+    <a href="#leads" data-nav="leads" title="Leads"><svg class="ph" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M230.6,49.53A15.81,15.81,0,0,0,216,40H40A16,16,0,0,0,28.19,66.76l.08.09L96,139.17V216a16,16,0,0,0,24.87,13.32l32-21.34A16,16,0,0,0,160,194.66V139.17l67.74-72.32.08-.09A15.8,15.8,0,0,0,230.6,49.53ZM40,56h0Zm106.18,74.58A8,8,0,0,0,144,136v58.66L112,216V136a8,8,0,0,0-2.16-5.47L40,56H216Z"/></svg><span>Leads</span></a>
+    <a href="#groups" data-nav="groups" title="Groups"><svg class="ph" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M244.8,150.4a8,8,0,0,1-11.2-1.6A51.6,51.6,0,0,0,192,128a8,8,0,0,1-7.37-4.89,8,8,0,0,1,0-6.22A8,8,0,0,1,192,112a24,24,0,1,0-23.24-30,8,8,0,1,1-15.5-4A40,40,0,1,1,219,117.51a67.94,67.94,0,0,1,27.43,21.68A8,8,0,0,1,244.8,150.4ZM190.92,212a8,8,0,1,1-13.84,8,57,57,0,0,0-98.16,0,8,8,0,1,1-13.84-8,72.06,72.06,0,0,1,33.74-29.92,48,48,0,1,1,58.36,0A72.06,72.06,0,0,1,190.92,212ZM128,176a32,32,0,1,0-32-32A32,32,0,0,0,128,176ZM72,120a8,8,0,0,0-8-8A24,24,0,1,1,87.24,82a8,8,0,1,0,15.5-4A40,40,0,1,0,37,117.51,67.94,67.94,0,0,0,9.6,139.19a8,8,0,1,0,12.8,9.61A51.6,51.6,0,0,1,64,128,8,8,0,0,0,72,120Z"/></svg><span>Groups</span></a>
+    <a href="#lessons" data-nav="lessons" title="Lessons"><svg class="ph" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM80,48h24v88H80Zm32,104a8,8,0,0,0,8-8V48h16v96a8,8,0,0,0,8,8h8v56H104V152Zm40-16V48h24v88ZM48,48H64v96a8,8,0,0,0,8,8H88v56H48ZM208,208H168V152h16a8,8,0,0,0,8-8V48h16V208Z"/></svg><span>Lessons</span></a>
+    <button type="button" class="nav-out" data-signout title="Sign out"><svg class="ph" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M120,216a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V40a8,8,0,0,1,8-8h64a8,8,0,0,1,0,16H56V208h56A8,8,0,0,1,120,216Zm109.66-93.66-40-40a8,8,0,0,0-11.32,11.32L204.69,120H112a8,8,0,0,0,0,16h92.69l-26.35,26.34a8,8,0,0,0,11.32,11.32l40-40A8,8,0,0,0,229.66,122.34Z"/></svg><span>Sign out</span></button>
+    <button type="button" class="nav-toggle" id="navtoggle" aria-label="Collapse menu" title="Collapse menu"><svg class="ph" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z"/></svg><span>Collapse</span></button>
   </nav>
 
 </div>
@@ -555,7 +562,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
-<script src="js/grid.js?v=67"></script>
-<script src="js/app.js?v=67"></script>
+<script src="js/grid.js?v=68"></script>
+<script src="js/app.js?v=68"></script>
 </body>
 </html>

@@ -48,6 +48,17 @@ app: Scope" (Claude Docs, Nov 2026).
   means late or wrong. Dates drop the year when it is this year. Under 700px, tables become
   row lists and the filter bar scrolls sideways.
 
+  Look (Verdara, Nov 9, `web/css/verdara.css`, loaded last and wins): parchment page #F5EEDF,
+  cards #FBF7EE (never pure white), moss #143A2B for text, primary buttons and the nav, ochre
+  #F2B233 for "open / needs attention soon", coral #EC6A47 for late or wrong, sage #C8D6B4 and
+  mist #9DC9E5 for quiet tags. Fraunces for page titles, section titles, names and stat numbers;
+  Inter for everything else. Buttons, tabs, filters, tags are pills; cards 20px, items 14px.
+  No gradients, shadows only on dialogs and popovers, focus is a 3px ochre ring. Stat strip is
+  separate tiles: first one moss with the seal, a tile goes coral or ochre when its value is
+  `.red` / `.amber`. Side nav is moss with img/header-strata.jpg multiplied in; nav icons are
+  Phosphor regular, inlined as `svg.ph`. Find bar (`#find`, `/` or Cmd+K) sits above every
+  screen and searches people, groups and screens. Earlier colour notes above are superseded.
+
 ## Rules (do not loosen these)
 
 1. Never store a contact in this app. If a feature seems to need its own table
