@@ -114,9 +114,15 @@ function summary_(g, rows) {
     for (var i = (filled[s] || 0); i < seats[s]; i++) open.push(s);
   });
   var cap = Object.keys(seats).reduce(function (n, s) { return n + seats[s]; }, 0);
+  // Who sits in each chair, for the Seats view on Groups: first name and instrument only.
+  var lineup = {};
+  members.forEach(function (r) {
+    var inst = split_(r.Instruments)[0] || '', s = seat_(inst) || 'Other';
+    (lineup[s] = lineup[s] || []).push({ id: r.ID, name: String(r.First || String(r.Name).split(' ')[0] || ''), full: r.Name, inst: inst });
+  });
   return { name: g.Program, kind: g.Kind, when: g.When || 'Current', schedule: g.Schedule, teacher: g.Teacher,
     level: g.Level, notes: g.Notes, members: members.length, others: rows.length - members.length,
-    capacity: cap || null, open: open };
+    capacity: cap || null, open: open, seats: seats, lineup: lineup };
 }
 
 /** One program: members, people also tagged, open seats and who could fill them. */

@@ -310,18 +310,23 @@ function setLeadTag_(who, p) {
     var changes = [];
     if (p.field === 'stage') {
       var r = rosterRows_().filter(function (x) { return x.ID === sid; })[0];
-      var current = r ? split_(r['Other tags']).filter(function (t) { return /^Stage: /.test(t); }) : [];
-      current.forEach(function (t) {
-        if (t !== 'Stage: ' + p.value) { tagWrite_(sid, t, false); rosterTag_(sid, t, false); }
-      });
-      if (p.value !== 'First Contact') { tagWrite_(sid, 'Stage: ' + p.value, true); rosterTag_(sid, 'Stage: ' + p.value, true); }
       var why = String(p.reason || '').trim().slice(0, 300);
       var cfg = getSettings_();
+      // Check the stage's requirements before touching MMS, so a refused move changes nothing.
       var need = (cfg.stages.filter(function (x) { return x.stage === p.value; })[0] || {}).requires || '';
       if (/lost reason/i.test(need) && !why) throw new Error('Pick why they are not joining first.');
       if (/^program$/i.test(need)) {
         var hasProg = split_(r && r['Other tags']).some(function (t) { return /^Interest: /.test(t); }) || (r && formInterests_(signup_(r.Note).interested, signup_(r.Note).form).length);
         if (!hasProg) throw new Error('Set what they are interested in before Committed.');
+      }
+      var current = r ? split_(r['Other tags']).filter(function (t) { return /^Stage: /.test(t); }) : [];
+      var already = p.value === 'First Contact' ? !current.length : (current.length === 1 && current[0] === 'Stage: ' + p.value);
+      if (!already) {
+        // Add the new stage first, then take the old one off: if MMS stops halfway they keep a stage.
+        if (p.value !== 'First Contact') { tagWrite_(sid, 'Stage: ' + p.value, true); rosterTag_(sid, 'Stage: ' + p.value, true); }
+        current.forEach(function (t) {
+          if (t !== 'Stage: ' + p.value) { tagWrite_(sid, t, false); rosterTag_(sid, t, false); }
+        });
       }
       // Why a lead was lost, as MMS tags ("Lost: Price"), so it stays with them in MMS.
       // Only the preset reasons become tags; anything typed stays in the note. Reopening clears them.

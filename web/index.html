@@ -26,12 +26,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/css/tabulator.min.css">
-<link rel="stylesheet" href="css/nsjw.css?v=64">
-<link rel="stylesheet" href="css/app.css?v=64">
-<link rel="stylesheet" href="css/sgraffito.css?v=64">
-<link rel="stylesheet" href="css/natural.css?v=64">
-<link rel="stylesheet" href="css/record.css?v=64">
-<link rel="stylesheet" href="css/hq.css?v=64">
+<link rel="stylesheet" href="css/nsjw.css?v=66">
+<link rel="stylesheet" href="css/app.css?v=66">
+<link rel="stylesheet" href="css/sgraffito.css?v=66">
+<link rel="stylesheet" href="css/natural.css?v=66">
+<link rel="stylesheet" href="css/record.css?v=66">
+<link rel="stylesheet" href="css/hq.css?v=66">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
@@ -224,25 +224,30 @@
 
   <!-- Groups -->
   <section id="v-groups" class="view" hidden>
-    <header class="art black">
-      <div class="eyebrow" id="groups-eyebrow">Ensembles, classes and clinics</div>
-      <h1>Groups</h1>
-    </header>
-    <main>
-      <div class="whenbar" id="when-tabs" role="tablist">
-        <button class="tab on" data-when="Current">Current</button>
-        <button class="tab" data-when="Upcoming">Upcoming</button>
-        <button class="tab" data-when="Past">Past</button>
+    <main class="pagewrap">
+     <div class="page-card" id="groups-card">
+      <div class="ph"><h1>Groups</h1>
+        <div class="ph-act">
+          <div class="seg" id="groups-mode" role="group" aria-label="View">
+            <button type="button" class="tab" data-gmode="table">Table</button><button type="button" class="tab" data-gmode="seats">Seats</button>
+          </div>
+        </div>
       </div>
-      <div class="chips" id="kind-chips">
-        <button class="chip on" data-kind="">All</button>
-        <button class="chip" data-kind="Ensemble">Ensembles</button>
-        <button class="chip" data-kind="Class">Classes</button>
-        <button class="chip" data-kind="Clinic">Clinics</button>
-        <button class="chip" data-kind="open">Open seats</button>
+      <section class="statstrip" id="groups-stats" aria-label="Groups summary"></section>
+      <nav class="vtabs" id="when-tabs" aria-label="When"></nav>
+      <div class="fbar">
+        <label class="fsearch"><span class="sr">Search groups</span><input id="gq" type="search" placeholder="Search groups or players" autocomplete="off"></label>
+        <select class="btn filter" id="gf-kind" aria-label="Type"></select>
+        <select class="btn filter" id="gf-day" aria-label="Day"></select>
+        <select class="btn filter" id="gf-teacher" aria-label="Teacher"></select>
+        <select class="btn filter" id="gf-level" aria-label="Level"></select>
+        <select class="btn filter" id="gf-open" aria-label="Open seat for"></select>
+        <span class="grow"></span>
+        <button type="button" class="btn" id="gcols">Columns</button>
       </div>
-      <div class="groups-sum muted" id="groups-sum"></div>
-      <div id="group-list" class="list"></div>
+      <div id="group-list"></div>
+      <div class="lfoot"><span class="muted" id="groups-sum"></span><span class="muted small" id="groups-hint"></span></div>
+     </div>
     </main>
   </section>
 
@@ -550,7 +555,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
-<script src="js/grid.js?v=64"></script>
-<script src="js/app.js?v=64"></script>
+<script src="js/grid.js?v=66"></script>
+<script src="js/app.js?v=66"></script>
 </body>
 </html>

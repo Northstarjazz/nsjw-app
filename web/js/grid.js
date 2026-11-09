@@ -81,10 +81,11 @@
       // Closed needs a reason: put the old stage back and let the app ask why first.
       if (v === 'Closed' && hooks.askClose) { cell.restoreOldValue(); hooks.askClose(row); return; }
       if (v === 'Enrolled' && hooks.askEnroll) { cell.restoreOldValue(); hooks.askEnroll(row); return; }
-      cell.getElement().classList.add('g-saving');
-      hooks.save(row, 'stage', v, true)
-        .then(function () { cell.getElement().classList.remove('g-saving'); hooks.saved(row, 'stage', v); })
-        .catch(function (e) { cell.getElement().classList.remove('g-saving'); cell.restoreOldValue(); hooks.failed(e); });
+      var el = cell.getElement(); if (el) el.classList.add('g-saving');
+      function unmark() { try { var x = cell.getElement(); if (x) x.classList.remove('g-saving'); } catch (e) {} }
+      hooks.save(row, 'stage', v, true, cell.getOldValue())
+        .then(function () { unmark(); hooks.saved(row, 'stage', v); })
+        .catch(function (e) { unmark(); try { cell.restoreOldValue(); } catch (x) {} hooks.failed(e); });
     };
   }
 
@@ -122,7 +123,7 @@
     t.on('rowSelectionChanged', function (data) { if (cfg.onSelect) cfg.onSelect(data); });
     t.on('rowClick', function (e, row) {
       if (e.target.closest('.tabulator-cell[tabulator-field="_sel"], .tabulator-editable, input, select')) return;
-      location.hash = '#p/' + encodeURIComponent(row.getData().id);
+      location.hash = cfg.href ? cfg.href(row.getData()) : '#p/' + encodeURIComponent(row.getData().id);
     });
     t.on('cellEditing', function (cell) {
       el.classList.add('g-editing');
@@ -175,6 +176,35 @@
   var LIST = function (h) { return h.LEAD; };
 
   window.NSJWGrid = {
+    groups: function (el, rows, h) {
+      var grid = build(el, {
+        id: 'nsjw-groups', empty: 'No groups match. Try another filter.',
+        href: function (d) { return '#g/' + encodeURIComponent(d.id); },
+        sort: { column: 'order', dir: 'asc' },
+        columns: [
+          { title: 'Group', field: 'order', minWidth: 120, widthGrow: 2, sorter: 'number', formatter: function (c) {
+            var d = c.getRow().getData(); return '<span class="g-name">' + esc(d.id) + '</span>' + (d.kind !== 'Ensemble' ? '<span class="g-note">' + esc(d.kind) + '</span>' : ''); } },
+          { title: 'When', field: 'when', minWidth: 140, widthGrow: 2, formatter: function (c) {
+            var v = String(c.getValue() || ''), i = v.indexOf(' · ');
+            return '<span class="g-list" title="' + esc(v) + '">' + esc(i > 0 ? v.slice(0, i) : v) + (i > 0 ? '<span class="g-note">' + esc(v.slice(i + 3).replace(/^weeks? /, 'wk ')) + '</span>' : '') + '</span>'; } },
+          { title: 'Teacher', field: 'teacher', minWidth: 110, widthGrow: 1 },
+          { title: 'Level', field: 'level', minWidth: 64, widthGrow: 0, sorter: 'number' },
+          { title: 'Filled', field: 'fill', minWidth: 116, widthGrow: 1, sorter: 'number', formatter: function (c) {
+            var d = c.getRow().getData();
+            if (!d.capacity) return '<span class="num">' + d.members + '</span><span class="g-note">people</span>';
+            return '<span class="g-fill"><span class="g-bar"><span style="width:' + Math.round(100 * d.fill) + '%"></span></span><span class="num">' + (d.capacity - d.openN) + '/' + d.capacity + '</span></span>'; } },
+          { title: 'Open seats', field: 'openN', minWidth: 150, widthGrow: 2, sorter: 'number', formatter: function (c) {
+            var d = c.getRow().getData(), L = d.openList;
+            return L.length ? '<span class="g-tags" title="' + esc(L.join(', ')) + '">' + L.slice(0, 2).map(function (o) { return '<span class="tag open">' + esc(o) + '</span>'; }).join('') + (L.length > 2 ? '<span class="g-more">+' + (L.length - 2) + '</span>' : '') + '</span>' : (d.capacity ? '<span class="g-add">Full</span>' : ''); } },
+          { title: 'Next rehearsal', field: 'next', minWidth: 100, widthGrow: 1, formatter: function (c) { return esc(c.getRow().getData().nextText || ''); } },
+          { title: 'Needs a look', field: 'checkN', minWidth: 130, widthGrow: 2, sorter: 'number', formatter: function (c) {
+            var d = c.getRow().getData(); return d.checks.length ? '<span class="g-chk" title="' + esc(d.checks.join('. ')) + '">' + esc(d.checks[0]) + (d.checks.length > 1 ? ' +' + (d.checks.length - 1) : '') + '</span>' : ''; } },
+          { title: 'People', field: 'members', minWidth: 80, widthGrow: 1, sorter: 'number', visible: false }
+        ]
+      });
+      columnsButton(h.colsBtn, grid);
+      return setRows(grid, el, rows, {}, null);
+    },
     people: function (el, rows, h) {
       var L = LIST(h);
       var grid = build(el, {

@@ -106,9 +106,27 @@ var OWNER_EMAILS_ = { ben: 'hello@northstarjazzworkshops.com', admin: 'admin@nor
 function applyStageRule_(who, sid, email, stage) {
   var rule = getSettings_().stages.filter(function (r) { return r.stage === stage; })[0];
   if (!rule || !rule.task) return null;
+  // Already has this exact task open (a repeat click, or moved back and forth): keep the one they have.
+  var dup = openStepFor_(sid, rule.task);
+  if (dup) return dup;
   try { closeNextStep_(sid); } catch (e) { Logger.log('closeNextStep_: ' + e.message); }
   var owner = OWNER_EMAILS_[String(rule.owner).toLowerCase()] || OWNER_EMAILS_.admin;
   var due = dueFrom_(rule.due);
   addNote_(who, { sid: sid, email: email, kind: 'next_step', text: rule.task, due: due, owner: owner });
   return { text: rule.task, due: due, owner: owner, row: tab_(NOTES_TAB).getLastRow() };
+}
+
+/** The open next step for this person with exactly this text, if there is one. */
+function openStepFor_(sid, text) {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOTES_TAB);
+  if (!sh || sh.getLastRow() < 2) return null;
+  var v = sh.getDataRange().getValues(), h = v[0];
+  var c = { sid: h.indexOf('MMS ID'), kind: h.indexOf('Kind'), text: h.indexOf('Text'), due: h.indexOf('Due'), owner: h.indexOf('Owner'), done: h.indexOf('Done') };
+  for (var i = v.length - 1; i >= 1; i--) {
+    if (v[i][c.sid] === sid && v[i][c.kind] === 'next_step' && !v[i][c.done] && String(v[i][c.text]) === String(text)) {
+      var d = v[i][c.due] instanceof Date ? Utilities.formatDate(v[i][c.due], Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(v[i][c.due] || '').slice(0, 10);
+      return { text: text, due: d, owner: v[i][c.owner], row: i + 1, existing: true };
+    }
+  }
+  return null;
 }
